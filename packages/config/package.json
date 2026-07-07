@@ -16,7 +16,8 @@
     "tsconfig.node.json"
   ],
   "scripts": {
-    "lint": "echo 'No lint for config package'"
+    "lint": "echo 'No lint for config package'",
+    "test": "echo 'No tests for config package'"
   },
   "peerDependencies": {
     "typescript": ">=5.0.0"

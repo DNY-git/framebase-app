@@ -19,11 +19,11 @@
 
 ## Current Status
 
-**Phase:** Phase 2 (The Spine) — **auth spine complete.** Projects/Tasks/Dashboard pending.
+**Phase:** Phase 2 (The Spine) — **Tasks module complete.** Dashboard stub pending.
 
-**One-line state:** Phase 2 auth spine (T-101) complete. A user can register (creating tenant + admin membership), log in, receive JWT access/refresh tokens, call authenticated endpoints via a global JWT guard, refresh tokens with rotation + reuse-theft detection, view their profile, and log out — all backed by MongoDB Atlas with bcryptjs+pepper hashing and full audit logging. 25/25 unit tests pass; typecheck and build clean. Projects/Tasks modules (T-104/T-105) are the next step.
+**One-line state:** Phase 2 auth spine (T-101), role guard (T-102), Projects module (T-104), and Tasks module (T-105) are complete. A user can manage projects and break them down into hierarchical tasks with strict dependency cycle-detection and lifecycle validation. 80/80 unit tests pass; typecheck and build clean. Dashboard stub (T-106) is the next step.
 
-**Last updated:** 2026-07-06.
+**Last updated:** 2026-07-07.
 
 ---
 
@@ -77,12 +77,7 @@
 
 ## Outstanding Work
 
-1. **Initialize git** (`git init`, branch `main`) and commit Phase 0 + Phase 1 + Phase 2 auth as the initial commit.
-2. Continue **Phase 2 — The Spine** ([TASKS.md T-102…T-107](./TASKS.md)):
-   - Role & permission enforcement per-route (T-102) — role guard + decorator.
-   - Tenant isolation enforcement + cross-tenant tests (T-103).
-   - Projects module — CRUD, phases, milestones, members (T-104).
-   - Tasks module — WBS, assignment, status, dependencies (T-105).
+1. Continue **Phase 2 — The Spine** ([TASKS.md T-106…T-107](./TASKS.md)):
    - Dashboard stub — project/task counts (T-106).
    - Audit log for all project/task mutations (T-107).
 
@@ -92,7 +87,6 @@
 
 - **MongoDB Atlas connection required for DB-dependent features.** The app degrades gracefully (starts successfully, health check returns `database: "disconnected"`) but DB operations will fail until `MONGODB_URI` is configured in `.env`. Set up a free Atlas cluster and whitelist your IP.
 - **Several docs still reference PostgreSQL/Prisma/Docker.** Updated as part of feature implementation (Phase 2+). See the note in Completed Work above for the full list.
-- **No git repository initialized yet** in the working directory. The first step should `git init`, set the default branch to `main`, and commit the documentation foundation as the initial commit.
 
 ---
 
@@ -121,9 +115,8 @@ Browser ──▶ API (NestJS modular monolith)
 
 ## Current Priorities
 
-1. **Initialize git repository** and make the first commit (Phase 0 + Phase 1).
-2. **Preserve `main` releasability from commit one.** All further work must pass CI before merging.
-3. **Begin Phase 2 spine.** Auth → multi-tenancy → Projects → Tasks (Phase 2) unblocks everything else.
+1. **Preserve `main` releasability.** All further work must pass CI before merging.
+2. **Continue Phase 2 spine.** Tenant isolation -> Projects -> Tasks (Phase 2) unblocks everything else.
 
 ---
 
@@ -131,13 +124,10 @@ Browser ──▶ API (NestJS modular monolith)
 
 In order, for whoever picks this up:
 
-1. **Initialize git** (`git init`, branch `main`) and commit all Phase 0 + Phase 1 + Phase 2 auth work as the initial commit.
-2. **Verify the auth spine** (smoke test):
+1. **Verify the auth spine** (smoke test):
    - Set `MONGODB_URI` in `.env` to a MongoDB Atlas connection string.
    - `npm run dev:api` → register a user via `POST /api/v1/auth/register` → log in → call `GET /api/v1/auth/me` with the access token → refresh → logout.
-3. **Continue Phase 2 spine** ([ROADMAP.md](./ROADMAP.md)):
-   - Role guard + decorator (T-102) for per-route role enforcement.
-   - Tenant isolation tests (T-103).
+2. **Continue Phase 2 spine** ([ROADMAP.md](./ROADMAP.md)):
    - Projects module (T-104) → Tasks module (T-105) → Dashboard stub (T-106).
 
 ---

@@ -134,3 +134,101 @@ export interface PaginationOptions {
   perPage?: number;
   sort?: Record<string, 1 | -1>;
 }
+
+// ---------------------------------------------------------------------------
+// Project Domain
+// ---------------------------------------------------------------------------
+
+export enum ProjectStatus {
+  PLANNING = 'planning',
+  ACTIVE = 'active',
+  ON_HOLD = 'on_hold',
+  COMPLETED = 'completed',
+  ARCHIVED = 'archived',
+}
+
+export enum ProjectRole {
+  VIEWER = 'viewer',
+  CREW = 'crew',
+  ENGINEER = 'engineer',
+  MANAGER = 'manager',
+  ADMIN = 'admin',
+}
+
+export interface ProjectDomain {
+  id: string;
+  tenantId: string;
+  code: string;
+  name: string;
+  description?: string;
+  status: ProjectStatus;
+  phase?: string;
+  startDate?: Date;
+  endDate?: Date;
+  budgetCents?: number;
+  location?: string;
+  createdBy: string;
+  archivedAt?: Date | null;
+  archivedBy?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * Project member domain shape returned by repositories and services.
+ */
+export interface ProjectMemberDomain {
+  id: string;
+  tenantId: string;
+  projectId: string;
+  userId: string;
+  role: ProjectRole;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// ============================================================================
+// TASKS DOMAIN
+// ============================================================================
+
+export enum TaskStatus {
+  TODO = 'todo',
+  IN_PROGRESS = 'in_progress',
+  BLOCKED = 'blocked',
+  DONE = 'done',
+  CANCELLED = 'cancelled',
+}
+
+export enum TaskPriority {
+  LOW = 'low',
+  MEDIUM = 'medium',
+  HIGH = 'high',
+  CRITICAL = 'critical',
+}
+
+export interface TaskDomain {
+  id: string;
+  tenantId: string;
+  projectId: string;
+  phaseId?: string;
+  parentId?: string;
+  assigneeId?: string;
+  title: string;
+  description?: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  dueDate?: Date;
+  order: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface TaskDependencyDomain {
+  id: string;
+  tenantId: string;
+  projectId: string;
+  predecessorId: string;
+  successorId: string;
+  createdAt: Date;
+}
+

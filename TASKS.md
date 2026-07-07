@@ -32,10 +32,10 @@ Each task carries an ID (`T-###`), an owner, and a phase from the roadmap. Branc
 | ID | Task | Status | Owner | Notes |
 | --- | --- | --- | --- | --- |
 | T-101 | Auth: registration, login, refresh tokens | ✅ Completed | Backend | Auth spine: JWT pair, bcryptjs+pepper, session rotation, audit. 25 tests pass. |
-| T-102 | Role & permission model implementation | 📋 Backlog | Backend | [docs/security/authorization.md](./docs/security/authorization.md) |
-| T-103 | Tenant isolation enforcement + cross-tenant tests | 📋 Backlog | Backend | Must fail cross-tenant access |
-| T-104 | Projects module (CRUD, phases, milestones, members) | 📋 Backlog | Full-stack | [docs/features/projects.md](./docs/features/projects.md) |
-| T-105 | Tasks module (WBS, assignment, status, dependencies) | 📋 Backlog | Full-stack | [docs/features/tasks.md](./docs/features/tasks.md) |
+| T-102 | Role & permission model implementation | ✅ Completed | Backend | RolesGuard + @Roles decorator implemented and tested. |
+| T-103 | Tenant isolation enforcement + cross-tenant tests | ✅ Completed | Backend | Cross-tenant isolation tested at BaseRepository. |
+| T-104 | Projects module (CRUD, phases, milestones, members) | ✅ Completed | Full-stack | [docs/features/projects.md](./docs/features/projects.md) |
+| T-105 | Tasks module (WBS, assignment, status, dependencies) | ✅ Completed | Full-stack | [docs/features/tasks.md](./docs/features/tasks.md) |
 | T-106 | Dashboard stub (project/task counts) | 📋 Backlog | Frontend | Full KPIs deferred to Phase 4 |
 | T-107 | Audit log for all mutations | 📋 Backlog | Backend | [PROJECT_RULES.md §5](./PROJECT_RULES.md#5-backend-rules) |
 
@@ -115,6 +115,8 @@ Each task carries an ID (`T-###`), an owner, and a phase from the roadmap. Branc
 | T-008 | GitHub Actions CI | DevOps | 2026-07-03 | lint → typecheck → test → build |
 | T-009 | Health check + logging + error envelope | Backend | 2026-07-03 | Standard envelope per api/standards.md |
 | T-101 | Auth: registration, login, refresh tokens | Backend | 2026-07-06 | JWT pair, bcryptjs+pepper, session rotation, reuse-theft detection, audit logging. 25 unit tests. |
+| T-102 | Role & permission model implementation | Backend | 2026-07-07 | RolesGuard + @Roles decorator implemented and tested. |
+| T-103 | Tenant isolation enforcement + cross-tenant tests | Backend | 2026-07-07 | Verified Mongoose BaseRepository automatic tenant scoping. |
 
 ---
 

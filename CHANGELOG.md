@@ -7,6 +7,19 @@ Until implementation starts, versions are documented as `0.0.x` documentation re
 ## [Unreleased]
 
 ### Added
+- **T-105: Tasks Module**
+  - Mongoose schemas for `Task` and `TaskDependency`.
+  - CRUD operations with full `TenantId` isolation and `AuthContext` injection.
+  - Cycle detection for task dependencies.
+  - Lifecycle state machine and dependency blocking constraints.
+- **T-104: Projects Module**
+  - Mongoose schemas for `Project` and `ProjectMember`.
+  - Full CRUD operations with `TenantId` isolation and auto-assigned creator admin.
+  - Lifecycle state machine enforcement.
+  - Project membership management with robust constraints (e.g. preventing the removal/demotion of the last manager).
+  - Extensive audit logging.
+  - Controller secured via JWT and integrated with the new `AuthorizationModule`.
+- `AuthorizationModule` and `AuthorizationService` for handling three-axis security (Tenant + Role + Membership).
 - **ADR-002** (`docs/decisions/ADR-002-database-and-infra.md`) — supersedes ADR-001's PostgreSQL and Docker decisions. Documents the shift to MongoDB Atlas, Mongoose behind a swappable repository interface, no Docker/Compose for development, and Redis deferred to Phase 5.
 - **Phase 1 platform skeleton** (npm workspaces monorepo, no Docker required):
   - Root workspace config: `package.json` (npm workspaces), `tsconfig.json` (project references), `.gitignore`, `.npmrc`.
@@ -35,7 +48,8 @@ Until implementation starts, versions are documented as `0.0.x` documentation re
     - DTOs: `RegisterDto`, `LoginDto`, `RefreshDto` (class-validator edge validation).
     - `AuthService` — register (creates tenant + admin membership), login (generic 401, no enumeration), refresh (token rotation + reuse-theft detection), logout, getMe.
     - `AuthController` — 5 endpoints under `/api/v1/auth/` per `docs/api/authentication.md`.
-  - **Security:** Global `JwtAuthGuard` (`APP_GUARD`) — every route protected unless `@Public()`. `@Public()`, `@CurrentUser()`, `@CurrentTenant()` decorators.
+  - **Security:** Global `JwtAuthGuard` (`APP_GUARD`) — every route protected unless `@Public()`. `@Public()`, `@CurrentUser()`, `@CurrentTenant()` decorators. Added `RolesGuard` (`APP_GUARD`) and `@Roles()` decorator for role-based authorization (T-102).
+  - **Tenant Isolation (T-103):** Verified `BaseRepository` automatically enforces row-level tenant isolation on all queries. Cross-tenant access is structurally impossible and covered by dedicated unit tests.
   - **Audit module** (`apps/api/src/modules/audit/`): global `AuditService` recording auth mutations (register, login, logout) with actor, action, entity, IP/UA metadata. Fire-and-forget with error logging.
   - **Seed script** updated to hash the seed password with pepper + bcryptjs (replaces placeholder hash).
   - **Cookie-parser** middleware added to `main.ts` for refresh-token cookie transport.

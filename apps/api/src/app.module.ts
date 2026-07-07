@@ -14,10 +14,14 @@ import { ConfigValidationService } from './config/validation';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { RolesGuard } from './common/guards/roles.guard';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { ProjectsModule } from './modules/projects/projects.module';
+import { TasksModule } from './modules/tasks/tasks.module';
+import { AuthorizationModule } from './common/authorization/authorization.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -29,6 +33,9 @@ import { AppController } from './app.controller';
     DatabaseModule,
     AuditModule,
     AuthModule,
+    ProjectsModule,
+    TasksModule,
+    AuthorizationModule,
     HealthModule,
   ],
   controllers: [AppController],
@@ -46,6 +53,11 @@ import { AppController } from './app.controller';
       // Global JWT guard — every route is protected unless @Public().
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    {
+      // Global Roles guard — enforces tenant-level role authorization.
+      provide: APP_GUARD,
+      useClass: RolesGuard,
     },
   ],
 })
