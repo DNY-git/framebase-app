@@ -1,0 +1,24 @@
+{
+  "name": "@constructtrack/types",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared TypeScript types, DTOs, and enums for ConstructTrack",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "echo 'No lint for types package'",
+    "test": "echo 'No tests for types package'"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}
