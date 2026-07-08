@@ -179,3 +179,19 @@ Each module should consistently include:
 - Documentation
 
 Avoid introducing new architectural patterns when an existing one already solves the problem.
+
+## Standard Completion Report
+
+Every completed roadmap task MUST produce:
+
+1. Release Summary
+2. Verification Matrix
+3. Project Progress
+4. Metrics
+5. Technical Debt Summary
+6. Next Task Preview
+7. Updated HANDOFF.md
+
+These reports must be generated regardless of the AI model being used.
+
+The repository and documentation are the single source of truth. Previous conversations must never be required to continue development.
