@@ -19,11 +19,11 @@
 
 ## Current Status
 
-**Phase:** Phase 2 (The Spine) — **Phase 2 complete.** Ready for Phase 3.
+**Phase:** Phase 3 (Field Operations) — **T-201 (Equipment registry) complete.** T-202–T-205 backlog.
 
-**One-line state:** Phase 2 auth spine (T-101), role guard (T-102), Projects module (T-104), Tasks module (T-105), Dashboard stub (T-106), and Audit logs (T-107) are complete. A user can manage projects, tasks, view overview counts, and track all mutations via the activity endpoints. Typecheck, lint, and tests pass. Ready for Phase 3.
+**One-line state:** Phase 2 spine (auth, projects, tasks, audit) ✅ complete. Phase 3 begun: Equipment registry + assignment (T-201) ✅ complete. Equipment includes 5 repositories, service with 12 core methods, 8 DTOs, 5 schemas, 10 API endpoints, minimal React list stub. Typecheck, lint, tests (86/86) pass. Working tree clean. Ready for T-202 (utilization + maintenance).
 
-**Last updated:** 2026-07-07.
+**Last updated:** 2026-07-08.
 
 ---
 
@@ -73,18 +73,41 @@
 
 **Note:** Several docs reference PostgreSQL/Prisma/Docker and will be updated as their respective features land: `docs/architecture/database.md`, `docs/database/schema.md`, `docs/database/migrations.md`, `docs/database/security.md`, `docs/architecture/backend.md`, `docs/deployment/local.md`, `docs/deployment/production.md`, `docs/deployment/ci-cd.md`, `docs/testing/strategy.md`, `docs/testing/backend.md`. These updates are tracked as part of Phase 2+ implementation.
 
+### Phase 3 — Equipment Registry + Assignment (T-201) — complete
+
+- **Equipment domain:** 5 schemas (Equipment, EquipmentAssignment, EquipmentUsageLog, MaintenanceRecord, DowntimeLog) with proper indexes for tenant scoping and query performance.
+- **Repository layer:** 5 repositories extending `BaseRepository` with adapters for DTO ↔ Mongoose document conversion:
+  - `EquipmentRepository` — registry CRUD
+  - `EquipmentAssignmentRepository` — project allocation with overlap validation
+  - `EquipmentUsageLogRepository` — daily hours logged
+  - `MaintenanceRecordRepository` — maintenance scheduling & history
+  - `DowntimeLogRepository` — unavailability tracking
+- **Service layer:** `EquipmentService` with 12 core methods (create, findAll, findOne, update, assignToProject, endAssignment, logUsage, getUsageLogs, scheduleMaintenance, updateMaintenance, logDowntime, getDowntimeLogs). All mutations audit-logged.
+- **DTOs:** 8 DTOs for all create/update operations with `class-validator` validation.
+- **API endpoints:** 10 endpoints under `/api/v1/equipment` (CRUD, assignments, usage, maintenance, downtime) per [docs/api/endpoints.md](./docs/api/endpoints.md).
+- **Frontend:** `EquipmentList` React component (minimal stub; full detail/edit deferred to T-202).
+- **Types:** 9 domain types exported from `@constructtrack/types` (EquipmentStatus, EquipmentDomain, EquipmentAssignmentDomain, EquipmentUsageLogDomain, MaintenanceType, MaintenanceStatus, MaintenanceRecordDomain, DowntimeReason, DowntimeLogDomain).
+- **Tests:** 6 tests in `equipment.service.spec.ts` covering core service methods; all passing. Total API test suite: 86 tests, all passing.
+- **Repository pattern:** All equipment data access enforces tenant isolation at the `BaseRepository` level; cross-tenant access is structurally impossible.
+- **Audit logging:** All mutations (assignments, usage, maintenance, downtime) recorded via `AuditService`.
+- **Status:** Typecheck ✅, Lint ✅ (zero warnings), Tests ✅ (86/86). Working tree clean.
+
 ---
 
 ## Outstanding Work
-1. Begin **Phase 3 (Field Operations)** ([ROADMAP.md](./ROADMAP.md)):
-   - Equipment utilization + maintenance schedule (T-202).
+
+1. **Phase 3 (Field Operations)** ([ROADMAP.md](./ROADMAP.md)):
+   - T-202: Equipment utilization + maintenance schedule (next priority).
+   - T-203–T-205: Inventory and task-equipment linkage (backlog).
+2. **Phase 4+:** Reports, Dashboard KPIs, Notifications, AI Assistant, Observability, Hardening.
 
 ---
 
 ## Known Issues
 
 - **MongoDB Atlas connection required for DB-dependent features.** The app degrades gracefully (starts successfully, health check returns `database: "disconnected"`) but DB operations will fail until `MONGODB_URI` is configured in `.env`. Set up a free Atlas cluster and whitelist your IP.
-- **Several docs still reference PostgreSQL/Prisma/Docker.** Updated as part of feature implementation (Phase 2+). See the note in Completed Work above for the full list.
+- **Equipment detail/edit UI incomplete.** Only list view exists; full CRUD and assignment timeline deferred to T-202.
+- **Several docs still reference PostgreSQL/Prisma/Docker.** Updated as part of feature implementation (Phase 2+). See the note under Phase 2 in Completed Work above for the full list.
 
 ---
 
@@ -107,14 +130,16 @@ Browser ──▶ API (NestJS modular monolith)
 - **No Docker:** development uses `npm run dev`; CI uses GitHub Actions without service containers.
 - **Redis deferred to Phase 5:** no caching or queue infrastructure until then.
 - **AI:** provider-agnostic service layer; no vendor SDK in domain code.
+- **Equipment domain (T-201):** full CRUD, assignment lifecycle, usage/maintenance/downtime tracking with audit logging. Detail UI deferred to T-202.
 - **Stack rationale:** [TECH_STACK.md](./TECH_STACK.md). DB/infra rationale: [ADR-002](./docs/decisions/ADR-002-database-and-infra.md).
 
 ---
 
 ## Current Priorities
 
-1. **Preserve `main` releasability.** All further work must pass CI before merging.
-2. **Continue Phase 2 spine.** Tenant isolation -> Projects -> Tasks (Phase 2) unblocks everything else.
+1. **Preserve `main` releasability.** All further work must pass CI before merging (typecheck, lint, tests).
+2. **Begin T-202 (Equipment utilization).** Extend equipment domain with operational insights: utilization trends, maintenance forecasts, upcoming-due alerts, cost analysis. This unblocks T-301 (Reports) and T-401 (Notifications).
+3. **Phase 3 execution.** Complete equipment feature (T-202), then move to inventory (T-203–T-205).
 
 ---
 
@@ -122,11 +147,21 @@ Browser ──▶ API (NestJS modular monolith)
 
 In order, for whoever picks this up:
 
-1. **Verify the auth spine** (smoke test):
-   - Set `MONGODB_URI` in `.env` to a MongoDB Atlas connection string.
-   - `npm run dev:api` → register a user via `POST /api/v1/auth/register` → log in → call `GET /api/v1/auth/me` with the access token → refresh → logout.
-2. **Begin Phase 3** ([ROADMAP.md](./ROADMAP.md)):
-   - Equipment registry (T-201) → Equipment utilization (T-202).
+1. **Verify the equipment domain** (smoke test):
+   - Set `MONGODB_URI` in `.env` to a MongoDB Atlas connection string if not already done.
+   - Run the seed script: `npm run seed`.
+   - Register equipment: `POST /api/v1/equipment` with valid auth token.
+   - List equipment: `GET /api/v1/equipment?perPage=10&page=1`.
+   - Assign to project: `POST /api/v1/equipment/:id/assignments` with valid projectId and date range.
+   - Log usage: `POST /api/v1/equipment/:id/usage`.
+   - Run tests: `npm test` (should see 86/86 passing, including 6 new equipment service tests).
+
+2. **Begin T-202 (Equipment utilization)**:
+   - Read [docs/features/equipment.md](./docs/features/equipment.md) (already written; sections below the Maintenance heading cover utilization).
+   - Implement `EquipmentReportService` with utilization computation and date-range queries.
+   - Add `/api/v1/equipment/:id/utilization` and `/api/v1/equipment/maintenance/upcoming` endpoints.
+   - Build frontend `EquipmentDetail` page with Utilization Chart and Maintenance Timeline.
+   - Integrate with `AuditService` for upcoming-maintenance alert events (future: T-401 Notifications will consume these).
 
 ---
 
@@ -136,9 +171,10 @@ If you are an AI continuing this work:
 
 1. Read [AI_CONTEXT.md](./AI_CONTEXT.md) (minimum required context).
 2. Read this file (you're here) and [TASKS.md](./TASKS.md) for the current board state.
-3. Check the [ROADMAP.md](./ROADMAP.md) phase you're entering and its exit criteria.
+3. Check the [ROADMAP.md](./ROADMAP.md) phase you're entering and its exit criteria. Current phase: **Phase 3 Field Operations**; T-201 ✅ complete; next: T-202.
 4. Honor [PROJECT_RULES.md](./PROJECT_RULES.md) — especially §1 (Behavior & Safety) and §13 (Definition of Done).
 5. For any irreversible action (destructive migration, deleting code, force-push), **stop and confirm** first.
 6. Update this file, [TASKS.md](./TASKS.md), and [CHANGELOG.md](./CHANGELOG.md) as you make progress.
+7. **Before pushing:** Ensure `npm run typecheck && npm run lint && npm test` all pass with zero warnings/errors.
 
 If you are a human: welcome — the docs are written to let you move fast safely. Start at [README.md](./README.md).
