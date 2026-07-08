@@ -357,12 +357,5 @@ export interface DowntimeLogDomain {
 }
 
 // Explicit exports to ensure downstream packages import these names reliably.
-export {
-  EquipmentUsageLogDomain,
-  MaintenanceType,
-  MaintenanceStatus,
-  MaintenanceRecordDomain,
-  DowntimeReason,
-  DowntimeLogDomain,
-};
+// End of file
 
