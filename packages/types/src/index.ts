@@ -356,3 +356,13 @@ export interface DowntimeLogDomain {
   updatedAt: Date;
 }
 
+// Explicit exports to ensure downstream packages import these names reliably.
+export {
+  EquipmentUsageLogDomain,
+  MaintenanceType,
+  MaintenanceStatus,
+  MaintenanceRecordDomain,
+  DowntimeReason,
+  DowntimeLogDomain,
+};
+
