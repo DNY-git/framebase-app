@@ -19,7 +19,6 @@ import {
   ProjectStatus,
   PaginationOptions,
   PaginatedResponse,
-  ProjectRole,
   TenantId,
 } from '@constructtrack/types';
 import { CreateTaskDto } from './dto/create-task.dto';
@@ -46,7 +45,7 @@ export class TasksService {
   async create(auth: AuthContext, projectId: string, data: CreateTaskDto): Promise<TaskDomain> {
     await this.authzService.assertProjectManager(auth, auth.tenantId, projectId);
 
-    const project = await this.projectsService.findById(auth, projectId);
+    await this.projectsService.findById(auth, projectId);
     
     // Assignee validation
     if (data.assigneeId) {
@@ -98,7 +97,8 @@ export class TasksService {
   ): Promise<TaskDomain> {
     const taskBefore = await this.findById(auth, projectId, id);
     
-    const isCrew = auth.role === undefined; // Quick heuristic, strictly we should use authz logic.
+    // isCrew logic placeholder
+    // const isCrew = auth.role === undefined; 
     // Actually, AuthorizationService doesn't expose role directly for project member check synchronously.
     // But we know 'crew' can only edit status/comment on *their own tasks*.
     // Manager/Admin/Engineer can edit everything.
@@ -203,8 +203,8 @@ export class TasksService {
       throw new BadRequestException('A task cannot depend on itself.');
     }
 
-    const successor = await this.findById(auth, projectId, successorId);
-    const predecessor = await this.findById(auth, projectId, predecessorId);
+    await this.findById(auth, projectId, successorId);
+    await this.findById(auth, projectId, predecessorId);
 
     const exists = await this.depRepo.exists(auth.tenantId, predecessorId, successorId);
     if (exists) {

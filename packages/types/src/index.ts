@@ -232,3 +232,127 @@ export interface TaskDependencyDomain {
   createdAt: Date;
 }
 
+// ============================================================================
+// DASHBOARD DOMAIN
+// ============================================================================
+
+export interface DashboardOverview {
+  projects: {
+    active: number;
+    onHold: number;
+    completingSoon: number;
+  };
+  tasks: {
+    atRisk: number;
+    mineToday: number;
+  };
+}
+
+// ============================================================================
+// AUDIT DOMAIN
+// ============================================================================
+
+export interface AuditLogDomain {
+  id: string;
+  tenantId: string;
+  actorId: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  before?: Record<string, unknown>;
+  after?: Record<string, unknown>;
+  correlationId?: string;
+  createdAt: Date;
+}
+
+// ============================================================================
+// EQUIPMENT DOMAIN
+// ============================================================================
+
+export enum EquipmentStatus {
+  AVAILABLE = 'available',
+  ASSIGNED = 'assigned',
+  MAINTENANCE = 'maintenance',
+  RETIRED = 'retired',
+}
+
+export interface EquipmentDomain {
+  id: string;
+  tenantId: string;
+  name: string;
+  serialNumber: string;
+  category: string;
+  status: EquipmentStatus;
+  purchaseDate?: Date;
+  purchaseCostCents?: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface EquipmentAssignmentDomain {
+  id: string;
+  tenantId: string;
+  equipmentId: string;
+  projectId: string;
+  operatorId?: string;
+  startDate: Date;
+  endDate?: Date;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface EquipmentUsageLogDomain {
+  id: string;
+  tenantId: string;
+  equipmentId: string;
+  date: Date;
+  hoursUsed: number;
+  operatorId?: string;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export enum MaintenanceType {
+  SCHEDULED = 'scheduled',
+  REPAIR = 'repair',
+}
+
+export enum MaintenanceStatus {
+  PENDING = 'pending',
+  COMPLETED = 'completed',
+}
+
+export interface MaintenanceRecordDomain {
+  id: string;
+  tenantId: string;
+  equipmentId: string;
+  type: MaintenanceType;
+  status: MaintenanceStatus;
+  date?: Date;
+  nextDueAt?: Date;
+  costCents?: number;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export enum DowntimeReason {
+  BREAKDOWN = 'breakdown',
+  WEATHER = 'weather',
+  OTHER = 'other',
+}
+
+export interface DowntimeLogDomain {
+  id: string;
+  tenantId: string;
+  equipmentId: string;
+  startDate: Date;
+  endDate?: Date;
+  reason: DowntimeReason;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+

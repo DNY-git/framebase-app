@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { Dashboard } from './features/dashboard/Dashboard';
+import { EquipmentList } from './features/equipment/EquipmentList';
 
 interface HealthResponse {
   status: string;
@@ -12,6 +14,11 @@ interface HealthResponse {
 export function App(): JSX.Element {
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [token, setToken] = useState<string>('');
+  const [email, setEmail] = useState('admin@tenant.local');
+  const [password, setPassword] = useState('Password123!');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'equipment'>('dashboard');
 
   useEffect(() => {
     fetch('/api/v1/health')
@@ -20,35 +27,90 @@ export function App(): JSX.Element {
       .catch((err: Error) => setError(err.message));
   }, []);
 
-  return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <main className="max-w-md w-full bg-white rounded-lg shadow p-8">
-        <h1 className="text-2xl font-bold text-gray-900">ConstructTrack</h1>
-        <p className="mt-2 text-gray-600">Construction Tracking Platform</p>
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoggingIn(true);
+    try {
+      const res = await fetch('/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      if (!res.ok) throw new Error('Login failed');
+      const data = await res.json();
+      setToken(data.data.accessToken);
+    } catch (err: unknown) {
+      alert((err as Error).message);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
 
-        <div className="mt-6 border-t border-gray-200 pt-4">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-            System Health
-          </h2>
-          {error && <p className="mt-2 text-red-600 text-sm">Error: {error}</p>}
-          {!health && !error && <p className="mt-2 text-gray-500 text-sm">Checking…</p>}
-          {health && (
-            <dl className="mt-2 space-y-1 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-gray-500">Status</dt>
-                <dd className="font-medium text-gray-900">{health.status}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-gray-500">Version</dt>
-                <dd className="font-medium text-gray-900">{health.version}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-gray-500">Database</dt>
-                <dd className="font-medium text-gray-900">{health.checks.database.status}</dd>
-              </div>
-            </dl>
-          )}
+  return (
+    <div className="min-h-screen bg-gray-50 p-4">
+      <header className="max-w-4xl mx-auto mb-8 bg-white p-4 rounded shadow flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">ConstructTrack</h1>
+          <p className="text-sm text-gray-500">System Status: {health?.status || error || 'Checking...'}</p>
         </div>
+        {token ? (
+          <div className="flex items-center space-x-4">
+            <button 
+              onClick={() => setActiveTab('dashboard')} 
+              className={`text-sm ${activeTab === 'dashboard' ? 'font-bold' : 'text-gray-600'}`}
+            >
+              Dashboard
+            </button>
+            <button 
+              onClick={() => setActiveTab('equipment')} 
+              className={`text-sm ${activeTab === 'equipment' ? 'font-bold' : 'text-gray-600'}`}
+            >
+              Equipment
+            </button>
+            <button onClick={() => setToken('')} className="text-sm text-blue-600 underline ml-4">Logout</button>
+          </div>
+        ) : null}
+      </header>
+
+      <main className="max-w-4xl mx-auto">
+        {!token ? (
+          <div className="bg-white p-6 rounded shadow max-w-sm mx-auto">
+            <h2 className="text-lg font-bold mb-4">Login</h2>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-700">Email</label>
+                <input 
+                  type="email" 
+                  value={email} 
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="mt-1 block w-full border border-gray-300 rounded p-2"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-700">Password</label>
+                <input 
+                  type="password" 
+                  value={password} 
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="mt-1 block w-full border border-gray-300 rounded p-2"
+                  required
+                />
+              </div>
+              <button 
+                type="submit" 
+                disabled={isLoggingIn}
+                className="w-full bg-blue-600 text-white rounded p-2 font-medium disabled:opacity-50"
+              >
+                {isLoggingIn ? 'Logging in...' : 'Log in'}
+              </button>
+            </form>
+          </div>
+        ) : activeTab === 'dashboard' ? (
+          <Dashboard token={token} />
+        ) : (
+          <EquipmentList token={token} />
+        )}
       </main>
     </div>
   );

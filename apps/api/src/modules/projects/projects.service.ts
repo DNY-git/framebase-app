@@ -3,7 +3,6 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { ProjectRepository } from './repositories/project.repository';
 import type { ProjectCreateInput } from './repositories/project.repository';

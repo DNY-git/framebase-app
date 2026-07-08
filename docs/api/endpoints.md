@@ -62,6 +62,7 @@ Spec: [../features/projects.md](../features/projects.md). Phase 2.
 | `GET` | `/projects` | 🔒 | List projects (paginated, filterable) |
 | `POST` | `/projects` | 🔒 | Create a project (`manager`+) |
 | `GET` | `/projects/:id` | 🔒 | Get a project |
+| `GET` | `/projects/:id/activity` | 🔒 | List project activity (audit log) |
 | `PATCH` | `/projects/:id` | 🔒 | Update a project |
 | `DELETE` | `/projects/:id` | 🔒 | Archive/delete a project |
 | `GET` | `/projects/:id/members` | 🔒 | List project members |
@@ -100,6 +101,7 @@ Spec: [../features/tasks.md](../features/tasks.md). Phase 2.
 | `GET` | `/projects/:projectId/tasks` | 🔒 | List tasks (filter by status, assignee, priority) |
 | `POST` | `/projects/:projectId/tasks` | 🔒 | Create a task (supports `parentId` for subtasks) |
 | `GET` | `/tasks/:id` | 🔒 | Get a task |
+| `GET` | `/tasks/:id/activity` | 🔒 | List task activity (audit log) |
 | `PATCH` | `/tasks/:id` | 🔒 | Update a task (status, assignee, dates…) |
 | `DELETE` | `/tasks/:id` | 🔒 | Delete a task |
 | `POST` | `/tasks/:id/dependencies` | 🔒 | Add a predecessor dependency |

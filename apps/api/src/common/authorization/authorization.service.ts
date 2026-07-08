@@ -29,7 +29,7 @@ import {
   isTenantAdmin,
   canManageProject,
 } from './permissions';
-import type { ProjectRole, TenantId } from '@constructtrack/types';
+import type { TenantId } from '@constructtrack/types';
 
 @Injectable()
 export class AuthorizationService {

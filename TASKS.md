@@ -36,8 +36,8 @@ Each task carries an ID (`T-###`), an owner, and a phase from the roadmap. Branc
 | T-103 | Tenant isolation enforcement + cross-tenant tests | ✅ Completed | Backend | Cross-tenant isolation tested at BaseRepository. |
 | T-104 | Projects module (CRUD, phases, milestones, members) | ✅ Completed | Full-stack | [docs/features/projects.md](./docs/features/projects.md) |
 | T-105 | Tasks module (WBS, assignment, status, dependencies) | ✅ Completed | Full-stack | [docs/features/tasks.md](./docs/features/tasks.md) |
-| T-106 | Dashboard stub (project/task counts) | 📋 Backlog | Frontend | Full KPIs deferred to Phase 4 |
-| T-107 | Audit log for all mutations | 📋 Backlog | Backend | [PROJECT_RULES.md §5](./PROJECT_RULES.md#5-backend-rules) |
+| T-106 | Dashboard stub (project/task counts) | ✅ Completed | Full-stack | Full KPIs deferred to Phase 4 |
+| T-107 | Audit log for all mutations | ✅ Completed | Backend | Project and Task mutations audited and fetchable via API. |
 
 ---
 
@@ -45,7 +45,7 @@ Each task carries an ID (`T-###`), an owner, and a phase from the roadmap. Branc
 
 | ID | Task | Status | Owner | Notes |
 | --- | --- | --- | --- | --- |
-| T-201 | Equipment registry + assignment | 📋 Backlog | Full-stack | [docs/features/equipment.md](./docs/features/equipment.md) |
+| T-201 | Equipment registry + assignment | ✅ Completed | Full-stack | [docs/features/equipment.md](./docs/features/equipment.md) |
 | T-202 | Equipment utilization + maintenance schedule | 📋 Backlog | Full-stack | |
 | T-203 | Inventory catalog + stock levels + reorder points | 📋 Backlog | Full-stack | [docs/features/inventory.md](./docs/features/inventory.md) |
 | T-204 | Inventory allocations to projects + delivery receipts | 📋 Backlog | Full-stack | |
@@ -117,6 +117,11 @@ Each task carries an ID (`T-###`), an owner, and a phase from the roadmap. Branc
 | T-101 | Auth: registration, login, refresh tokens | Backend | 2026-07-06 | JWT pair, bcryptjs+pepper, session rotation, reuse-theft detection, audit logging. 25 unit tests. |
 | T-102 | Role & permission model implementation | Backend | 2026-07-07 | RolesGuard + @Roles decorator implemented and tested. |
 | T-103 | Tenant isolation enforcement + cross-tenant tests | Backend | 2026-07-07 | Verified Mongoose BaseRepository automatic tenant scoping. |
+| T-104 | Projects module (CRUD, phases, milestones, members) | Full-stack | 2026-07-07 | Implemented in backend. |
+| T-105 | Tasks module (WBS, assignment, status, dependencies) | Full-stack | 2026-07-07 | Implemented DAG logic. |
+| T-106 | Dashboard stub (project/task counts) | Full-stack | 2026-07-07 | Implemented dashboard stub. |
+| T-107 | Audit log for all mutations | Backend | 2026-07-07 | Exposed project and task activity via API and verified mutation tracking. |
+| T-201 | Equipment registry + assignment | Full-stack | 2026-07-07 | Basic Mongoose CRUD, assignments schema, minimal React stub. |
 
 ---
 

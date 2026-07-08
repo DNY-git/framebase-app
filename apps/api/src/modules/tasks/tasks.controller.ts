@@ -9,19 +9,24 @@ import {
   Query,
   HttpCode,
   HttpStatus,
-  UseGuards,
 } from '@nestjs/common';
 import { TasksService } from './tasks.service';
+import { AuditService } from '../audit/audit.service';
+import { AuthorizationService } from '../../common/authorization/authorization.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
-import { CurrentUser, CurrentTenant } from '../../common/decorators/auth.decorator';
+import { CurrentUser } from '../../common/decorators/auth.decorator';
 import { AuthenticatedUser } from '../../common/decorators/authenticated-user.interface';
-import { TenantId } from '@constructtrack/types';
 import type { AuthContext } from '../../common/authorization/authorization.types';
+import { parsePagination, formatPaginatedResponse } from '../../common/utils/pagination.util';
 
 @Controller('v1/projects/:projectId/tasks')
 export class TasksController {
-  constructor(private readonly tasksService: TasksService) {}
+  constructor(
+    private readonly tasksService: TasksService,
+    private readonly auditService: AuditService,
+    private readonly authzService: AuthorizationService,
+  ) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -44,27 +49,14 @@ export class TasksController {
     @Query('page') page?: string,
     @Query('perPage') perPage?: string,
   ) {
-    const options = {
-      page: page ? parseInt(page, 10) : 1,
-      perPage: perPage ? parseInt(perPage, 10) : 20,
-    };
+    const options = parsePagination(page, perPage);
     const filter: Record<string, unknown> = {};
     if (status) filter.status = status;
     if (assigneeId) filter.assigneeId = assigneeId;
     if (priority) filter.priority = priority;
 
     const result = await this.tasksService.find(user as unknown as AuthContext, projectId, filter, options);
-    return {
-      data: result.items,
-      meta: {
-        pagination: {
-          page: result.page,
-          perPage: result.perPage,
-          totalItems: result.totalItems,
-          totalPages: result.totalPages,
-        },
-      },
-    };
+    return formatPaginatedResponse(result);
   }
 
   @Get(':taskId')
@@ -96,6 +88,26 @@ export class TasksController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     await this.tasksService.delete(user as unknown as AuthContext, projectId, taskId);
+  }
+
+  @Get(':taskId/activity')
+  async getActivity(
+    @Param('projectId') projectId: string,
+    @Param('taskId') taskId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('page') page?: string,
+    @Query('perPage') perPage?: string,
+  ) {
+    // Assert project access first
+    await this.authzService.assertProjectAccess(user as unknown as AuthContext, user.tenantId, projectId);
+    // Verify task belongs to project
+    await this.tasksService.findById(user as unknown as AuthContext, projectId, taskId);
+
+    const options = parsePagination(page, perPage);
+
+    const result = await this.auditService.findByEntity(user.tenantId, 'task', taskId, options);
+    
+    return formatPaginatedResponse(result);
   }
 
   // -------------------------------------------------------------------------

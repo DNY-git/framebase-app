@@ -19,9 +19,9 @@
 
 ## Current Status
 
-**Phase:** Phase 2 (The Spine) — **Tasks module complete.** Dashboard stub pending.
+**Phase:** Phase 2 (The Spine) — **Phase 2 complete.** Ready for Phase 3.
 
-**One-line state:** Phase 2 auth spine (T-101), role guard (T-102), Projects module (T-104), and Tasks module (T-105) are complete. A user can manage projects and break them down into hierarchical tasks with strict dependency cycle-detection and lifecycle validation. 80/80 unit tests pass; typecheck and build clean. Dashboard stub (T-106) is the next step.
+**One-line state:** Phase 2 auth spine (T-101), role guard (T-102), Projects module (T-104), Tasks module (T-105), Dashboard stub (T-106), and Audit logs (T-107) are complete. A user can manage projects, tasks, view overview counts, and track all mutations via the activity endpoints. Typecheck, lint, and tests pass. Ready for Phase 3.
 
 **Last updated:** 2026-07-07.
 
@@ -76,10 +76,8 @@
 ---
 
 ## Outstanding Work
-
-1. Continue **Phase 2 — The Spine** ([TASKS.md T-106…T-107](./TASKS.md)):
-   - Dashboard stub — project/task counts (T-106).
-   - Audit log for all project/task mutations (T-107).
+1. Begin **Phase 3 (Field Operations)** ([ROADMAP.md](./ROADMAP.md)):
+   - Equipment utilization + maintenance schedule (T-202).
 
 ---
 
@@ -127,8 +125,8 @@ In order, for whoever picks this up:
 1. **Verify the auth spine** (smoke test):
    - Set `MONGODB_URI` in `.env` to a MongoDB Atlas connection string.
    - `npm run dev:api` → register a user via `POST /api/v1/auth/register` → log in → call `GET /api/v1/auth/me` with the access token → refresh → logout.
-2. **Continue Phase 2 spine** ([ROADMAP.md](./ROADMAP.md)):
-   - Projects module (T-104) → Tasks module (T-105) → Dashboard stub (T-106).
+2. **Begin Phase 3** ([ROADMAP.md](./ROADMAP.md)):
+   - Equipment registry (T-201) → Equipment utilization (T-202).
 
 ---
 

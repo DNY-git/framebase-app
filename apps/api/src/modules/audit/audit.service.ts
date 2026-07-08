@@ -13,6 +13,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AuditLog, AuditLogDocument } from '../../schemas/audit-log.schema';
+import { PaginatedResponse, PaginationOptions, AuditLogDomain } from '@constructtrack/types';
 
 export interface AuditRecord {
   tenantId: string;
@@ -55,5 +56,56 @@ export class AuditService {
         }`,
       );
     }
+  }
+
+  /**
+   * Retrieves audit logs for a specific entity.
+   */
+  async findByEntity(
+    tenantId: string,
+    entityType: string,
+    entityId: string,
+    options: PaginationOptions,
+  ): Promise<PaginatedResponse<AuditLogDomain>> {
+    const filter = { tenantId, entityType, entityId };
+    
+    const page = options.page || 1;
+    const perPage = options.perPage || 20;
+    const skip = (page - 1) * perPage;
+
+    const [items, totalItems] = await Promise.all([
+      this.model
+        .find(filter)
+        .sort(options.sort || { createdAt: -1 })
+        .skip(skip)
+        .limit(perPage)
+        .lean()
+        .exec(),
+      this.model.countDocuments(filter).exec(),
+    ]);
+
+    return {
+      items: items.map(this.mapToDomain),
+      page,
+      perPage,
+      totalItems,
+      totalPages: Math.ceil(totalItems / perPage),
+    };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private mapToDomain(doc: any): AuditLogDomain {
+    return {
+      id: doc._id.toString(),
+      tenantId: doc.tenantId.toString(),
+      actorId: doc.actorId.toString(),
+      action: doc.action,
+      entityType: doc.entityType,
+      entityId: doc.entityId.toString(),
+      before: doc.before,
+      after: doc.after,
+      correlationId: doc.correlationId,
+      createdAt: doc.createdAt,
+    };
   }
 }

@@ -118,9 +118,13 @@ describe('ProjectsService', () => {
     authzService.assertProjectManager.mockResolvedValue(undefined);
 
     service = new ProjectsService(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
       projectRepo as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
       memberRepo as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
       auditService as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
       authzService as any,
     );
   });
@@ -312,6 +316,7 @@ describe('ProjectsService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     it('rejects invalid transition: archived → any', async () => {
       projectRepo.findById.mockResolvedValue(
         makeProject({ status: ProjectStatus.ARCHIVED }),

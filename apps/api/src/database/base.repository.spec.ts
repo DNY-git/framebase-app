@@ -32,7 +32,9 @@ class DummyRepository extends BaseRepository<
       id: doc._id.toString(),
       name: doc.name,
       tenantId: doc.tenantId,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
       createdAt: (doc as any).createdAt,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
       updatedAt: (doc as any).updatedAt,
     };
   }
@@ -45,6 +47,7 @@ class DummyRepository extends BaseRepository<
   }
 
   protected toUpdateDoc(data: { name?: string }): Partial<DummyDocument> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const update: any = {};
     if (data.name !== undefined) update.name = data.name;
     return update;
@@ -79,6 +82,7 @@ describe('BaseRepository - Tenant Isolation', () => {
   });
 
   beforeEach(async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await DummyModel.deleteMany({});
   });
 

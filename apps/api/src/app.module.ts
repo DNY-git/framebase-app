@@ -21,6 +21,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { TasksModule } from './modules/tasks/tasks.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { EquipmentModule } from './modules/equipment/equipment.module';
 import { AuthorizationModule } from './common/authorization/authorization.module';
 import { AppController } from './app.controller';
 
@@ -35,6 +37,8 @@ import { AppController } from './app.controller';
     AuthModule,
     ProjectsModule,
     TasksModule,
+    DashboardModule,
+    EquipmentModule,
     AuthorizationModule,
     HealthModule,
   ],

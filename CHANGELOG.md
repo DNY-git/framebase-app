@@ -7,6 +7,19 @@ Until implementation starts, versions are documented as `0.0.x` documentation re
 ## [Unreleased]
 
 ### Added
+- **T-201: Equipment Registry + Assignment (Phase 3)**
+  - Added `Equipment` and `EquipmentAssignment` domains.
+  - Implemented `EquipmentRepository` and `EquipmentAssignmentRepository` with Mongoose and `BaseRepository` for tenant isolation.
+  - Implemented `EquipmentService` with audit logging, project manager authorization for assignments, and status lifecycles.
+  - Added `/api/v1/equipment` endpoints.
+  - Added minimal `EquipmentList` React component to the web app for viewing the fleet.
+- **T-107: Audit Logs**
+  - All project and task mutations are recorded in the audit log via `AuditService`.
+  - Added `GET /api/v1/projects/:id/activity` and `GET /api/v1/projects/:projectId/tasks/:id/activity` endpoints to retrieve the audit log for a specific entity.
+  - Added `AuditLogDomain` interface to `@constructtrack/types`.
+- **T-106: Dashboard Stub**
+  - Mongoose queries for returning project and task counts scoped to the user and tenant.
+  - Basic minimal frontend dashboard view in React.
 - **T-105: Tasks Module**
   - Mongoose schemas for `Task` and `TaskDependency`.
   - CRUD operations with full `TenantId` isolation and `AuthContext` injection.

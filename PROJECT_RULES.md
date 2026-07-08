@@ -85,7 +85,7 @@ The narrative behind these rules lives in [BIBLE.md](./BIBLE.md). This file is t
 
 40. **Versioned paths:** `/api/v1/...`. Bump the version on a breaking change.
 41. **Consistent response envelopes.** Success and error shapes follow [docs/api/standards.md](./docs/api/standards.md).
-42. **Pagination, filtering, and sorting** follow the documented conventions on every list endpoint.
+42. **Pagination, filtering, and sorting** follow the documented conventions on every list endpoint. Do not manually parse pagination query parameters or build pagination metadata objects in controllers. Always use `parsePagination` and `formatPaginatedResponse` utilities from `apps/api/src/common/utils/pagination.util.ts` to ensure consistency and prevent duplication.
 43. **Idempotency keys** on unsafe operations that may be retried (e.g., report generation).
 44. **Every endpoint is documented** with request/response examples in [docs/api/endpoints.md](./docs/api/endpoints.md).
 
@@ -147,3 +147,35 @@ A change is complete only when **all** are true:
 ---
 
 *To propose changing a rule, open a PR editing this file with rationale. Rules evolve — but deliberately.*
+
+## Phase Transition Rule
+
+When a phase is completed:
+
+- Perform a complete architectural review.
+- Verify documentation consistency.
+- Identify reusable abstractions.
+- Reduce duplication.
+- Verify quality gates.
+- Produce a Phase Review.
+- Update HANDOFF.md with the architectural state of the project.
+
+Only then may implementation begin for the next phase.
+## Module Consistency Rule
+
+Every new domain module must mirror the existing architecture unless there is a documented reason to differ.
+
+Each module should consistently include:
+
+- Schema
+- Repository
+- DTOs
+- Service
+- Controller
+- Authorization
+- Audit logging
+- Validation
+- Tests
+- Documentation
+
+Avoid introducing new architectural patterns when an existing one already solves the problem.

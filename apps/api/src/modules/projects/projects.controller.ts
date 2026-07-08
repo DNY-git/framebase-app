@@ -21,6 +21,8 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
+import { AuditService } from '../audit/audit.service';
+import { AuthorizationService } from '../../common/authorization/authorization.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { CreateProjectMemberDto } from './dto/create-project-member.dto';
@@ -30,10 +32,15 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { Role, TenantId, EntityId } from '@constructtrack/types';
 import type { AuthenticatedUser } from '../../common/decorators/authenticated-user.interface';
 import type { AuthContext } from '../../common/authorization/authorization.types';
+import { parsePagination, formatPaginatedResponse } from '../../common/utils/pagination.util';
 
 @Controller('v1/projects')
 export class ProjectsController {
-  constructor(private readonly projectsService: ProjectsService) {}
+  constructor(
+    private readonly projectsService: ProjectsService,
+    private readonly auditService: AuditService,
+    private readonly authzService: AuthorizationService,
+  ) {}
 
   @Post()
   @Roles(Role.ADMIN, Role.PROJECT_MANAGER)
@@ -56,10 +63,7 @@ export class ProjectsController {
     @Query('status') status?: string,
     @Query('search') search?: string,
   ) {
-    const options = {
-      page: page ? parseInt(page, 10) : 1,
-      perPage: perPage ? parseInt(perPage, 10) : 20,
-    };
+    const options = parsePagination(page, perPage);
     const filter: Record<string, unknown> = {};
     if (status) filter.status = status;
     if (search) {
@@ -70,17 +74,7 @@ export class ProjectsController {
     }
 
     const result = await this.projectsService.find(user as unknown as AuthContext, filter, options);
-    return {
-      data: result.items,
-      meta: {
-        pagination: {
-          page: result.page,
-          perPage: result.perPage,
-          totalItems: result.totalItems,
-          totalPages: result.totalPages,
-        },
-      },
-    };
+    return formatPaginatedResponse(result);
   }
 
   @Get(':id')
@@ -114,6 +108,23 @@ export class ProjectsController {
     @Param('id') id: EntityId,
   ) {
     await this.projectsService.delete(user as unknown as AuthContext, id);
+  }
+
+  @Get(':id/activity')
+  async getActivity(
+    @CurrentTenant() tenantId: TenantId,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: EntityId,
+    @Query('page') page?: string,
+    @Query('perPage') perPage?: string,
+  ) {
+    await this.authzService.assertProjectAccess(user as unknown as AuthContext, tenantId, id as string);
+
+    const options = parsePagination(page, perPage);
+
+    const result = await this.auditService.findByEntity(tenantId as string, 'project', id as string, options);
+    
+    return formatPaginatedResponse(result);
   }
 
   // -------------------------------------------------------------------------

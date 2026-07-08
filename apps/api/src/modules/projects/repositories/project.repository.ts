@@ -23,7 +23,6 @@ import type {
   PaginationOptions,
   PaginatedResponse,
 } from '@constructtrack/types';
-import { CreateProjectDto } from '../dto/create-project.dto';
 import { UpdateProjectDto } from '../dto/update-project.dto';
 
 /**

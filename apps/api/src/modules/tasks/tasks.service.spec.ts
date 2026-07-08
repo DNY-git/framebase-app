@@ -7,8 +7,8 @@ import { ProjectsService } from '../projects/projects.service';
 import { AuthorizationService } from '../../common/authorization/authorization.service';
 import { AuditService } from '../audit/audit.service';
 import { AuthContext } from '../../common/authorization/authorization.types';
-import { TaskStatus, ProjectStatus, TaskPriority, ProjectRole, Role } from '@constructtrack/types';
-import { NotFoundException, ConflictException, BadRequestException, UnprocessableEntityException } from '@nestjs/common';
+import { TaskStatus, ProjectStatus, Role } from '@constructtrack/types';
+import { BadRequestException, UnprocessableEntityException } from '@nestjs/common';
 
 describe('TasksService', () => {
   let service: TasksService;
