@@ -1,9 +1,5 @@
 
 import { EquipmentService } from './equipment.service';
-import { EquipmentRepository } from './repositories/equipment.repository';
-import { EquipmentAssignmentRepository } from './repositories/equipment-assignment.repository';
-import { AuthorizationService } from '../../common/authorization/authorization.service';
-import { AuditService } from '../audit/audit.service';
 import { Role, EquipmentStatus } from '@constructtrack/types';
 import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -18,6 +14,12 @@ describe('EquipmentService', () => {
   let authzService: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let auditService: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let usageLogRepo: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let maintenanceRepo: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let downtimeRepo: any;
 
   const mockAuthContext = {
     userId: 'user-1',
@@ -59,11 +61,30 @@ describe('EquipmentService', () => {
       record: vi.fn(),
     };
 
+    usageLogRepo = {
+      create: vi.fn(),
+      find: vi.fn(),
+    };
+
+    maintenanceRepo = {
+      create: vi.fn(),
+      update: vi.fn(),
+      find: vi.fn(),
+    };
+
+    downtimeRepo = {
+      create: vi.fn(),
+      find: vi.fn(),
+    };
+
     service = new EquipmentService(
       equipmentRepo,
       assignmentRepo,
       authzService,
       auditService,
+      usageLogRepo,
+      maintenanceRepo,
+      downtimeRepo,
     );
   });
 

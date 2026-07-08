@@ -7,7 +7,7 @@ import { AssignEquipmentDto } from './dto/assign-equipment.dto';
 import { AuthContext } from '../../common/authorization/authorization.types';
 import { AuditService } from '../audit/audit.service';
 import { AuthorizationService } from '../../common/authorization/authorization.service';
-import { EquipmentDomain, EquipmentAssignmentDomain, EquipmentStatus, PaginationOptions, PaginatedResponse, Role, EquipmentUsageLogDomain, MaintenanceRecordDomain, DowntimeLogDomain, MaintenanceStatus } from '@constructtrack/types';
+import { EquipmentDomain, EquipmentAssignmentDomain, EquipmentStatus, PaginationOptions, PaginatedResponse, Role, EquipmentUsageLogDomain, MaintenanceRecordDomain, DowntimeLogDomain } from '@constructtrack/types';
 import { isTenantAdmin } from '../../common/authorization/permissions';
 import { EquipmentUsageLogRepository } from './repositories/equipment-usage-log.repository';
 import { MaintenanceRecordRepository } from './repositories/maintenance-record.repository';
@@ -184,11 +184,9 @@ export class EquipmentService {
 
   async logUsage(auth: AuthContext, id: string, dto: CreateUsageLogDto): Promise<EquipmentUsageLogDomain> {
     await this.findById(auth, id); // Ensure equipment exists
-    const log = await this.usageLogRepository.create(auth.tenantId, {
-      ...dto,
-      equipmentId: id,
-      date: new Date(dto.date),
-    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const usagePayload = { ...(dto as CreateUsageLogDto), equipmentId: id } as CreateUsageLogDto & { equipmentId: string };
+    const log = await this.usageLogRepository.create(auth.tenantId, usagePayload);
     return log;
   }
 
@@ -202,12 +200,9 @@ export class EquipmentService {
     this.assertFleetManager(auth);
     await this.findById(auth, id); // Ensure equipment exists
 
-    const record = await this.maintenanceRepository.create(auth.tenantId, {
-      ...dto,
-      equipmentId: id,
-      date: dto.date ? new Date(dto.date) : undefined,
-      nextDueAt: dto.nextDueAt ? new Date(dto.nextDueAt) : undefined,
-    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const maintenancePayload = { ...(dto as CreateMaintenanceRecordDto), equipmentId: id } as CreateMaintenanceRecordDto & { equipmentId: string };
+    const record = await this.maintenanceRepository.create(auth.tenantId, maintenancePayload);
 
     return record;
   }
@@ -218,8 +213,8 @@ export class EquipmentService {
     // Convert dates before passing to repository
     const updateData = {
       ...dto,
-      date: dto.date ? new Date(dto.date) : undefined,
-      nextDueAt: dto.nextDueAt ? new Date(dto.nextDueAt) : undefined,
+      date: dto.date,
+      nextDueAt: dto.nextDueAt,
     };
     // Clean up undefined properties if necessary, but Mongoose will handle them or we can just pass it directly since it's Partial
     
@@ -240,12 +235,9 @@ export class EquipmentService {
     this.assertFleetManager(auth); // Only fleet managers log formal downtime? Or project managers too. For now, fleet managers.
     await this.findById(auth, id); // Ensure equipment exists
 
-    const log = await this.downtimeLogRepository.create(auth.tenantId, {
-      ...dto,
-      equipmentId: id,
-      startDate: new Date(dto.startDate),
-      endDate: dto.endDate ? new Date(dto.endDate) : undefined,
-    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const downtimePayload = { ...(dto as CreateDowntimeLogDto), equipmentId: id } as CreateDowntimeLogDto & { equipmentId: string };
+    const log = await this.downtimeLogRepository.create(auth.tenantId, downtimePayload);
     return log;
   }
 
