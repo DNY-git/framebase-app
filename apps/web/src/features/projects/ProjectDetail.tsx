@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import type { ProjectDomain, ProjectMemberDomain, AuditLogDomain } from '@constructtrack/types';
 import { ProjectStatus } from '@constructtrack/types';
 import { authFetch } from '../../auth-fetch';
@@ -8,6 +8,7 @@ import { ProjectForm } from './ProjectForm';
 import {
   ArrowLeft,
   Edit,
+  Trash,
   Calendar,
   MapPin,
   Users,
@@ -52,8 +53,10 @@ function timeAgo(date: Date | string): string {
 
 export function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const canEdit = user?.role === 'admin' || user?.role === 'project_manager';
+  const isAdmin = user?.role === 'admin';
 
   const [project, setProject] = useState<ProjectDomain | null>(null);
   const [members, setMembers] = useState<ProjectMemberDomain[]>([]);
@@ -61,6 +64,9 @@ export function ProjectDetail() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showEdit, setShowEdit] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'members' | 'activity'>('overview');
 
   const fetchProject = useCallback(async () => {
@@ -110,6 +116,24 @@ export function ProjectDetail() {
     fetchMembers();
     fetchActivity();
   }, [fetchProject, fetchMembers, fetchActivity]);
+
+  const handleDelete = async () => {
+    if (!id) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await authFetch(`/api/v1/projects/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        const message = (body as { error?: { message?: string } } | null)?.error?.message;
+        throw new Error(message ?? `Failed to delete project (${res.status})`);
+      }
+      navigate('/projects');
+    } catch (err) {
+      setDeleteError((err as Error).message);
+      setIsDeleting(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -167,12 +191,22 @@ export function ProjectDetail() {
           )}
         </div>
         {canEdit && (
-          <button
-            onClick={() => setShowEdit(true)}
-            className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted"
-          >
-            <Edit className="h-4 w-4" /> Edit
-          </button>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <button
+                onClick={() => setShowDelete(true)}
+                className="inline-flex items-center gap-2 rounded-lg border border-danger/30 px-4 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger/10"
+              >
+                <Trash className="h-4 w-4" /> Delete
+              </button>
+            )}
+            <button
+              onClick={() => setShowEdit(true)}
+              className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted"
+            >
+              <Edit className="h-4 w-4" /> Edit
+            </button>
+          </div>
         )}
       </div>
 
@@ -294,6 +328,44 @@ export function ProjectDetail() {
             fetchActivity();
           }}
         />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl border border-border bg-surface p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-foreground">Delete project?</h3>
+            <p className="mt-2 text-sm text-foreground-muted">
+              <span className="font-medium text-foreground">{project.name}</span> will be permanently
+              deleted. This action cannot be undone.
+            </p>
+            {deleteError && (
+              <p className="mt-3 rounded-lg border border-danger/20 bg-danger/5 p-3 text-sm text-danger">
+                {deleteError}
+              </p>
+            )}
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowDelete(false);
+                  setDeleteError(null);
+                }}
+                disabled={isDeleting}
+                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="inline-flex items-center gap-2 rounded-lg bg-danger px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-danger/90 disabled:opacity-50"
+              >
+                {isDeleting && <Loader2 className="h-4 w-4 animate-spin" />}
+                {isDeleting ? 'Deleting…' : 'Delete project'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

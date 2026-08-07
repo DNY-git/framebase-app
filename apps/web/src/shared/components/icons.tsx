@@ -250,6 +250,14 @@ export const Edit = createPathsWithElements([
   <path key="2" d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />,
 ]);
 
+export const Trash = createPathsWithElements([
+  <path key="1" d="M3 6h18" />,
+  <path key="2" d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />,
+  <path key="3" d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />,
+  <line key="4" x1="10" x2="10" y1="11" y2="17" />,
+  <line key="5" x1="14" x2="14" y1="11" y2="17" />,
+]);
+
 export const Calendar = createPathsWithElements([
   <rect key="1" width="18" height="18" x="3" y="4" rx="2" ry="2" />,
   <line key="2" x1="16" x2="16" y1="2" y2="6" />,
