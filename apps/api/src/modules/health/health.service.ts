@@ -1,15 +1,6 @@
-/**
- * Health service — aggregates subsystem health checks.
- *
- * In Phase 1, the only subsystem is the database (MongoDB Atlas).
- * Future phases will add checks for Redis, AI providers, etc.
- *
- * The health endpoint must never throw and must always respond quickly,
- * even if subsystems are degraded. This is why DatabaseService.getStatus()
- * is synchronous and non-throwing.
- */
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service';
+import { MetricsService } from '../metrics/metrics.service';
 
 export interface HealthCheckResult {
   status: 'ok' | 'degraded' | 'down';
@@ -19,6 +10,12 @@ export interface HealthCheckResult {
     database: {
       status: string;
       error: string | null;
+      pingMs?: number;
+    };
+    metrics: {
+      uptimeSeconds: number;
+      totalRequests: number;
+      totalErrors: number;
     };
   };
 }
@@ -27,20 +24,43 @@ export interface HealthCheckResult {
 export class HealthService {
   private readonly version = '0.1.0';
 
-  constructor(private readonly databaseService: DatabaseService) {}
+  constructor(
+    private readonly databaseService: DatabaseService,
+    private readonly metricsService: MetricsService,
+  ) {}
 
   async check(): Promise<HealthCheckResult> {
     const dbStatus = this.databaseService.getStatus();
+    const metrics = this.metricsService.snapshot();
+
+    let dbDisplayStatus: string = dbStatus.status;
+    let dbError: string | null = dbStatus.error;
+    let pingMs: number | undefined;
+
+    if (dbStatus.status === 'connected') {
+      const pingStart = Date.now();
+      const pingOk = await this.databaseService.ping();
+      pingMs = Date.now() - pingStart;
+      if (!pingOk) {
+        dbDisplayStatus = 'degraded';
+        dbError = 'Ping failed';
+      }
+    }
 
     const overall: HealthCheckResult['status'] =
-      dbStatus.status === 'connected' ? 'ok' : 'degraded';
+      dbDisplayStatus === 'connected' ? 'ok' : 'degraded';
 
     return {
       status: overall,
       timestamp: new Date().toISOString(),
       version: this.version,
       checks: {
-        database: dbStatus,
+        database: { status: dbDisplayStatus, error: dbError, pingMs },
+        metrics: {
+          uptimeSeconds: metrics.uptimeSeconds as number,
+          totalRequests: metrics.totalRequests as number,
+          totalErrors: metrics.totalErrors as number,
+        },
       },
     };
   }

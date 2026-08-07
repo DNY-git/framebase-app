@@ -7,7 +7,7 @@
  */
 import { Controller, Get } from '@nestjs/common';
 
-@Controller('api/v1')
+@Controller()
 export class AppController {
   @Get()
   root(): { name: string; version: string } {

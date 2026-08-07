@@ -59,6 +59,39 @@ export class AuditService {
   }
 
   /**
+   * Retrieves all audit logs for a tenant with optional filters.
+   */
+  async findAll(
+    tenantId: string,
+    options: PaginationOptions,
+    filter: Record<string, unknown> = {},
+  ): Promise<PaginatedResponse<AuditLogDomain>> {
+    const queryFilter = { tenantId, ...filter };
+    const page = options.page || 1;
+    const perPage = options.perPage || 20;
+    const skip = (page - 1) * perPage;
+
+    const [items, totalItems] = await Promise.all([
+      this.model
+        .find(queryFilter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(perPage)
+        .lean()
+        .exec(),
+      this.model.countDocuments(queryFilter).exec(),
+    ]);
+
+    return {
+      items: items.map(this.mapToDomain),
+      page,
+      perPage,
+      totalItems,
+      totalPages: Math.ceil(totalItems / perPage),
+    };
+  }
+
+  /**
    * Retrieves audit logs for a specific entity.
    */
   async findByEntity(

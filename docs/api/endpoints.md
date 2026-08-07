@@ -20,6 +20,7 @@ Companion docs: [../architecture/backend.md](../architecture/backend.md), featur
 - [Dashboard](#dashboard)
 - [Notifications](#notifications)
 - [AI Assistant](#ai-assistant)
+- [Observability / Metrics](#observability--metrics)
 
 ---
 
@@ -109,6 +110,11 @@ Spec: [../features/tasks.md](../features/tasks.md). Phase 2.
 | `POST` | `/tasks/:id/comments` | 🔒 | Comment on a task |
 | `GET` | `/tasks/:id/comments` | 🔒 | List comments |
 
+| `POST` | `/:taskId/equipment-usage` | 🔒 | Record equipment usage against a task |
+| `GET` | `/:taskId/equipment-usage` | 🔒 | List equipment usage for a task |
+| `POST` | `/:taskId/material-consumption` | 🔒 | Record material consumption against a task |
+| `GET` | `/:taskId/material-consumption` | 🔒 | List material consumption for a task |
+
 **Example — create task**
 
 ```
@@ -123,7 +129,6 @@ Content-Type: application/json
   "dueDate": "2026-08-15",
   "parentId": null
 }
-```
 
 Response: `201 Created` with the created task in the envelope.
 
@@ -145,20 +150,28 @@ Spec: [../features/equipment.md](../features/equipment.md). Phase 3.
 | `GET` | `/equipment/:id/maintenance` | 🔒 | List maintenance records |
 | `POST` | `/equipment/:id/maintenance` | 🔒 | Schedule/record maintenance |
 | `POST` | `/equipment/:id/downtime` | 🔒 | Log downtime |
+| `GET` | `/equipment/:id/utilization?from=&to=` | 🔒 | Calculate usage, downtime, and utilization percentage for a date range |
+| `GET` | `/equipment/maintenance/upcoming?days=30` | 🔒 | List overdue and upcoming fleet maintenance alerts |
+| `GET` | `/equipment/:id/usage-timeline?from=&to=` | 🔒 | List paginated usage logs for a date range |
+| `GET` | `/equipment/:id/maintenance-history` | 🔒 | List paginated maintenance history |
+| `GET` | `/equipment/:id/downtime-history` | 🔒 | List paginated downtime history |
 
 ---
 
 ## Inventory
 
-Spec: [../features/inventory.md](../features/inventory.md). Phase 3.
+Spec: [../features/inventory.md](../features/inventory.md). Phase 3. Status: T-203 (catalog + stock) + T-204 (transactions + deliveries) implemented.
 
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
-| `GET` | `/materials` | 🔒 | List materials (catalog) |
+| `GET` | `/materials` | 🔒 | List materials (catalog, with stock levels) |
 | `POST` | `/materials` | 🔒 | Create a material (`manager`+) |
-| `PATCH` | `/materials/:id` | 🔒 | Update material (incl. reorder point) |
-| `GET` | `/materials/:id/stock` | 🔒 | Current stock level |
 | `GET` | `/materials/low-stock` | 🔒 | Materials at/below reorder point |
+| `GET` | `/materials/:id` | 🔒 | Get material detail with stock level |
+| `PATCH` | `/materials/:id` | 🔒 | Update material (incl. reorder point) |
+| `PATCH` | `/materials/:id/archive` | 🔒 | Archive a material (`manager`+) |
+| `GET` | `/materials/:id/stock` | 🔒 | Current stock level |
+| `GET` | `/materials/:id/transactions` | 🔒 | List transactions for a material |
 | `POST` | `/inventory/transactions` | 🔒 | Record a movement (`receive`, `consume`, `adjust`, `transfer`) |
 | `GET` | `/inventory/transactions` | 🔒 | Ledger (filter by material, project, type, date) |
 | `POST` | `/deliveries` | 🔒 | Record a delivery receipt |
@@ -168,27 +181,26 @@ Spec: [../features/inventory.md](../features/inventory.md). Phase 3.
 
 ## Reports
 
-Spec: [../features/reports.md](../features/reports.md). Phase 4.
+Spec: [../features/reports.md](../features/reports.md). Status: T-301 implemented (sync generation).
 
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
-| `GET` | `/report-templates` | 🔒 | List templates |
-| `POST` | `/report-templates` | 🔒 | Create a template (`manager`+) |
-| `POST` | `/reports` | 🔒 | Generate a report run (async; returns job reference) |
-| `GET` | `/reports/:id` | 🔒 | Get report run status + download link |
-| `GET` | `/reports/:id/download` | 🔒 | Download generated artifact (PDF/CSV) |
+| `GET` | `/reports/templates` | 🔒 | List templates |
+| `POST` | `/reports/templates` | 🔒 | Create a template (`manager`+) |
+| `GET` | `/reports/templates/:id` | 🔒 | Get a template |
+| `POST` | `/reports` | 🔒 | Generate a report run (returns run reference) |
+| `GET` | `/reports` | 🔒 | List report runs (filter by templateId, status) |
+| `GET` | `/reports/:id` | 🔒 | Get report run status + result |
 
-**Example — generate report (async, idempotent):**
+**Example — generate report:**
 
 ```
 POST /api/v1/reports
-Idempotency-Key: <uuid>
 Content-Type: application/json
 
 { "templateId": "uuid", "params": { "projectId": "uuid", "from": "2026-06-01", "to": "2026-06-30" } }
-```
 
-Response: `202 Accepted` with `{ data: { id, status: "pending" } }`. Client polls `GET /reports/:id` until `status: "succeeded"`, then downloads.
+Response: `201 Created` with `{ data: { id, status: "pending", ... } }`. Client polls `GET /reports/:id` until `status: "succeeded"`.
 
 ---
 
@@ -214,26 +226,42 @@ Spec: [../features/notifications.md](../features/notifications.md). Phase 5.
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
 | `GET` | `/notifications` | 🔒 | List notifications (paginated; `unread=true` filter) |
-| `POST` | `/notifications/read` | 🔒 | Mark notifications read (by id or all) |
-| `GET` | `/notifications/subscriptions` | 🔒 | List user subscriptions |
-| `PUT` | `/notifications/subscriptions` | 🔒 | Update subscriptions/preferences |
+| `POST` | `/notifications` | 🔒 | Create a notification (`manager`+) |
+| `GET` | `/notifications/unread-count` | 🔒 | Count unread notifications |
+| `PATCH` | `/notifications/:id/read` | 🔒 | Mark a notification as read |
+| `PATCH` | `/notifications/read-all` | 🔒 | Mark all notifications as read |
+| `GET` | `/notifications/subscriptions` | 🔒 | List user subscription preferences |
+| `PUT` | `/notifications/subscriptions` | 🔒 | Bulk-upsert subscription preferences |
 
 ---
 
 ## AI Assistant
 
-Spec: [../features/ai-assistant.md](../features/ai-assistant.md). Phase 5.
+Spec: [../features/ai-assistant.md](../features/ai-assistant.md). Phase 5. Status: T-403/T-404 implemented with `NoneProvider` (graceful degradation when `AI_PROVIDER=none`).
 
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
-| `POST` | `/ai/query` | 🔒 | Ask a natural-language question (grounded; sync for short, async for long) |
-| `POST` | `/ai/summarize` | 🔒 | Generate a summary (project/week/etc.) — async |
-| `POST` | `/ai/draft-report` | 🔒 | Draft a report from parameters — async |
+| `POST` | `/ai/query` | 🔒 | Ask a natural-language question (sync) |
+| `POST` | `/ai/summarize` | 🔒 | Start a summarization job (async) |
+| `POST` | `/ai/draft-report` | 🔒 | Start a report draft job (async) |
+| `GET` | `/ai/jobs` | 🔒 | List my AI jobs |
 | `GET` | `/ai/jobs/:id` | 🔒 | Poll an async AI job |
 | `POST` | `/ai/feedback` | 🔒 | Submit thumbs-up/down + comment on an answer |
 
 AI requests are rate-limited and token-capped; see [../architecture/ai.md → Cost, Latency & Safety Bounds](../architecture/ai.md#cost-latency--safety-bounds).
 
 ---
+
+## Observability / Metrics
+
+Spec: [../features/observability.md](../features/observability.md). Phase 6. Status: T-501 implemented (in-memory metrics, no external deps).
+
+| Method | Path | Auth | Purpose |
+| --- | --- | --- | --- |
+| `GET` | `/metrics` | 🌐 | Request metrics (count, errors, avg/max duration per endpoint) |
+
+| Method | Path | Auth | Purpose |
+| --- | --- | --- | --- |
+| `GET` | `/health` | 🌐 | Health check (DB ping, metrics summary, version, uptime) |
 
 *When you add or change an endpoint, update this catalog, the relevant feature spec, and [CHANGELOG.md](../../CHANGELOG.md) in the same PR ([PROJECT_RULES.md §7](../../PROJECT_RULES.md#7-api-rules)).*

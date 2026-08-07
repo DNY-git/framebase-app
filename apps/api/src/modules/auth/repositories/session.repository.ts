@@ -106,6 +106,20 @@ export class SessionRepository {
   }
 
   /**
+   * Revokes a session by its refresh token hash.
+   * Returns true if a session was revoked, false if no active session matched.
+   */
+  async revokeSessionByToken(refreshToken: string): Promise<boolean> {
+    const result = await this.model
+      .updateOne(
+        { refreshTokenHash: this.hashToken(refreshToken), isActive: true },
+        { $set: { isActive: false } },
+      )
+      .exec();
+    return result.modifiedCount > 0;
+  }
+
+  /**
    * Lists active sessions for a user (for the sessions UI).
    */
   async findActiveByUser(userId: string): Promise<SessionDomain[]> {

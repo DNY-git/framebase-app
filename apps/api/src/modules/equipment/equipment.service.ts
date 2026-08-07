@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { ErrorCode, Role, EquipmentStatus } from '@constructtrack/types';
+import { DomainException } from '../../common/exceptions/domain.exception';
 import { EquipmentRepository } from './repositories/equipment.repository';
 import { EquipmentAssignmentRepository } from './repositories/equipment-assignment.repository';
 import { CreateEquipmentDto } from './dto/create-equipment.dto';
@@ -7,7 +9,7 @@ import { AssignEquipmentDto } from './dto/assign-equipment.dto';
 import { AuthContext } from '../../common/authorization/authorization.types';
 import { AuditService } from '../audit/audit.service';
 import { AuthorizationService } from '../../common/authorization/authorization.service';
-import { EquipmentDomain, EquipmentAssignmentDomain, EquipmentStatus, PaginationOptions, PaginatedResponse, Role, EquipmentUsageLogDomain, MaintenanceRecordDomain, DowntimeLogDomain } from '@constructtrack/types';
+import { EquipmentDomain, EquipmentAssignmentDomain, PaginationOptions, PaginatedResponse, EquipmentUsageLogDomain, MaintenanceRecordDomain, DowntimeLogDomain } from '@constructtrack/types';
 import { isTenantAdmin } from '../../common/authorization/permissions';
 import { EquipmentUsageLogRepository } from './repositories/equipment-usage-log.repository';
 import { MaintenanceRecordRepository } from './repositories/maintenance-record.repository';
@@ -31,7 +33,7 @@ export class EquipmentService {
 
   private assertFleetManager(auth: AuthContext) {
     if (!isTenantAdmin(auth.role) && auth.role !== Role.FLEET_MANAGER) {
-      throw new ForbiddenException('Only Fleet Managers or Admins can perform this action.');
+      throw new DomainException(ErrorCode.FORBIDDEN, HttpStatus.FORBIDDEN, 'Only Fleet Managers or Admins can perform this action.');
     }
   }
 
@@ -40,7 +42,7 @@ export class EquipmentService {
 
     const exists = await this.equipmentRepository.exists(auth.tenantId, { serialNumber: dto.serialNumber });
     if (exists) {
-      throw new ConflictException(`Equipment with serial number ${dto.serialNumber} already exists.`);
+      throw new DomainException(ErrorCode.EQUIPMENT_DUPLICATE_SERIAL, HttpStatus.CONFLICT, `Equipment with serial number ${dto.serialNumber} already exists.`);
     }
 
     const equipment = await this.equipmentRepository.create(auth.tenantId, dto);
@@ -69,7 +71,7 @@ export class EquipmentService {
   async findById(auth: AuthContext, id: string): Promise<EquipmentDomain> {
     const equipment = await this.equipmentRepository.findById(auth.tenantId, id);
     if (!equipment) {
-      throw new NotFoundException('Equipment not found');
+      throw new DomainException(ErrorCode.EQUIPMENT_NOT_FOUND, HttpStatus.NOT_FOUND, 'Equipment not found');
     }
     return equipment;
   }
@@ -82,12 +84,12 @@ export class EquipmentService {
     if (dto.serialNumber && dto.serialNumber !== before.serialNumber) {
       const exists = await this.equipmentRepository.exists(auth.tenantId, { serialNumber: dto.serialNumber });
       if (exists) {
-        throw new ConflictException(`Equipment with serial number ${dto.serialNumber} already exists.`);
+        throw new DomainException(ErrorCode.EQUIPMENT_DUPLICATE_SERIAL, HttpStatus.CONFLICT, `Equipment with serial number ${dto.serialNumber} already exists.`);
       }
     }
 
     const equipment = await this.equipmentRepository.update(auth.tenantId, id, dto);
-    if (!equipment) throw new NotFoundException('Equipment not found');
+    if (!equipment) throw new DomainException(ErrorCode.EQUIPMENT_NOT_FOUND, HttpStatus.NOT_FOUND, 'Equipment not found');
 
     this.auditService.record({
       tenantId: auth.tenantId,
@@ -110,7 +112,7 @@ export class EquipmentService {
     const equipment = await this.findById(auth, id);
 
     if (equipment.status === EquipmentStatus.MAINTENANCE || equipment.status === EquipmentStatus.RETIRED) {
-      throw new ConflictException(`Cannot assign equipment that is ${equipment.status}.`);
+      throw new DomainException(ErrorCode.EQUIPMENT_WRONG_STATUS, HttpStatus.CONFLICT, `Cannot assign equipment that is ${equipment.status}.`);
     }
 
     const hasOverlap = await this.assignmentRepository.hasOverlappingAssignment(
@@ -121,7 +123,7 @@ export class EquipmentService {
     );
 
     if (hasOverlap) {
-      throw new ConflictException('Equipment is already assigned during the requested period.');
+      throw new DomainException(ErrorCode.EQUIPMENT_ASSIGNMENT_CONFLICT, HttpStatus.CONFLICT, 'Equipment is already assigned during the requested period.');
     }
 
     const assignment = await this.assignmentRepository.create(auth.tenantId, {
@@ -149,7 +151,7 @@ export class EquipmentService {
   async release(auth: AuthContext, id: string, assignmentId: string): Promise<void> {
     const assignment = await this.assignmentRepository.findById(auth.tenantId, assignmentId);
     if (!assignment || assignment.equipmentId !== id) {
-      throw new NotFoundException('Assignment not found');
+      throw new DomainException(ErrorCode.EQUIPMENT_ASSIGNMENT_NOT_FOUND, HttpStatus.NOT_FOUND, 'Assignment not found');
     }
 
     await this.authzService.assertProjectManager(auth, auth.tenantId, assignment.projectId);
@@ -194,6 +196,10 @@ export class EquipmentService {
     return this.usageLogRepository.find(auth.tenantId, { equipmentId: id }, options);
   }
 
+  async getUsageLogsByTask(auth: AuthContext, taskId: string, options: PaginationOptions): Promise<PaginatedResponse<EquipmentUsageLogDomain>> {
+    return this.usageLogRepository.findByTask(auth.tenantId, taskId, options);
+  }
+
   // --- Maintenance ---
 
   async scheduleMaintenance(auth: AuthContext, id: string, dto: CreateMaintenanceRecordDto): Promise<MaintenanceRecordDomain> {
@@ -220,7 +226,7 @@ export class EquipmentService {
     
     const record = await this.maintenanceRepository.update(auth.tenantId, maintenanceId, updateData);
     if (!record || record.equipmentId !== id) {
-      throw new NotFoundException('Maintenance record not found');
+      throw new DomainException(ErrorCode.MAINTENANCE_RECORD_NOT_FOUND, HttpStatus.NOT_FOUND, 'Maintenance record not found');
     }
     return record;
   }

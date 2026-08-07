@@ -23,8 +23,17 @@ import { ProjectsModule } from './modules/projects/projects.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { EquipmentModule } from './modules/equipment/equipment.module';
+import { InventoryModule } from './modules/inventory/inventory.module';
+import { ReportsModule } from './modules/reports/reports.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { AiModule } from './modules/ai/ai.module';
+import { MetricsModule } from './modules/metrics/metrics.module';
 import { AuthorizationModule } from './common/authorization/authorization.module';
+import { RateLimitModule } from './common/rate-limiter/rate-limit.module';
 import { AppController } from './app.controller';
+import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { MetricsInterceptor } from './common/interceptors/metrics.interceptor';
 
 @Module({
   imports: [
@@ -39,7 +48,13 @@ import { AppController } from './app.controller';
     TasksModule,
     DashboardModule,
     EquipmentModule,
+    InventoryModule,
+    ReportsModule,
+    NotificationsModule,
+    AiModule,
+    MetricsModule,
     AuthorizationModule,
+    RateLimitModule,
     HealthModule,
   ],
   controllers: [AppController],
@@ -52,6 +67,14 @@ import { AppController } from './app.controller';
     {
       provide: APP_INTERCEPTOR,
       useClass: ResponseInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: LoggingInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: MetricsInterceptor,
     },
     {
       // Global JWT guard — every route is protected unless @Public().
@@ -68,8 +91,8 @@ import { AppController } from './app.controller';
 export class AppModule implements NestModule {
   constructor(private readonly configValidation: ConfigValidationService) {}
 
-  configure(_consumer: MiddlewareConsumer): void {
-    // Fail fast on invalid configuration at bootstrap.
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(CorrelationIdMiddleware).forRoutes('*');
     this.configValidation.validate();
   }
 

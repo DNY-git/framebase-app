@@ -25,9 +25,9 @@ Observability, Error Classification, API Rate Limiting, Backup & Restore Drill, 
 
 **Phase:** Phase 5 (Engagement) — **T-401 ✅, T-402 ✅, T-403 ✅, T-404 ✅.** T-303 backlog (blocked by Redis).
 
-**One-line state:** Phase 3 (equipment, inventory, task linkage) ✅, Phase 4 (reports + dashboard KPIs) ✅, Phase 5 (notifications + AI assistant) ✅, Phase 6 (hardening + job queue) ✅ complete. **React 19 upgrade ✅** (deps bumped, all `JSX` namespace breakage + typecheck blockers + 30 lint warnings fixed; typecheck/build/lint green). **shadcn/ui Phase 1 ✅** (infra installed, Button generated, token bridge, `/ui-lab` smoke page; commit `fd5b4e9`). **Design Foundation (Phase 2) ✅** (13 reusable UI primitives in `apps/web/src/components/ui/` + barrel `@/components/ui`, Design Foundation smoke section on `/ui-lab`; commit `035dc69`).
+**One-line state:** Phase 3 (equipment, inventory, task linkage) ✅, Phase 4 (reports + dashboard KPIs) ✅, Phase 5 (notifications + AI assistant) ✅, Phase 6 (hardening + job queue) ✅ complete. **React 19 upgrade ✅** (deps bumped, all `JSX` namespace breakage + typecheck blockers + 30 lint warnings fixed; typecheck/build/lint green). **shadcn/ui Phase 1 ✅** (infra installed, Button generated, token bridge, `/ui-lab` smoke page; commit `fd5b4e9`). **Design Foundation (Phase 2) ✅** (13 reusable UI primitives in `apps/web/src/components/ui/` + barrel `@/components/ui`, Design Foundation smoke section on `/ui-lab`; commit `035dc69`). **Figma implementation ✅** (all 7 wireframe screens implemented from `figma/img.json` — see "Completed Work → Phase 3 (Figma screenshot implementation)").
 
-**Last updated:** 2026-08-05 (Design Foundation Phase 2 checkpoint; folder `.design-foundation-checkpoint-20260805-192844`).
+**Last updated:** 2026-08-06 (Phase 3 Figma screenshot implementation complete).
 
 ---
 
@@ -177,10 +177,18 @@ Observability, Error Classification, API Rate Limiting, Backup & Restore Drill, 
 - **Packages installed:** none.
 - **Checkpoint folder:** `.design-foundation-checkpoint-20260805-192844/` (snapshot of `components/ui/` + `UiLab.tsx`).
 
-### Phase 3 (Figma screenshot implementation) — pending
+### Phase 3 (Figma screenshot implementation) — complete
 
-- **Blocked on image review:** `img/` contains 7 Figma exports (`Group 86`–`Group 92`, 1082×669). The current AI model does NOT support image input, so designs cannot be visually inspected. Options: (a) switch to a vision-capable model, (b) user describes each screen, (c) Figma HTML/CSS export.
-- **Concept constraint (user):** the screenshots are a concept of how the UI should behave — implement layout/behavior with NO mock data and NO fake endpoints. Pure frontend composition reusing the Phase 2 foundation.
+- **Unblocked via spec JSON:** the 7 Figma exports (`img/Group 86`–`Group 92`, 1082×669) cannot be viewed by the current model, so they were converted into a machine-readable spec at `figma/img.json` + `figma/prompt.txt` — global layout (sidebar, header pattern, filter row, color tokens) + all 7 screens. Implemented 2026-08-06.
+- **Documents screen (new):** `apps/web/src/features/documents/Documents.tsx` — full spec chrome (PageHeader, search, project + type filter dropdowns, green "+ Upload" button, Title Case table headers Name/Type/Project/Uploaded by/Date/Size) rendering an empty state since no documents module/endpoint exists yet. Route `/documents` registered in `App.tsx`; own sidebar nav entry (FolderOpen icon) on desktop + mobile — fixes the mock's wrong "Inventory highlighted" active state.
+- **Equipment screen:** `EquipmentList` rewritten as a spec-style table — Equipment (status dot + name + serial), Type (category), Status pill, Purchase date, Purchase cost, Utilisation % (fetched per row from the real `/api/v1/equipment/:id/utilization` endpoint; colored text + bar by value). Search + status filter. Row selection still renders `EquipmentDetail` below the table.
+- **Inventory screen:** `MaterialList` rewritten as a materials/stock table distinct from Equipment — Item (name + SKU), Quantity on hand (red when low), Unit, Reorder threshold, In stock/Low stock badge. Search + stock filter; "+ Add stock" navigates to the real deliveries form (`/inventory/deliveries`).
+- **Reports screen:** added a summary stat-card row (templates, runs, succeeded, failed) computed from real fetched data — a reporting view, not the Equipment table.
+- **AI assistant screen:** restyled from hardcoded gray/blue classes to design tokens; chat input is now the spec's rounded pill (plus attach, mic, dark square up-arrow send). All real endpoints preserved (query/summarize/draft-report/jobs).
+- **Status taxonomy:** Projects (`ProjectStatus`) and Equipment (`EquipmentStatus`) remain separate enums; no shared status set. Table headers normalized to Title Case.
+- **Constraint honored:** no mock data, no fake endpoints — screens compose real API data where the module exists, and pure layout chrome where it does not (Documents).
+- **Verification (2026-08-06):** typecheck ✅ · lint ✅ (0 warnings) · build ✅ (250 modules).
+- **Not done:** `EquipmentDetail` internals still use legacy gray/blue utility classes (functional, unstyled to tokens); Tasks board keeps backend `TaskStatus` columns (mock's "In review" has no enum value — left untouched per "don't invent data model fields").
 
 ### Phase 3 — Equipment Registry + Assignment (T-201) — complete
 
@@ -251,8 +259,9 @@ Browser ──▶ API (NestJS modular monolith)
 ## Current Priorities
 
 1. **Preserve `main` releasability.** All further work must pass CI before merging (typecheck, lint, 145+ tests).
-2. **Phase 6 (Hardening) — all tasks complete** (T-501 ✅, T-502 ✅, T-503 ✅, T-504 ✅, T-303 ✅).
-3. **Remaining work:** real AI provider adapters, Redis for async jobs (when hardware allows), conversational memory for AI Assistant.
+2. **Phase 3 (Figma implementation) — complete** (2026-08-06). All 7 screens implemented per `figma/img.json`.
+3. **Phase 6 (Hardening) — all tasks complete** (T-501 ✅, T-502 ✅, T-503 ✅, T-504 ✅, T-303 ✅).
+4. **Remaining work:** real AI provider adapters, Redis for async jobs (when hardware allows), conversational memory for AI Assistant.
 
 ---
 
@@ -260,7 +269,7 @@ Browser ──▶ API (NestJS modular monolith)
 
 In order, for whoever picks this up:
 
-1. **Phase 3 — Figma screenshot implementation (current).** Design Foundation (Phase 2) is done — commit `035dc69`. The 7 Figma frames are in `img/`. The blocking constraint: the current model cannot view images. Either switch to a vision-capable model, have the user describe each screen, or obtain a Figma HTML/CSS export. Implement screen-by-screen (landing page first), matching layout → spacing → typography → colors → borders → radius → shadows → hover → responsive, reusing the Phase 2 primitives. No mock data, no fake endpoints — the frames are a UI-behavior concept.
+1. **Phase 3 — Figma screenshot implementation ✅ complete (2026-08-06).** All 7 screens implemented from `figma/img.json` + `figma/prompt.txt` (Documents added as its own nav entry; Equipment/Inventory as distinct real-data tables; Reports summary stat cards; AI assistant restyled to spec). Constraint honored: no mock data, no fake endpoints. Follow-up polish: restyle `EquipmentDetail` internals (legacy gray/blue classes) to design tokens; revisit Tasks columns if a real "In review" status is ever added to `TaskStatus`.
 
 2. **Set up AI provider.** The `NoneProvider` is the default (returns "not configured" message). To enable real AI, implement an adapter (e.g., `OpenAIProvider` implementing `IAIProvider`), install the vendor SDK, and set `AI_PROVIDER=openai` (or `anthropic`) in `.env`. Prefer OpenRouter free models per `prompt.txt`.
 
@@ -277,7 +286,7 @@ If you are an AI continuing this work:
 
 1. Read [AI_CONTEXT.md](./AI_CONTEXT.md) (minimum required context).
 2. Read this file (you're here) and [TASKS.md](./TASKS.md) for the current board state.
-3. Check the [ROADMAP.md](./ROADMAP.md) phase you're entering and its exit criteria. Current work: **Design Foundation (Phase 2) done** — commit `035dc69`; **Phase 3 (Figma implementation)** pending, blocked on image review (see "Completed Work → Phase 3" and "Recommended Next Steps" #1). Core platform phases (1–6) all complete; remaining: AI provider adapters, conversational memory, Redis/BullMQ swap.
+3. Check the [ROADMAP.md](./ROADMAP.md) phase you're entering and its exit criteria. Current work: **Phase 3 (Figma implementation) done** — all 7 screens implemented from `figma/img.json` (see "Completed Work → Phase 3 (Figma screenshot implementation)"); **Design Foundation (Phase 2) done** — commit `035dc69`. Core platform phases (1–6) all complete; remaining: AI provider adapters, conversational memory, Redis/BullMQ swap, `EquipmentDetail` token restyle.
 4. Honor [PROJECT_RULES.md](./PROJECT_RULES.md) — especially §1 (Behavior & Safety) and §13 (Definition of Done).
 5. For any irreversible action (destructive migration, deleting code, force-push), **stop and confirm** first.
 6. Update this file, [TASKS.md](./TASKS.md), and [CHANGELOG.md](./CHANGELOG.md) as you make progress.

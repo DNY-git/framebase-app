@@ -15,9 +15,11 @@
     "lint": "npm run lint --workspace=packages/config && npm run lint --workspace=packages/types && npm run lint --workspace=packages/ui && npm run lint --workspace=apps/api && npm run lint --workspace=apps/web",
     "typecheck": "npm run typecheck --workspace=packages/types && npm run typecheck --workspace=packages/ui && npm run typecheck --workspace=apps/api && npm run typecheck --workspace=apps/web",
     "test": "npm run test --workspace=packages/types && npm run test --workspace=apps/api && npm run test --workspace=apps/web",
+    "test:e2e": "npx playwright test --config=apps/web/playwright.config.ts",
     "seed": "npm run seed --workspace=apps/api"
   },
   "devDependencies": {
+    "@astryxdesign/cli": "0.1.9",
     "concurrently": "^9.1.0",
     "typescript": "^5.7.0"
   },
@@ -29,5 +31,9 @@
     "@nestjs/core": true,
     "esbuild": true,
     "mongodb-memory-server": true
+  },
+  "dependencies": {
+    "@astryxdesign/core": "0.1.9",
+    "@astryxdesign/theme-neutral": "0.1.9"
   }
 }

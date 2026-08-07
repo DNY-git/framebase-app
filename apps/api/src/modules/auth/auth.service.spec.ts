@@ -10,7 +10,7 @@
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { ConfigService } from '@nestjs/config';
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import { DomainException } from '../../common/exceptions/domain.exception';
 import { Role } from '@constructtrack/types';
 import type { AppConfig } from '../../config/configuration';
 import { AuthService } from './auth.service';
@@ -80,6 +80,7 @@ function mockRepositories() {
       createSession: vi.fn().mockResolvedValue({ id: 'session-1' }),
       findActiveByToken: vi.fn(),
       revokeSession: vi.fn().mockResolvedValue(undefined),
+      revokeSessionByToken: vi.fn().mockResolvedValue(true),
       revokeAllUserSessions: vi.fn().mockResolvedValue(0),
     },
     audit: { record: vi.fn().mockResolvedValue(undefined) },
@@ -130,14 +131,25 @@ describe('AuthService', () => {
       expect(result.refreshToken).toBe('rt');
     });
 
-    it('throws ConflictException when the email already exists', async () => {
-      repos.user.existsByEmail.mockResolvedValue(true);
+    it('throws ConflictException when the email already exists (duplicate key)', async () => {
+      const dupError = Object.assign(new Error('E11000 duplicate key'), { code: 11000 });
+      repos.user.create.mockRejectedValue(dupError);
       await expect(
         service.register(
           { email: 'dup@example.com', password: 'Password1', name: 'Dup' },
           {},
         ),
-      ).rejects.toBeInstanceOf(ConflictException);
+      ).rejects.toThrow(DomainException);
+    });
+
+    it('re-throws non-duplicate-key errors from user.create', async () => {
+      repos.user.create.mockRejectedValue(new Error('connection refused'));
+      await expect(
+        service.register(
+          { email: 'fail@example.com', password: 'Password1', name: 'Fail' },
+          {},
+        ),
+      ).rejects.toThrow('connection refused');
     });
 
     it('throws ConflictException on weak password (defense-in-depth)', async () => {
@@ -150,7 +162,7 @@ describe('AuthService', () => {
           { email: 'weak@example.com', password: 'weak', name: 'Weak' },
           {},
         ),
-      ).rejects.toBeInstanceOf(ConflictException);
+      ).rejects.toThrow(DomainException);
     });
   });
 
@@ -182,7 +194,7 @@ describe('AuthService', () => {
       repos.user.findByEmail.mockResolvedValue(null);
       await expect(
         service.login({ email: 'no@example.com', password: 'x' }, {}),
-      ).rejects.toBeInstanceOf(UnauthorizedException);
+      ).rejects.toThrow(DomainException);
     });
 
     it('throws UnauthorizedException when the password is wrong (generic)', async () => {
@@ -197,7 +209,7 @@ describe('AuthService', () => {
 
       await expect(
         service.login({ email: 'test@example.com', password: 'wrong' }, {}),
-      ).rejects.toBeInstanceOf(UnauthorizedException);
+      ).rejects.toThrow(DomainException);
     });
 
     it('throws UnauthorizedException when the account is disabled', async () => {
@@ -213,7 +225,7 @@ describe('AuthService', () => {
           { email: 'test@example.com', password: 'Password1' },
           {},
         ),
-      ).rejects.toBeInstanceOf(UnauthorizedException);
+      ).rejects.toThrow(DomainException);
     });
   });
 
@@ -243,7 +255,7 @@ describe('AuthService', () => {
 
       await expect(
         service.refresh({ refreshToken: 'reused-rt' }, {}),
-      ).rejects.toBeInstanceOf(UnauthorizedException);
+      ).rejects.toThrow(DomainException);
       expect(repos.session.revokeAllUserSessions).toHaveBeenCalledWith('user-1');
     });
 
@@ -251,14 +263,20 @@ describe('AuthService', () => {
       tokenService.verifyRefreshToken.mockRejectedValue(new Error('bad signature'));
       await expect(
         service.refresh({ refreshToken: 'garbage' }, {}),
-      ).rejects.toBeInstanceOf(UnauthorizedException);
+      ).rejects.toThrow(DomainException);
     });
   });
 
   describe('logout', () => {
-    it('revokes the session and writes an audit record', async () => {
-      await service.logout('user-1', 'session-1', 'tenant-1', {});
-      expect(repos.session.revokeSession).toHaveBeenCalledWith('session-1');
+    it('revokes the session by refresh token and writes an audit record', async () => {
+      await service.logout('user-1', 'tenant-1', 'refresh-token-123', {});
+      expect(repos.session.revokeSessionByToken).toHaveBeenCalledWith('refresh-token-123');
+      expect(repos.audit.record).toHaveBeenCalledOnce();
+    });
+
+    it('skips session revocation when no refresh token is provided', async () => {
+      await service.logout('user-1', 'tenant-1', undefined, {});
+      expect(repos.session.revokeSessionByToken).not.toHaveBeenCalled();
       expect(repos.audit.record).toHaveBeenCalledOnce();
     });
   });

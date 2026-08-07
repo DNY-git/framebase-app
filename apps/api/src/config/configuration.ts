@@ -20,6 +20,13 @@ export interface AppConfig {
   cookieSecret: string;
   cookieSecure: boolean;
   corsAllowedOrigins: string[];
+  aiProvider: string;
+  aiMaxTokens: number;
+  aiRequestTimeoutMs: number;
+  rateLimitAuthLimit: number;
+  rateLimitAuthTtl: number;
+  rateLimitPublicLimit: number;
+  rateLimitPublicTtl: number;
 }
 
 export const configuration = (): AppConfig => ({
@@ -41,9 +48,16 @@ export const configuration = (): AppConfig => ({
   passwordPepper: process.env.PASSWORD_PEPPER ?? 'change-me-pepper',
   bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS ?? '12', 10),
   cookieSecret: process.env.COOKIE_SECRET ?? 'change-me-cookie-secret',
-  cookieSecure: process.env.COOKIE_SECURE === 'true',
+  cookieSecure: process.env.COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production',
   corsAllowedOrigins: (process.env.CORS_ALLOWED_ORIGINS ?? 'http://localhost:5173')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean),
+  aiProvider: process.env.AI_PROVIDER ?? 'none',
+  aiMaxTokens: parseInt(process.env.AI_MAX_TOKENS ?? '1000', 10),
+  aiRequestTimeoutMs: parseInt(process.env.AI_REQUEST_TIMEOUT_MS ?? '15000', 10),
+  rateLimitAuthLimit: parseInt(process.env.RATE_LIMIT_AUTH_LIMIT ?? '30', 10),
+  rateLimitAuthTtl: parseInt(process.env.RATE_LIMIT_AUTH_TTL ?? '60000', 10),
+  rateLimitPublicLimit: parseInt(process.env.RATE_LIMIT_PUBLIC_LIMIT ?? '20', 10),
+  rateLimitPublicTtl: parseInt(process.env.RATE_LIMIT_PUBLIC_TTL ?? '60000', 10),
 });

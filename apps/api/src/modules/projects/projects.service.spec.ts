@@ -8,11 +8,7 @@
  * See docs/features/projects.md and PROJECT_RULES.md §9 (Testing Rules).
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import {
-  ConflictException,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { DomainException } from '../../common/exceptions/domain.exception';
 import { ProjectsService } from './projects.service';
 import { ProjectRole, ProjectStatus, Role } from '@constructtrack/types';
 import type { AuthContext } from '../../common/authorization/authorization.types';
@@ -168,7 +164,7 @@ describe('ProjectsService', () => {
       projectRepo.exists.mockResolvedValue(true);
       await expect(
         service.create(MOCK_AUTH, { code: 'PRJ1', name: 'Test' }),
-      ).rejects.toThrow(ConflictException);
+      ).rejects.toThrow(DomainException);
     });
   });
 
@@ -207,7 +203,7 @@ describe('ProjectsService', () => {
       projectRepo.findById.mockResolvedValue(null);
       await expect(
         service.findById(MOCK_AUTH, 'invalid'),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(DomainException);
     });
   });
 
@@ -301,7 +297,7 @@ describe('ProjectsService', () => {
         service.update(MOCK_AUTH, 'proj-1', {
           status: ProjectStatus.COMPLETED,
         }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(DomainException);
     });
 
     it('rejects invalid transition: completed → active', async () => {
@@ -313,7 +309,7 @@ describe('ProjectsService', () => {
         service.update(MOCK_AUTH, 'proj-1', {
           status: ProjectStatus.ACTIVE,
         }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(DomainException);
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -326,7 +322,7 @@ describe('ProjectsService', () => {
         service.update(MOCK_AUTH, 'proj-1', {
           status: ProjectStatus.ACTIVE,
         }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(DomainException);
     });
 
     it('allows updating other fields without changing status', async () => {
@@ -349,7 +345,7 @@ describe('ProjectsService', () => {
 
       await expect(
         service.update(MOCK_AUTH, 'invalid', { name: 'X' }),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(DomainException);
     });
   });
 
@@ -383,7 +379,7 @@ describe('ProjectsService', () => {
 
       await expect(
         service.archive(MOCK_AUTH, 'proj-1'),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(DomainException);
     });
 
     it('rejects archiving an active project', async () => {
@@ -393,7 +389,7 @@ describe('ProjectsService', () => {
 
       await expect(
         service.archive(MOCK_AUTH, 'proj-1'),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(DomainException);
     });
   });
 
@@ -418,7 +414,7 @@ describe('ProjectsService', () => {
 
       await expect(
         service.delete(MOCK_AUTH, 'invalid'),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(DomainException);
     });
   });
 
@@ -473,7 +469,7 @@ describe('ProjectsService', () => {
 
       await expect(
         service.addMember(MOCK_AUTH, 'proj-1', 'user-2', ProjectRole.ENGINEER),
-      ).rejects.toThrow(ConflictException);
+      ).rejects.toThrow(DomainException);
     });
 
     it('throws NotFoundException if project does not exist', async () => {
@@ -481,7 +477,7 @@ describe('ProjectsService', () => {
 
       await expect(
         service.addMember(MOCK_AUTH, 'invalid', 'user-2', ProjectRole.ENGINEER),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(DomainException);
     });
   });
 
@@ -518,7 +514,7 @@ describe('ProjectsService', () => {
           'user-99',
           ProjectRole.VIEWER,
         ),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(DomainException);
     });
 
     it('prevents demoting the last manager/admin', async () => {
@@ -534,7 +530,7 @@ describe('ProjectsService', () => {
           'user-2',
           ProjectRole.VIEWER,
         ),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(DomainException);
     });
 
     it('allows demoting a manager when there are other managers', async () => {
@@ -578,7 +574,7 @@ describe('ProjectsService', () => {
 
       await expect(
         service.removeMember(MOCK_AUTH, 'proj-1', 'user-99'),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(DomainException);
     });
 
     it('prevents removing the last manager/admin', async () => {
@@ -589,7 +585,7 @@ describe('ProjectsService', () => {
 
       await expect(
         service.removeMember(MOCK_AUTH, 'proj-1', 'user-2'),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(DomainException);
     });
 
     it('allows removing a manager when there are other managers', async () => {

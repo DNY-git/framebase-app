@@ -1,6 +1,6 @@
 # Testing: Backend
 
-> How we test the NestJS backend of ConstructTrack: service unit tests (mocked repos), integration tests (real Postgres/Redis), auth/tenant-isolation tests, and migration tests. The backend is where security bugs are most damaging, so it gets the most rigorous test coverage.
+> How we test the NestJS backend of ConstructTrack: service unit tests (mocked repos), integration tests (real MongoDB), auth/tenant-isolation tests, and schema validation tests. The backend is where security bugs are most damaging, so it gets the most rigorous test coverage.
 
 Companion docs: [strategy.md](./strategy.md), [frontend.md](./frontend.md), [../architecture/backend.md](../architecture/backend.md), [../database/security.md](../database/security.md), [../security/authorization.md](../security/authorization.md).
 
@@ -13,7 +13,7 @@ Companion docs: [strategy.md](./strategy.md), [frontend.md](./frontend.md), [../
 - [Service Unit Tests](#service-unit-tests)
 - [Integration Tests](#integration-tests)
 - [Auth & Tenant-Isolation Tests](#auth--tenant-isolation-tests)
-- [Migration Tests](#migration-tests)
+- [Schema Validation Tests](#schema-validation-tests)
 - [Worker/Queue Tests](#workerqueue-tests)
 - [Patterns & Conventions](#patterns--conventions)
 - [What We Don't Test](#what-we-dont-test)
@@ -22,7 +22,7 @@ Companion docs: [strategy.md](./strategy.md), [frontend.md](./frontend.md), [../
 
 ## Overview
 
-Backend tests answer: *does this service enforce the right business rules, authorize correctly, and persist accurately?* We test at two layers: unit (fast, mocked repos) for business logic, and integration (real DB/Redis) for queries, transactions, and security. Tools: **Vitest** with Jest-compatible matchers.
+Backend tests answer: *does this service enforce the right business rules, authorize correctly, and persist accurately?* We test at two layers: unit (fast, mocked repos) for business logic, and integration (real MongoDB via mongodb-memory-server) for queries, transactions, and security. Tools: **Vitest** with Jest-compatible matchers.
 
 ---
 
@@ -37,7 +37,7 @@ Backend tests answer: *does this service enforce the right business rules, autho
 | Data persistence | Service call → real DB → assert query result | Integration |
 | Transactions | Multi-write operation; assert all-or-nothing | Integration |
 | Audit logging | Mutation → assert audit_log entry exists | Integration |
-| Migrations | Apply up → verify schema → rollback → verify clean | Integration |
+| Schema validation | Invalid data → Mongoose validation error | Unit + Integration |
 | Error mapping | Domain exception → assert HTTP status + envelope code | Unit |
 | Queue jobs | Enqueue → worker processes → assert side effect | Integration |
 
@@ -80,39 +80,37 @@ describe('TasksService', () => {
 
 ## Integration Tests
 
-Test a service **against a real PostgreSQL + Redis**, with migrations applied first. These prove that queries, transactions, and the Prisma client extension actually work.
+Test a service **against a real MongoDB** (via mongodb-memory-server). These prove that queries, transactions, and tenant isolation actually work.
 
 ```ts
 describe('ProjectsService (integration)', () => {
   let app: INestApplication;
-  let prisma: PrismaClient;
+  let mongoServer: MongoMemoryServer;
 
   beforeAll(async () => {
-    // spin up disposable Postgres + Redis, apply migrations
+    mongoServer = await MongoMemoryServer.create();
     const module = await createTestingModule({ imports: [AppModule] }).compile();
     app = module.createNestApplication();
-    prisma = module.get(PrismaService);
     await app.init();
   });
 
-  afterAll(async () => { await app.close(); /* teardown containers */ });
+  afterAll(async () => { await app.close(); await mongoServer.stop(); });
 
   it('creates a project and it is queryable with tenant scope', async () => {
-    const project = await prisma.project.create({ data: { tenantId, ... } });
-    const found = await prisma.project.findFirst({ where: { id: project.id, tenantId } });
+    const project = await service.create(adminUser, createDto);
+    const found = await service.findOne(adminUser, project.id);
     expect(found).not.toBeNull();
   });
 
-  it('audit_log is written in the same transaction as the mutation', async () => { ... });
+  it('audit_log is written alongside the mutation', async () => { ... });
 });
 ```
 
 **Key properties:**
 
-- **Disposable databases** — each suite spins up fresh containers; nothing persists between runs.
-- **Migrations applied** via `prisma migrate deploy` before tests run — the schema matches production.
-- **Real Redis** — BullMQ and cache operations are real, validating queue behavior.
-- **No ORM mocks** — the whole point is to exercise the real query layer.
+- **Disposable databases** — each suite spins up fresh mongodb-memory-server; nothing persists between runs.
+- **Real MongoDB** — the whole point is to exercise the real query layer, not mocks.
+- **No ORM mocks** — Mongoose validation, queries, and indexes are all exercised.
 
 ---
 
@@ -150,7 +148,7 @@ it('engineer can create a task but crew cannot assign to arbitrary users', async
 ```ts
 it('task creation writes an audit log entry with before=null and after=task', async () => {
   await service.create(adminUser, dto);
-  const audit = await prisma.auditLog.findFirst({ where: { entityType: 'task', action: 'create' } });
+  const audit = await model.findOne({ entityType: 'task', action: 'create' }).exec();
   expect(audit).not.toBeNull();
   expect(audit.actorId).toBe(adminUser.id);
   expect(audit.after).toMatchObject({ title: dto.title });
@@ -159,11 +157,11 @@ it('task creation writes an audit log entry with before=null and after=task', as
 
 ---
 
-## Migration Tests
+## Schema Validation Tests
 
-- **Apply + verify:** after `prisma migrate deploy`, query `information_schema` to confirm columns, constraints, and indexes match the schema.
-- **Rollback + verify:** reverse the last migration and confirm the prior schema is clean.
-- **Shadow DB diff:** CI runs `prisma migrate diff` against a shadow DB to detect drift between `schema.prisma` and the migration history ([../database/migrations.md](../database/migrations.md)).
+- **Mongoose validation** — verify that required fields, enum values, and custom validators reject invalid data at the schema level.
+- **Index verification** — confirm expected indexes exist via `collection.indexInformation()`.
+- **Backward compatibility** — new fields with defaults should work with existing documents without migration.
 
 ---
 
@@ -190,17 +188,16 @@ Integration-level queue tests use a real Redis; the worker runs inline for deter
 - **Test factories** (`src/__tests__/factories/`) for creating valid entities with minimal overrides.
 - **Test users** (`adminUser`, `managerUser`, `crewUser`, `viewerUser`) with correct roles; created per-suite or per-test.
 - **Two tenants** (`tenantA`, `tenantB`) for isolation tests — never shared.
-- **Cleanup:** each test creates its own data and relies on the disposable container teardown; no manual row deletion needed.
-- **Deterministic IDs** via seeded UUIDs or cuid for predictable assertions.
+- **Cleanup:** each test creates its own data and relies on the disposable mongodb-memory-server teardown; no manual cleanup needed.
 
 ---
 
 ## What We Don't Test
 
-- **Prisma internals** — we trust the ORM's query builder; we test that our service calls it correctly.
+- **Mongoose internals** — we trust the ODM's query builder; we test that our service calls it correctly.
 - **NestJS DI wiring** — module bootstrapping is validated by integration tests; we don't unit-test `@Module()` definitions.
 - **HTTP framework** — controller tests are thin; the real logic lives in services.
-- **Redis protocol** — we trust BullMQ; we test that our job processors produce the right side effects.
+- **Job queue internals** — we trust the InMemoryJobQueue; we test that our job processors produce the right side effects.
 
 ---
 

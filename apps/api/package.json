@@ -11,7 +11,10 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed": "tsx src/database/seed.ts"
+    "seed": "tsx src/database/seed.ts",
+    "backup:verify": "tsx scripts/backup-verify.ts",
+    "backup:local": "mongodump --uri=\"${MONGODB_URI:-mongodb://127.0.0.1:27017/constructtrack}\" --archive=.backups/$(date +%Y%m%d_%H%M%S).archive",
+    "restore:local": "mongorestore --uri=\"${MONGODB_URI:-mongodb://127.0.0.1:27017/constructtrack}\" --archive=.backups/$(ls -t .backups/*.archive 2>/dev/null | head -1) --drop"
   },
   "dependencies": {
     "@constructtrack/types": "*",

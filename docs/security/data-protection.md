@@ -46,8 +46,8 @@ Most operational data is **Confidential** (tenant-scoped business data). **Restr
 
 ## Encryption (Transit & Rest)
 
-- **In transit:** TLS for all client ↔ Nginx traffic (HSTS enforced); TLS between API ↔ PostgreSQL and API ↔ Redis in production; HTTPS for outbound calls (SMTP, object storage, AI providers).
-- **At rest:** managed PostgreSQL disk encryption (platform-managed key); object storage encryption for uploads/artifacts.
+- **In transit:** TLS for all client ↔ Nginx traffic (HSTS enforced); TLS between API ↔ MongoDB Atlas in production; HTTPS for outbound calls (SMTP, object storage, AI providers).
+- **At rest:** MongoDB Atlas disk encryption (platform-managed key); object storage encryption for uploads/artifacts.
 - **Column-level encryption:** highly sensitive fields (e.g., stored integration credentials, provider API keys held on behalf of a tenant) are encrypted at the application layer with keys from the environment — **never** stored as plaintext columns.
 - **Redis:** ephemeral data only (cache/sessions/queues); no sensitive data rests there without a documented need and short TTL.
 
@@ -57,7 +57,7 @@ Encryption complements isolation and access control — it is not a substitute.
 
 ## Secrets Management
 
-- **Secrets come from the environment** (or a secrets manager in production) — `JWT_*_SECRET`, `PASSWORD_PEPPER`, `DATABASE_URL`, `COOKIE_SECRET`, provider API keys, S3 credentials ([.env.example](../../.env.example)).
+- **Secrets come from the environment** (or a secrets manager in production) — `JWT_*_SECRET`, `PASSWORD_PEPPER`, `MONGODB_URI`, `COOKIE_SECRET`, provider API keys, S3 credentials ([.env.example](../../.env.example)).
 - **`.env` is gitignored**; `.env.example` contains only placeholders; CI rejects known `change-me-*` placeholders on deploy.
 - **Rotation:** secrets are rotatable via environment swap; rotated on a schedule and after suspected exposure.
 - **Least privilege:** each environment has its own credentials; the app DB user lacks destructive privileges in production ([../database/security.md](../database/security.md)).
@@ -90,7 +90,7 @@ The AI assistant sends tenant data to an external model provider, so this is a s
 
 ## Backups & Retention
 
-- **PostgreSQL:** automated backups + point-in-time recovery (managed) — see [../deployment/production.md](../deployment/production.md).
+- **MongoDB Atlas:** automated backups + point-in-time recovery (managed) — see [../deployment/production.md](../deployment/production.md).
 - **Encrypted and access-restricted:** backups are full copies of tenant data and are protected as such.
 - **Restore drills** prove recoverability; an untested backup is assumed broken ([ROADMAP.md](../../ROADMAP.md) Phase 6).
 - **Retention balances recoverability** against storage cost and compliance obligations; retention windows are documented per data class.

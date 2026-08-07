@@ -1,9 +1,9 @@
 import {
+  HttpStatus,
   Injectable,
-  NotFoundException,
-  ConflictException,
-  BadRequestException,
 } from '@nestjs/common';
+import { ErrorCode } from '@constructtrack/types';
+import { DomainException } from '../../common/exceptions/domain.exception';
 import { ProjectRepository } from './repositories/project.repository';
 import type { ProjectCreateInput } from './repositories/project.repository';
 import { ProjectMemberRepository } from './repositories/project-member.repository';
@@ -51,7 +51,7 @@ export class ProjectsService {
   async create(auth: AuthContext, data: CreateProjectDto): Promise<ProjectDomain> {
     const exists = await this.projectRepo.exists(auth.tenantId, { code: data.code });
     if (exists) {
-      throw new ConflictException(`Project code '${data.code}' is already taken.`);
+      throw new DomainException(ErrorCode.PROJECT_DUPLICATE_CODE, HttpStatus.CONFLICT, `Project code '${data.code}' is already taken.`);
     }
 
     const createInput: ProjectCreateInput = {
@@ -96,6 +96,7 @@ export class ProjectsService {
     const accessibleProjectIds = await this.authzService.accessibleProjectIds(
       auth.tenantId,
       auth.userId,
+      auth.role,
     );
 
     if (accessibleProjectIds) {
@@ -110,7 +111,7 @@ export class ProjectsService {
 
     const project = await this.projectRepo.findById(auth.tenantId, id);
     if (!project) {
-      throw new NotFoundException('Project not found.');
+      throw new DomainException(ErrorCode.PROJECT_NOT_FOUND, HttpStatus.NOT_FOUND, 'Project not found.');
     }
     return project;
   }
@@ -131,7 +132,7 @@ export class ProjectsService {
 
     const updated = await this.projectRepo.update(auth.tenantId, id, data);
     if (!updated) {
-      throw new NotFoundException('Project not found.');
+      throw new DomainException(ErrorCode.PROJECT_NOT_FOUND, HttpStatus.NOT_FOUND, 'Project not found.');
     }
 
     this.auditService.record({
@@ -165,7 +166,7 @@ export class ProjectsService {
       status: ProjectStatus.ARCHIVED,
     });
     if (!updated) {
-      throw new NotFoundException('Project not found.');
+      throw new DomainException(ErrorCode.PROJECT_NOT_FOUND, HttpStatus.NOT_FOUND, 'Project not found.');
     }
 
     this.auditService.record({
@@ -195,7 +196,7 @@ export class ProjectsService {
 
     const deleted = await this.projectRepo.delete(auth.tenantId, id);
     if (!deleted) {
-      throw new NotFoundException('Project not found.');
+      throw new DomainException(ErrorCode.PROJECT_NOT_FOUND, HttpStatus.NOT_FOUND, 'Project not found.');
     }
 
     this.auditService.record({
@@ -238,7 +239,7 @@ export class ProjectsService {
       userId,
     );
     if (existing) {
-      throw new ConflictException('User is already a member of this project.');
+      throw new DomainException(ErrorCode.PROJECT_DUPLICATE_MEMBER, HttpStatus.CONFLICT, 'User is already a member of this project.');
     }
 
     const member = await this.memberRepo.create({
@@ -274,7 +275,7 @@ export class ProjectsService {
       userId,
     );
     if (!existing) {
-      throw new NotFoundException('Project member not found.');
+      throw new DomainException(ErrorCode.PROJECT_MEMBER_NOT_FOUND, HttpStatus.NOT_FOUND, 'Project member not found.');
     }
 
     const previousRole = existing.role;
@@ -283,9 +284,7 @@ export class ProjectsService {
     if (this.isManagerRole(previousRole) && !this.isManagerRole(newRole)) {
       const managerCount = await this.memberRepo.countManagers(auth.tenantId, projectId);
       if (managerCount <= 1) {
-        throw new BadRequestException(
-          'Cannot demote the last manager/admin of a project.',
-        );
+        throw new DomainException(ErrorCode.PROJECT_LAST_MANAGER, HttpStatus.BAD_REQUEST, 'Cannot demote the last manager/admin of a project.');
       }
     }
 
@@ -296,7 +295,7 @@ export class ProjectsService {
       newRole,
     );
     if (!updated) {
-      throw new NotFoundException('Project member not found.');
+      throw new DomainException(ErrorCode.PROJECT_MEMBER_NOT_FOUND, HttpStatus.NOT_FOUND, 'Project member not found.');
     }
 
     this.auditService.record({
@@ -325,22 +324,20 @@ export class ProjectsService {
       userId,
     );
     if (!existing) {
-      throw new NotFoundException('Project member not found.');
+      throw new DomainException(ErrorCode.PROJECT_MEMBER_NOT_FOUND, HttpStatus.NOT_FOUND, 'Project member not found.');
     }
 
     // Prevent removing the last manager/admin.
     if (this.isManagerRole(existing.role)) {
       const managerCount = await this.memberRepo.countManagers(auth.tenantId, projectId);
       if (managerCount <= 1) {
-        throw new BadRequestException(
-          'Cannot remove the last manager/admin of a project.',
-        );
+        throw new DomainException(ErrorCode.PROJECT_LAST_MANAGER, HttpStatus.BAD_REQUEST, 'Cannot remove the last manager/admin of a project.');
       }
     }
 
     const removed = await this.memberRepo.remove(auth.tenantId, projectId, userId);
     if (!removed) {
-      throw new NotFoundException('Project member not found.');
+      throw new DomainException(ErrorCode.PROJECT_MEMBER_NOT_FOUND, HttpStatus.NOT_FOUND, 'Project member not found.');
     }
 
     this.auditService.record({
@@ -367,9 +364,7 @@ export class ProjectsService {
   ): void {
     const allowed = VALID_TRANSITIONS.get(from);
     if (!allowed || !allowed.has(to)) {
-      throw new BadRequestException(
-        `Invalid status transition: '${from}' → '${to}'.`,
-      );
+      throw new DomainException(ErrorCode.PROJECT_INVALID_STATUS_TRANSITION, HttpStatus.BAD_REQUEST, `Invalid status transition: '${from}' → '${to}'.`);
     }
   }
 

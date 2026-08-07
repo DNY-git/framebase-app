@@ -1,0 +1,213 @@
+{
+  "$schema": "https://constructtrack.dev/design-spec/layout/topbar/v1",
+
+  "name": "Application Topbar",
+
+  "version": "1.0.0",
+
+  "extends": [
+    "00-metadata.json",
+    "01-design-system.json"
+  ],
+
+  "component": "Topbar",
+
+  "implementation": {
+    "preferred": "shadcn/ui",
+    "fallback": "Astryx AppBar",
+    "customAllowed": true
+  },
+
+  "position": {
+    "type": "sticky",
+    "top": 0,
+    "zIndex": 100
+  },
+
+  "dimensions": {
+    "height": 72,
+    "mobileHeight": 64,
+    "paddingX": 32,
+    "paddingY": 16
+  },
+
+  "appearance": {
+    "background": "surface.primary",
+    "borderBottom": {
+      "enabled": true,
+      "color": "border.default",
+      "width": 1
+    },
+    "blur": false,
+    "shadow": "none"
+  },
+
+  "layout": {
+    "left": [
+      "pageTitle",
+      "pageSubtitle"
+    ],
+    "center": [
+      "search"
+    ],
+    "right": [
+      "themeToggle",
+      "notifications",
+      "quickActions",
+      "profileMenu"
+    ]
+  },
+
+  "pageTitle": {
+    "enabled": true,
+    "font": {
+      "family": "primary",
+      "size": "h3",
+      "weight": "semibold"
+    },
+    "spacingBottom": 4
+  },
+
+  "pageSubtitle": {
+    "enabled": true,
+    "font": {
+      "size": "bodySM",
+      "weight": "regular"
+    },
+    "color": "text.secondary"
+  },
+
+  "search": {
+    "enabled": true,
+    "placeholder": "Search...",
+    "width": {
+      "desktop": 360,
+      "tablet": 280,
+      "mobile": "100%"
+    },
+    "height": 44,
+    "icon": "search",
+    "shortcut": "Ctrl+K",
+    "clearButton": true
+  },
+
+  "themeToggle": {
+    "enabled": true,
+    "type": "icon-button",
+    "icons": {
+      "light": "sun",
+      "dark": "moon"
+    },
+    "size": 40
+  },
+
+  "notifications": {
+    "enabled": true,
+    "icon": "bell",
+    "badge": {
+      "enabled": true,
+      "max": 99
+    },
+    "dropdown": {
+      "width": 360,
+      "maxHeight": 480,
+      "scrollable": true
+    }
+  },
+
+  "quickActions": {
+    "enabled": true,
+    "items": [
+      {
+        "label": "New Project",
+        "icon": "plus",
+        "route": "/projects/new"
+      },
+      {
+        "label": "New Task",
+        "icon": "list-plus",
+        "route": "/tasks/new"
+      },
+      {
+        "label": "Upload Document",
+        "icon": "upload",
+        "route": "/documents/upload"
+      }
+    ]
+  },
+
+  "profileMenu": {
+    "enabled": true,
+    "avatar": {
+      "shape": "circle",
+      "size": 40
+    },
+    "showName": true,
+    "showRole": true,
+    "dropdownItems": [
+      {
+        "label": "Profile",
+        "icon": "user"
+      },
+      {
+        "label": "Settings",
+        "icon": "settings"
+      },
+      {
+        "label": "Logout",
+        "icon": "log-out",
+        "danger": true
+      }
+    ]
+  },
+
+  "breadcrumbs": {
+    "enabled": false,
+    "futureSupport": true
+  },
+
+  "actions": {
+    "primaryButton": {
+      "enabled": true,
+      "position": "right",
+      "defaultVariant": "default",
+      "defaultSize": "lg"
+    }
+  },
+
+  "responsive": {
+    "desktop": {
+      "searchVisible": true,
+      "profileExpanded": true
+    },
+    "tablet": {
+      "searchVisible": true,
+      "profileExpanded": false
+    },
+    "mobile": {
+      "searchCollapsible": true,
+      "hideSubtitle": true,
+      "showHamburger": true,
+      "moveSearchBelowHeader": true
+    }
+  },
+
+  "interactionStates": {
+    "hover": {
+      "transition": 150
+    },
+    "focus": {
+      "ring": true
+    },
+    "pressed": {
+      "scale": 0.98
+    }
+  },
+
+  "accessibility": {
+    "keyboardNavigation": true,
+    "focusVisible": true,
+    "ariaLabels": true,
+    "screenReaderFriendly": true
+  }
+}

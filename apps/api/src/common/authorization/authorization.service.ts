@@ -16,15 +16,17 @@
  * to branch without throwing.
  */
 import {
-  ForbiddenException,
+  HttpStatus,
   Injectable,
-  NotFoundException,
 } from '@nestjs/common';
+import { ErrorCode } from '@constructtrack/types';
+import { DomainException } from '../exceptions/domain.exception';
 import { ProjectMemberRepository } from '../../modules/projects/repositories/project-member.repository';
 import type {
   AuthContext,
   AccessDecision,
 } from './authorization.types';
+import type { Role } from '@constructtrack/types';
 import {
   isTenantAdmin,
   canManageProject,
@@ -94,7 +96,7 @@ export class AuthorizationService {
     );
     if (!decision.allowed) {
       // 404 (not 403) to avoid leaking project existence.
-      throw new NotFoundException('Project not found.');
+      throw new DomainException(ErrorCode.PROJECT_NOT_FOUND, HttpStatus.NOT_FOUND, 'Project not found.');
     }
     return decision;
   }
@@ -118,9 +120,7 @@ export class AuthorizationService {
       return decision;
     }
     if (!canManageProject(decision.projectRole)) {
-      throw new ForbiddenException(
-        'You do not have permission to manage this project.',
-      );
+      throw new DomainException(ErrorCode.FORBIDDEN, HttpStatus.FORBIDDEN, 'You do not have permission to manage this project.');
     }
     return decision;
   }
@@ -162,11 +162,20 @@ export class AuthorizationService {
   /**
    * Returns the ids of projects a user may access in a tenant — used by the
    * list endpoint to filter non-admins to their membership.
+   *
+   * Returns null for tenant admins (no filter — they see all projects).
+   * Returns an array of project ids for non-admins (only their memberships).
+   * Returns an empty array if the user has no project memberships.
    */
   async accessibleProjectIds(
     tenantId: TenantId,
     userId: string,
+    role?: string,
   ): Promise<string[] | null> {
+    // Tenant admins bypass project membership — they see all projects.
+    if (role && isTenantAdmin(role as Role)) {
+      return null;
+    }
     const memberships = await this.memberRepository.findByUser(
       tenantId,
       userId,

@@ -1,0 +1,43 @@
+You are implementing UI screens for FrameBase, a construction budget tracking
+web app (Next.js 15 + React + TypeScript + Tailwind + shadcn/ui frontend,
+Flask + MongoDB backend).
+
+Attached is framebase_ui_spec.json, a structured description of 7 wireframe
+mockups (Projects, Tasks, Equipment, Inventory, Reports, Documents, AI
+assistant) since you can't view images directly.
+
+IMPORTANT — read this before touching Inventory/Reports/Documents:
+The original wireframes reused the same placeholder table (equipment/type/
+utilisation columns) across the Equipment, Inventory, and Reports screens.
+This was the designer's shorthand for "a data table goes here" — NOT a
+spec to literally duplicate. Do not copy the Equipment table structure into
+Inventory or Reports. Instead:
+
+- Equipment: implement exactly as described (equipment name, location,
+  assigned-to, status, type, start/end date, utilisation).
+- Inventory: implement as a materials/stock table — item name, category,
+  quantity on hand, unit, reorder threshold, location, last restocked date.
+  Reuse the shared layout chrome (sidebar, header, search bar, filter
+  dropdown, "+ Add stock" button) but the columns and data model must be
+  distinct from Equipment.
+- Reports: implement as an actual reporting view — summary stat cards
+  and/or charts (e.g. budget spent vs allocated, task completion by
+  project, equipment utilisation trend) rather than a raw table. Use the
+  shared header chrome only.
+
+Also apply these fixes noted in the spec's "open_questions_for_agent_prompt":
+- Normalize table header casing to consistent Title Case across all screens.
+- Fix sidebar active-state so each route highlights its own nav item
+  (Documents should highlight "Inventory" or get its own nav entry —
+  pick one and apply it consistently; don't leave it pointing at the
+  wrong item like the mock did).
+- Treat Projects' status set (Active/Delayed/Complete/On hold) and
+  Equipment's status set (Active/Inactive/Maintenance) as two separate
+  enums, not a shared one.
+
+Use the shared global_layout (sidebar, header pattern, filter row,
+color tokens) from the JSON for every screen so they stay visually
+consistent. Ask me before inventing any data model fields not implied by
+the JSON or by FrameBase's existing Tasks/Dashboard modules.
+
+Reference file: framebase_ui_spec.json

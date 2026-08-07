@@ -17,12 +17,10 @@ export function formatPaginatedResponse<T>(result: PaginatedResponse<T>) {
   return {
     data: result.items,
     meta: {
-      pagination: {
-        page: result.page,
-        perPage: result.perPage,
-        totalItems: result.totalItems,
-        totalPages: result.totalPages,
-      },
+      page: result.page,
+      perPage: result.perPage,
+      totalItems: result.totalItems,
+      totalPages: result.totalPages,
     },
   };
 }

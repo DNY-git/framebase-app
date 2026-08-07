@@ -17,10 +17,9 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { CurrentUser } from '../../common/decorators/auth.decorator';
 import { AuthenticatedUser } from '../../common/decorators/authenticated-user.interface';
-import type { AuthContext } from '../../common/authorization/authorization.types';
 import { parsePagination, formatPaginatedResponse } from '../../common/utils/pagination.util';
 
-@Controller('v1/projects/:projectId/tasks')
+@Controller('projects/:projectId/tasks')
 export class TasksController {
   constructor(
     private readonly tasksService: TasksService,
@@ -35,7 +34,7 @@ export class TasksController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateTaskDto,
   ) {
-    const task = await this.tasksService.create(user as unknown as AuthContext, projectId, dto);
+    const task = await this.tasksService.create(user, projectId, dto);
     return { data: task };
   }
 
@@ -55,7 +54,7 @@ export class TasksController {
     if (assigneeId) filter.assigneeId = assigneeId;
     if (priority) filter.priority = priority;
 
-    const result = await this.tasksService.find(user as unknown as AuthContext, projectId, filter, options);
+    const result = await this.tasksService.find(user, projectId, filter, options);
     return formatPaginatedResponse(result);
   }
 
@@ -65,7 +64,7 @@ export class TasksController {
     @Param('taskId') taskId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const task = await this.tasksService.findById(user as unknown as AuthContext, projectId, taskId);
+    const task = await this.tasksService.findById(user, projectId, taskId);
     return { data: task };
   }
 
@@ -76,7 +75,7 @@ export class TasksController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: UpdateTaskDto,
   ) {
-    const task = await this.tasksService.update(user as unknown as AuthContext, projectId, taskId, dto);
+    const task = await this.tasksService.update(user, projectId, taskId, dto);
     return { data: task };
   }
 
@@ -87,7 +86,7 @@ export class TasksController {
     @Param('taskId') taskId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    await this.tasksService.delete(user as unknown as AuthContext, projectId, taskId);
+    await this.tasksService.delete(user, projectId, taskId);
   }
 
   @Get(':taskId/activity')
@@ -99,9 +98,9 @@ export class TasksController {
     @Query('perPage') perPage?: string,
   ) {
     // Assert project access first
-    await this.authzService.assertProjectAccess(user as unknown as AuthContext, user.tenantId, projectId);
+    await this.authzService.assertProjectAccess(user, user.tenantId, projectId);
     // Verify task belongs to project
-    await this.tasksService.findById(user as unknown as AuthContext, projectId, taskId);
+    await this.tasksService.findById(user, projectId, taskId);
 
     const options = parsePagination(page, perPage);
 
@@ -120,7 +119,7 @@ export class TasksController {
     @Param('taskId') taskId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const deps = await this.tasksService.getDependencies(user as unknown as AuthContext, projectId, taskId);
+    const deps = await this.tasksService.getDependencies(user, projectId, taskId);
     return { data: deps };
   }
 
@@ -132,7 +131,7 @@ export class TasksController {
     @Param('predecessorId') predecessorId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const dep = await this.tasksService.addDependency(user as unknown as AuthContext, projectId, taskId, predecessorId);
+    const dep = await this.tasksService.addDependency(user, projectId, taskId, predecessorId);
     return { data: dep };
   }
 
@@ -144,6 +143,83 @@ export class TasksController {
     @Param('predecessorId') predecessorId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    await this.tasksService.removeDependency(user as unknown as AuthContext, projectId, taskId, predecessorId);
+    await this.tasksService.removeDependency(user, projectId, taskId, predecessorId);
+  }
+
+  // -------------------------------------------------------------------------
+  // Resource Consumption (T-205)
+  // -------------------------------------------------------------------------
+
+  @Post(':taskId/equipment-usage')
+  @HttpCode(HttpStatus.CREATED)
+  async recordEquipmentUsage(
+    @Param('projectId') projectId: string,
+    @Param('taskId') taskId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { equipmentId: string; date: string; hoursUsed: number },
+  ) {
+    const log = await this.tasksService.recordEquipmentUsage(
+      user,
+      projectId,
+      taskId,
+      body.equipmentId,
+      body.date,
+      body.hoursUsed,
+    );
+    return { data: log };
+  }
+
+  @Get(':taskId/equipment-usage')
+  async getEquipmentUsage(
+    @Param('projectId') projectId: string,
+    @Param('taskId') taskId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('page') page?: string,
+    @Query('perPage') perPage?: string,
+  ) {
+    const options = parsePagination(page, perPage);
+    const result = await this.tasksService.getEquipmentUsage(
+      user,
+      projectId,
+      taskId,
+      options,
+    );
+    return formatPaginatedResponse(result);
+  }
+
+  @Post(':taskId/material-consumption')
+  @HttpCode(HttpStatus.CREATED)
+  async recordMaterialConsumption(
+    @Param('projectId') projectId: string,
+    @Param('taskId') taskId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { materialId: string; quantity: number },
+  ) {
+    const tx = await this.tasksService.recordMaterialConsumption(
+      user,
+      projectId,
+      taskId,
+      body.materialId,
+      body.quantity,
+    );
+    return { data: tx };
+  }
+
+  @Get(':taskId/material-consumption')
+  async getMaterialConsumption(
+    @Param('projectId') projectId: string,
+    @Param('taskId') taskId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('page') page?: string,
+    @Query('perPage') perPage?: string,
+  ) {
+    const options = parsePagination(page, perPage);
+    const result = await this.tasksService.getMaterialConsumption(
+      user,
+      projectId,
+      taskId,
+      options,
+    );
+    return formatPaginatedResponse(result);
   }
 }

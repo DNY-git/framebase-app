@@ -18,6 +18,6 @@ import { AuditModule } from '../audit/audit.module';
   ],
   controllers: [ProjectsController],
   providers: [ProjectsService, ProjectRepository, ProjectMemberRepository],
-  exports: [ProjectsService, ProjectRepository],
+  exports: [ProjectsService, ProjectRepository, ProjectMemberRepository],
 })
 export class ProjectsModule {}

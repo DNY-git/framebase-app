@@ -7,6 +7,114 @@ Until implementation starts, versions are documented as `0.0.x` documentation re
 ## [Unreleased]
 
 ### Added
+- **Frontend overhaul + hardening (2026-08-07)**
+  - Reworked app chrome: `AppShell`, `Sidebar`, `MobileSidebar`, `TopNav`, `PageLayout` with a page-title store; auth pages (`LoginPage`, `RegisterPage`, `ForgotPasswordPage`, `ResetPasswordPage`), `NotFound`, `Unauthorized`, and an `ErrorBoundary`.
+  - Added `auth.ts` + `auth-fetch.ts` (token storage, automatic refresh with 401 debounce, redirect on refresh failure); feature screens now fetch through `authFetch` instead of receiving `token` props.
+  - Added Documents screen as its own nav entry/route (layout-only, no backend yet) and an Audit Log screen backed by the new `GET /api/v1/audit` endpoints (`AuditController`).
+  - Removed the frontend Notifications feature (bell + `/notifications` route) — inbox UI dropped, API module untouched.
+  - Added Playwright e2e smoke (`apps/web/e2e/critical-path.spec.ts` + `playwright.config.ts`, `npm run test:e2e`).
+  - Updated `InventoryService` transaction/delivery flow to atomic `atomicConsume`/`atomicIncrement` stock updates (race-safe) with matching spec mocks.
+  - Pinned mongodb-memory-server to 6.0.24 in the API vitest config (7.0.x mongod segfaults on WSL2); tenant isolation suite now runs (7 tests).
+  - Verification (2026-08-07): typecheck, lint (0 warnings), build, and 210/210 unit tests green.
+- **T-206: Figma wireframe implementation (Phase 3)**
+  - Added `Documents` feature screen (`apps/web/src/features/documents/Documents.tsx`) — spec layout (PageHeader, search, project/type filter dropdowns, "+ Upload" button, Title Case table) with empty state; registered `/documents` route in `App.tsx`.
+  - Added Documents to desktop + mobile sidebar nav as its own entry (`FolderOpen` icon) — fixes the mock's incorrect "Inventory highlighted" active state.
+  - Rewrote `EquipmentList` as a spec-style table (status dot + name/serial, type, status pill, purchase date, purchase cost, utilisation % from the real per-item `/utilization` endpoint); row select still renders `EquipmentDetail` below.
+  - Rewrote `MaterialList` as a materials/stock table distinct from Equipment (item/SKU, quantity on hand, unit, reorder threshold, stock status) with search, stock filter, and "+ Add stock" → deliveries form.
+  - Added summary stat cards to Reports (templates, runs, succeeded, failed) computed from real fetched data.
+  - Restyled AI Assistant to design tokens with the spec pill input bar (plus attach, mic, dark square up-arrow send); all real endpoints preserved.
+  - Added `FolderOpen`, `Mic`, `ArrowUp` icons to `apps/web/src/shared/components/icons.tsx`.
+  - Constraint honored: no mock data, no fake endpoints. Verification (2026-08-06): typecheck, lint (0 warnings), build (250 modules) all green.
+- **T-303: Lightweight Job Queue + Report Generation (Phase 6)**
+  - Added `IJobQueue`, `IJobProcessor`, `Job`, `JobStatus`, `JobPayload`, `JobResult` types to `@constructtrack/types`.
+  - Added `InMemoryJobQueue` — synchronous in-memory job queue (no Redis required). Swappable via `IJobQueue` interface.
+  - Added `ReportProcessor` — processes report generation jobs with abstract `IReportRunWriter` / `IReportTemplateReader` interfaces for testability without Mongoose.
+  - Added `ReportRunWriterAdapter` / `ReportTemplateReaderAdapter` — bridges concrete Mongoose repositories to processor interfaces.
+  - Added `JobQueueModule` — provides `JOB_QUEUE` token, imported by `ReportsModule`.
+  - Refactored `ReportsService.generateReport()` to enqueue jobs via `IJobQueue` and re-fetch updated status.
+  - Reports now transition through PENDING → GENERATING → SUCCEEDED|FAILED (previously stuck at PENDING).
+  - 18 unit tests (9 InMemoryJobQueue + 9 ReportProcessor), all passing. Typecheck clean.
+  - Extension point: implement `IJobQueue` with BullMQ to swap in Redis-backed async processing without changing business logic.
+- **T-503: API Rate Limiting (Phase 6)**
+  - Added `RateLimiterService` — in-memory sliding-window rate limiter with periodic cleanup.
+  - Added `@RateLimit()` decorator for per-route limit overrides (method + class level).
+  - Added `RateLimitGuard` — global `APP_GUARD` that applies authenticated (100/min) and public (20/min) rate limits, keyed by userId or IP respectively.
+  - Added `RateLimitModule` registered in `AppModule` (runs after JwtAuthGuard + RolesGuard).
+  - Added rate limit config fields to `AppConfig` (`rateLimitAuthLimit`, `rateLimitAuthTtl`, `rateLimitPublicLimit`, `rateLimitPublicTtl`) with `.env.example` defaults.
+  - 12 service + guard unit tests covering limit enforcement, window reset, anonymous vs. authenticated keys, and decorator overrides.
+- **T-504: Backup & Restore Drill (Phase 6)**
+  - Created `docs/deployment/backup-drill.md` — comprehensive runbook covering Atlas Cloud Backups (PITR), manual mongodump, restore drill procedure, backup verification checklist, and incident recovery playbooks.
+  - Created `apps/api/scripts/backup-verify.ts` — data integrity verification script (collection existence, counts, indexes, tenant isolation sample, audit log freshness).
+  - Added `npm run backup:verify`, `backup:local`, `restore:local` scripts.
+  - Updated `docs/deployment/production.md` — replaced PostgreSQL references with MongoDB Atlas topology, backups, and migration strategy.
+  - Updated `docs/deployment/ci-cd.md` — replaced Prisma/migration references with Mongoose additive-schema pattern.
+  - Updated `docs/database/security.md` — replaced Prisma/PostgreSQL references with MongoDB Atlas backup and tenant isolation strategy.
+- **T-204: Inventory Transactions + Delivery Receipts (Phase 3)**
+  - Added append-only `InventoryTransaction` schema/repository with signed quantity stock updates (zero-stock floor, insufficient-stock check).
+  - Added `DeliveryReceipt` schema/repository with atomic delivery + receive transaction on record.
+  - Endpoints: `POST/GET /api/v1/inventory/transactions`, `GET /materials/:id/transactions`, `POST /api/v1/deliveries`, `GET /deliveries/:id`.
+  - Added `TransactionLedger` React component with material/type filters and record-transaction form.
+  - Added `DeliveryForm` React component with delivery recording and recent-deliveries list.
+  - Added Transactions and Deliveries tabs to the web app navigation.
+  - 24 service unit tests covering recordTransaction (receive/consume/adjust/transfer), recordDelivery, and queries.
+- **T-302: Dashboard KPIs (Phase 4)**
+  - Expanded `DashboardOverview` type with `equipment` (total, available, assigned, inMaintenance, utilizationRate, upcomingMaintenance) and `inventory` (totalMaterials, lowStockItems, totalStockQuantity) sections.
+  - Updated `DashboardService` to query `EquipmentService`, `EquipmentReportService`, and `InventoryService` for real KPI data.
+  - Wired `EquipmentModule` and `InventoryModule` into `DashboardModule`.
+  - Updated `Dashboard` frontend component with new KPI cards for Equipment Fleet, Inventory, and Upcoming Maintenance.
+- **T-301: Report Builder (Phase 4)**
+  - Added `ReportTemplateDomain`, `ReportRunDomain`, and `ReportStatus` enum to shared types.
+  - Created `ReportTemplate` and `ReportRun` Mongoose schemas with tenant-scoped indexes.
+  - Built full `ReportsModule`: `ReportTemplateRepository`, `ReportRunRepository`, `ReportsService`, `ReportsController`.
+  - Endpoints: `POST/GET /v1/reports/templates`, `GET /v1/reports/templates/:id`, `POST /v1/reports`, `GET /v1/reports`, `GET /v1/reports/:id`.
+  - Registered `ReportsModule` in `app.module.ts`.
+- **T-401/T-402: Notifications + Subscriptions (Phase 5)**
+  - Added `NotificationDomain`, `NotificationSubscriptionDomain`, `NotificationType`, and `NotificationChannel` to shared types.
+  - Created `Notification` and `NotificationSubscription` Mongoose schemas with tenant-scoped indexes.
+  - Built `NotificationsModule`: repositories, service, controller with 7 endpoints (`POST /v1/notifications`, `GET /v1/notifications`, `GET /v1/notifications/unread-count`, `PATCH /:id/read`, `PATCH /read-all`, `GET /subscriptions`, `PUT /subscriptions`).
+  - Added `Notifications` React component with inbox list, mark-read, mark-all-read, and subscription preference toggles.
+  - Added notification bell with unread badge to the web app header.
+  - 13 service unit tests covering create, find, mark-read, mark-all-read, count-unread, and subscription CRUD.
+- **T-502: Error Classification (Phase 6)**
+  - Defined `ErrorCode` enum in `@constructtrack/types` with 40+ domain-specific error codes (auth, projects, tasks, equipment, inventory, notifications, reports, AI, common).
+  - Created `DomainException` base class extending `HttpException` with typed `errorCode` field.
+  - Refactored all 12 service files and `AuthorizationService` to throw `DomainException` with proper error codes instead of generic NestJS exceptions.
+  - All 171 tests pass; typecheck clean.
+- **T-501: Observability (Phase 6)**
+  - Added `CorrelationIdMiddleware` — generates/forwards `x-request-id` on every request with `ct_` prefix.
+  - Added `LoggingInterceptor` — logs method, path, status code, and duration for every HTTP request with correlation ID context.
+  - Added `MetricsService` — in-memory request metrics (count, duration, errors) aggregated by endpoint.
+  - Added `MetricsController` at `GET /api/v1/metrics` (public) exposing service uptime, total requests, errors, and per-endpoint breakdown.
+  - Added `MetricsInterceptor` — records request metrics automatically.
+  - Expanded health check (`GET /api/v1/health`) with deep database ping test and metrics summary.
+  - 11 service unit tests covering metrics aggregation, path normalization, reset, correlation ID forwarding, and health check expansion.
+- **T-403/T-404: AI Assistant (Phase 5)**
+  - Added `AiJobDomain`, `AiFeedbackDomain`, `AIProvider` interface, `AiCompletionRequest`/`Response` to shared types.
+  - Created `AiJob` and `AiFeedback` Mongoose schemas with tenant-scoped indexes.
+  - Built `AiModule`: provider-agnostic `IAIProvider` interface, `NoneProvider` (graceful degradation), repositories, service, controller with 6 endpoints (`POST /v1/ai/query`, `POST /summarize`, `POST /draft-report`, `GET /jobs`, `GET /jobs/:id`, `POST /feedback`).
+  - Added `AI_PROVIDER`, `AI_MAX_TOKENS`, `AI_REQUEST_TIMEOUT_MS` to config and `.env.example`.
+  - Added `AiAssistant` React component with chat interface, summarization, report drafting, and job tracking.
+  - 8 service unit tests covering query (success + error), async jobs, job listing, job detail, and feedback.
+- **T-205: Task ↔ Equipment/Material Consumption Linkage (Phase 3)**
+  - Added `taskId` field to `EquipmentUsageLog` schema, DTO, domain type, and repository.
+  - Added `findByTask` query methods to `EquipmentUsageLogRepository` and `InventoryTransactionRepository`.
+  - Added task-scoped equipment usage and material consumption methods to `TasksService` (recordEquipmentUsage, getEquipmentUsage, recordMaterialConsumption, getMaterialConsumption).
+  - Added 4 API endpoints: `POST/GET :taskId/equipment-usage` and `POST/GET :taskId/material-consumption`.
+  - Wired `EquipmentModule` and `InventoryModule` into `TasksModule`.
+  - Added `TaskConsumption` React component with project/task selector, equipment usage logging, and material consumption recording.
+  - Added Tasks tab to the web app navigation.
+  - 5 new service tests for consumption methods.
+- **T-203: Inventory Catalog + Stock Levels (Phase 3)**
+  - Added `InventoryModule` with `MaterialRepository`, `StockLevelRepository`, `InventoryService`, and `InventoryController`.
+  - Endpoints: `GET/POST /api/v1/materials`, `GET /materials/low-stock`, `GET /materials/:id`, `PATCH /materials/:id`, `PATCH /materials/:id/archive`, `GET /materials/:id/stock`.
+  - Material CRUD with SKU uniqueness, stock level initialization on create, low-stock detection.
+  - Added `MaterialList` React component with catalog view and low-stock filter toggle.
+  - 18 service unit tests covering create, find, findById, update, getStockLevel, getLowStock, and archive.
+- **T-202: Equipment Utilization + Maintenance Schedule (Phase 3)**
+  - Added backend `EquipmentReportService` for utilization, usage timeline, maintenance history, downtime history, and upcoming-maintenance alert reads.
+  - Added validated equipment reporting query DTOs and API endpoints under `/api/v1/equipment`.
+  - Added report-service unit coverage for utilization calculations, downtime adjustment, maintenance urgency ordering, and history reads (12 new tests).
+  - Added `EquipmentDetail` frontend component with utilization KPI cards, maintenance timeline, usage timeline, and downtime history — rendered alongside the fleet list.
 - **T-201: Equipment Registry + Assignment (Phase 3)**
   - Added `Equipment` and `EquipmentAssignment` domains.
   - Implemented `EquipmentRepository` and `EquipmentAssignmentRepository` with Mongoose and `BaseRepository` for tenant isolation.

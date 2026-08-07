@@ -3,7 +3,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { AppShell } from './layouts/AppShell';
 import { ProtectedRoute } from './layouts/ProtectedRoute';
-import { RoleGuard } from './layouts/RoleGuard';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
@@ -19,10 +18,10 @@ import { DeliveryForm } from './features/inventory/DeliveryForm';
 import { TaskConsumption } from './features/tasks/TaskConsumption';
 import { TaskBoard } from './features/tasks/TaskBoard';
 import { TaskDetail } from './features/tasks/TaskDetail';
-import { Notifications } from './features/notifications/Notifications';
 import { AiAssistant } from './features/ai/AiAssistant';
 import { ProjectsList } from './features/projects/ProjectsList';
 import { Reports } from './features/reports/Reports';
+import { Documents } from './features/documents/Documents';
 import { AuditLog } from './features/audit/AuditLog';
 import { SettingsPage } from './features/settings/Settings';
 import { ProjectDetail } from './features/projects/ProjectDetail';
@@ -100,15 +99,13 @@ export function App(): React.JSX.Element {
               <Route path="tasks/:taskId" element={<TaskDetail />} />
               <Route path="tasks/consumption" element={<TokenAware>{(t) => <TaskConsumption token={t} />}</TokenAware>} />
               <Route path="equipment" element={<TokenAware>{(t) => <EquipmentList token={t} />}</TokenAware>} />
-              <Route path="inventory" element={<TokenAware>{(t) => <MaterialList token={t} />}</TokenAware>} />
-              <Route path="inventory/transactions" element={<TokenAware>{(t) => <TransactionLedger token={t} />}</TokenAware>} />
-              <Route path="inventory/deliveries" element={<TokenAware>{(t) => <DeliveryForm token={t} />}</TokenAware>} />
+              <Route path="inventory" element={<MaterialList />} />
+              <Route path="inventory/transactions" element={<TransactionLedger />} />
+              <Route path="inventory/deliveries" element={<DeliveryForm />} />
               <Route path="reports" element={<ReportsPage />} />
-              <Route path="notifications" element={<TokenAware>{(t) => <Notifications token={t} />}</TokenAware>} />
+              <Route path="documents" element={<Documents />} />
               <Route path="ai" element={<TokenAware>{(t) => <AiAssistant token={t} />}</TokenAware>} />
-              <Route path="audit" element={<RoleGuard minRole="project_manager" />}>
-                <Route index element={<AuditPage />} />
-              </Route>
+              <Route path="audit" element={<AuditPage />} />
               <Route path="settings" element={<SettingsPageWrapper />} />
               <Route path="settings/profile" element={<ProfileSettingsPage />} />
             </Route>

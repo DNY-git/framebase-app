@@ -6,9 +6,11 @@ import { TaskDependencyRepository } from './repositories/task-dependency.reposit
 import { ProjectsService } from '../projects/projects.service';
 import { AuthorizationService } from '../../common/authorization/authorization.service';
 import { AuditService } from '../audit/audit.service';
+import { EquipmentService } from '../equipment/equipment.service';
+import { InventoryService } from '../inventory/inventory.service';
 import { AuthContext } from '../../common/authorization/authorization.types';
 import { TaskStatus, ProjectStatus, Role } from '@constructtrack/types';
-import { BadRequestException, UnprocessableEntityException } from '@nestjs/common';
+import { DomainException } from '../../common/exceptions/domain.exception';
 
 describe('TasksService', () => {
   let service: TasksService;
@@ -55,6 +57,16 @@ describe('TasksService', () => {
     record: vi.fn(),
   };
 
+  const mockEquipmentService = {
+    logUsage: vi.fn(),
+    getUsageLogsByTask: vi.fn(),
+  };
+
+  const mockInventoryService = {
+    recordTransaction: vi.fn(),
+    getTransactionsByTask: vi.fn(),
+  };
+
   beforeEach(async () => {
     vi.clearAllMocks();
     
@@ -66,6 +78,8 @@ describe('TasksService', () => {
         { provide: ProjectsService, useValue: mockProjectsService },
         { provide: AuthorizationService, useValue: mockAuthzService },
         { provide: AuditService, useValue: mockAuditService },
+        { provide: EquipmentService, useValue: mockEquipmentService },
+        { provide: InventoryService, useValue: mockInventoryService },
       ],
     }).compile();
 
@@ -95,7 +109,7 @@ describe('TasksService', () => {
       projectsService.listMembers.mockResolvedValue([{ userId: 'user-2' }]); // user-3 is not a member
 
       await expect(service.create(auth, 'proj-1', { title: 'Test Task', assigneeId: 'user-3' }))
-        .rejects.toThrow(UnprocessableEntityException);
+        .rejects.toThrow(DomainException);
     });
   });
 
@@ -126,7 +140,7 @@ describe('TasksService', () => {
       authzService.assertProjectManager.mockRejectedValue(new Error('Forbidden'));
 
       await expect(service.update(auth, 'proj-1', 'task-1', { title: 'Hacked Title' }))
-        .rejects.toThrow(BadRequestException);
+        .rejects.toThrow(DomainException);
     });
 
     it('prevents advancing to IN_PROGRESS if project is ON_HOLD', async () => {
@@ -135,7 +149,7 @@ describe('TasksService', () => {
       projectsService.findById.mockResolvedValue({ id: 'proj-1', status: ProjectStatus.ON_HOLD });
 
       await expect(service.update(auth, 'proj-1', 'task-1', { status: TaskStatus.IN_PROGRESS }))
-        .rejects.toThrow(BadRequestException);
+        .rejects.toThrow(DomainException);
     });
 
     it('prevents advancing to IN_PROGRESS if predecessor is not done', async () => {
@@ -175,7 +189,56 @@ describe('TasksService', () => {
       });
 
       await expect(service.addDependency(auth, 'proj-1', 'A', 'C'))
-        .rejects.toThrow(UnprocessableEntityException);
+        .rejects.toThrow(DomainException);
+    });
+  });
+
+  describe('resource consumption (T-205)', () => {
+    it('records equipment usage against a task', async () => {
+      taskRepo.findById.mockResolvedValue({ id: 'task-1', projectId: 'proj-1' });
+      mockEquipmentService.logUsage.mockResolvedValue({ id: 'ul-1', taskId: 'task-1', equipmentId: 'eq-1', hoursUsed: 4 });
+
+      const result = await service.recordEquipmentUsage(auth, 'proj-1', 'task-1', 'eq-1', '2026-07-09', 4);
+      expect(result.id).toBe('ul-1');
+      expect(mockEquipmentService.logUsage).toHaveBeenCalledWith(auth, 'eq-1', { date: '2026-07-09', hoursUsed: 4, taskId: 'task-1' });
+    });
+
+    it('gets equipment usage for a task', async () => {
+      taskRepo.findById.mockResolvedValue({ id: 'task-1', projectId: 'proj-1' });
+      const paginated = { items: [{ id: 'ul-1' }], page: 1, perPage: 20, totalItems: 1, totalPages: 1 };
+      mockEquipmentService.getUsageLogsByTask.mockResolvedValue(paginated);
+
+      const result = await service.getEquipmentUsage(auth, 'proj-1', 'task-1', { page: 1, perPage: 20 });
+      expect(result.items).toHaveLength(1);
+    });
+
+    it('records material consumption against a task', async () => {
+      taskRepo.findById.mockResolvedValue({ id: 'task-1', projectId: 'proj-1' });
+      mockInventoryService.recordTransaction.mockResolvedValue({ id: 'tx-1', taskId: 'task-1', type: 'consume', quantity: -5 });
+
+      const result = await service.recordMaterialConsumption(auth, 'proj-1', 'task-1', 'mat-1', 5);
+      expect(result.id).toBe('tx-1');
+      expect(mockInventoryService.recordTransaction).toHaveBeenCalledWith(auth, {
+        type: 'consume',
+        quantity: 5,
+        materialId: 'mat-1',
+        taskId: 'task-1',
+      });
+    });
+
+    it('gets material consumption for a task', async () => {
+      taskRepo.findById.mockResolvedValue({ id: 'task-1', projectId: 'proj-1' });
+      const paginated = { items: [{ id: 'tx-1' }], page: 1, perPage: 20, totalItems: 1, totalPages: 1 };
+      mockInventoryService.getTransactionsByTask.mockResolvedValue(paginated);
+
+      const result = await service.getMaterialConsumption(auth, 'proj-1', 'task-1', { page: 1, perPage: 20 });
+      expect(result.items).toHaveLength(1);
+    });
+
+    it('throws NotFound if task does not exist when recording equipment usage', async () => {
+      taskRepo.findById.mockResolvedValue(null);
+      await expect(service.recordEquipmentUsage(auth, 'proj-1', 'bad-task', 'eq-1', '2026-07-09', 1))
+        .rejects.toThrow('Task not found.');
     });
   });
 });

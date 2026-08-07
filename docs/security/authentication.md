@@ -90,7 +90,7 @@ A request without a valid access token (and without a valid refresh path) is rej
 ## Transport Security
 
 - **HTTPS only in production.** `COOKIE_SECURE=true` and HSTS enforce this; HTTP requests are redirected or rejected.
-- **TLS to data stores:** API ↔ PostgreSQL and API ↔ Redis use TLS in production.
+- **TLS to data stores:** API ↔ MongoDB Atlas uses TLS in production.
 - **Refresh token transport:** sent in the request body or a secure, `HttpOnly`, `SameSite=Strict` cookie — not accessible to frontend JavaScript, mitigating XSS-based theft.
 - **Access token storage:** held in frontend memory, **not `localStorage`** (XSS-exposed).
 

@@ -76,10 +76,9 @@ On `main`: all of the above + deploy to staging. On a release tag: deploy to pro
 - Collects coverage as a signal (not a hard gate).
 
 ### integration
-- Vitest integration tests against a **disposable PostgreSQL + Redis** spun up in the job (service containers).
-- Runs migrations, seeds minimal data, exercises real DB/queue behavior.
+- Vitest integration tests against a **disposable mongodb-memory-server** instance spun up in the job.
+- Seeds minimal data, exercises real DB behavior (tenant isolation, audit logging, queries).
 - Includes the **tenant-isolation tests** that must fail cross-tenant access ([../database/security.md](../database/security.md)).
-- Runs `prisma migrate diff` against a shadow DB to catch schema/migration drift ([../database/migrations.md](../database/migrations.md)).
 
 ### build
 - `npm run build` — produces the web bundle and the API container image.
@@ -100,7 +99,7 @@ On `main`: all of the above + deploy to staging. On a release tag: deploy to pro
 | **staging** | push to `main` | CI green | a releasable mirror of prod |
 | **production** | tag `v*.*.*` | manual approval | customer-facing |
 
-Deploy mechanics (full detail in [production.md](./production.md)): apply migrations (`prisma migrate deploy`) → rolling deploy API → redeploy workers → smoke test.
+Deploy mechanics (full detail in [production.md](./production.md)): rolling deploy API → smoke test. Schema changes are additive (Mongoose handles field creation automatically); destructive changes ship in a later release.
 
 ---
 
@@ -139,7 +138,7 @@ Branch protection enforces these; `main` cannot be force-pushed or directly comm
 
 ## Workflows Conventions
 
-- **Caching:** npm/Prisma caches speed up installs; Docker layer caching for image builds.
+- **Caching:** npm caches speed up installs; Docker layer caching for image builds.
 - **Concurrency:** cancel superseded runs on the same branch to save cycles.
 - **Matrix:** where relevant (e.g., Node 20 only for now; expand on need).
 - **Failure visibility:** a failing job posts a clear, actionable summary — which check failed, the relevant log excerpt, and how to reproduce locally.

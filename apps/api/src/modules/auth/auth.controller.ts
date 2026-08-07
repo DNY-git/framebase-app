@@ -11,20 +11,22 @@
  * AuthService (PROJECT_RULES.md §29). All responses are wrapped in the
  * standard envelope by ResponseInterceptor.
  */
-import { Body, Controller, Get, HttpCode, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthService, type AuthResult } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
+import { LogoutDto } from './dto/logout.dto';
 import { Public } from '../../common/decorators/public.decorator';
+import { RateLimit } from '../../common/decorators/rate-limit.decorator';
 import {
   CurrentUser,
   CurrentTenant,
 } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../common/decorators/authenticated-user.interface';
 
-@Controller('api/v1/auth')
+@Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
@@ -43,7 +45,9 @@ export class AuthController {
   }
 
   @Public()
+  @RateLimit({ limit: 10, ttl: 60000 })
   @Post('register')
+  @HttpCode(HttpStatus.CREATED)
   async register(
     @Body() dto: RegisterDto,
     @Req() req: Request,
@@ -52,6 +56,7 @@ export class AuthController {
   }
 
   @Public()
+  @RateLimit({ limit: 10, ttl: 60000 })
   @Post('login')
   @HttpCode(200)
   async login(@Body() dto: LoginDto, @Req() req: Request): Promise<AuthResult> {
@@ -59,6 +64,7 @@ export class AuthController {
   }
 
   @Public()
+  @RateLimit({ limit: 20, ttl: 60000 })
   @Post('refresh')
   @HttpCode(200)
   async refresh(
@@ -73,12 +79,13 @@ export class AuthController {
   async logout(
     @CurrentUser() user: AuthenticatedUser,
     @CurrentTenant() tenantId: string,
+    @Body() dto: LogoutDto,
     @Req() req: Request,
   ): Promise<void> {
     await this.authService.logout(
       user.userId,
-      user.sessionId,
       tenantId,
+      dto.refreshToken,
       this.extractMeta(req),
     );
   }

@@ -7,6 +7,8 @@ import { TaskDependency, TaskDependencySchema } from '../../schemas/task-depende
 import { TaskRepository } from './repositories/task.repository';
 import { TaskDependencyRepository } from './repositories/task-dependency.repository';
 import { ProjectsModule } from '../projects/projects.module';
+import { EquipmentModule } from '../equipment/equipment.module';
+import { InventoryModule } from '../inventory/inventory.module';
 
 @Module({
   imports: [
@@ -14,7 +16,9 @@ import { ProjectsModule } from '../projects/projects.module';
       { name: Task.name, schema: TaskSchema },
       { name: TaskDependency.name, schema: TaskDependencySchema },
     ]),
-    ProjectsModule, // Assuming we need to check project status/phases
+    ProjectsModule,
+    EquipmentModule,
+    InventoryModule,
   ],
   controllers: [TasksController],
   providers: [TasksService, TaskRepository, TaskDependencyRepository],

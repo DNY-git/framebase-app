@@ -1,10 +1,10 @@
 # Database Schema
 
-> The human-readable entity reference for ConstructTrack's data model. The authoritative source is `prisma/schema.prisma` (generated client + migrations); this document explains intent, relationships, and per-table decisions.
+> The human-readable entity reference for ConstructTrack's data model. The authoritative source is the Mongoose schemas in `apps/api/src/schemas/`; this document explains intent, relationships, and per-collection decisions.
 
 Companion docs: [../architecture/database.md](../architecture/database.md) (modeling philosophy), [migrations.md](./migrations.md), [security.md](./security.md), feature specs under [../features/](../features/).
 
-> **Status note:** The model below is the *designed* schema, to be materialized in `prisma/schema.prisma` during Phase 1–2. Field-level specifics may evolve as features land; relationships and tenancy rules are stable.
+> **Status note:** The model below is the *designed* schema, materialized in Mongoose schemas during Phase 1–2. Field-level specifics may evolve as features land; relationships and tenancy rules are stable.
 
 ---
 
@@ -25,13 +25,13 @@ Companion docs: [../architecture/database.md](../architecture/database.md) (mode
 
 ## Conventions
 
-- **Primary keys:** `id UUID` (or `cuid`), opaque and URL-safe.
-- **Timestamps:** every table has `createdAt` and `updatedAt` (Prisma `@updatedAt`).
-- **Tenant scope:** every tenant-scoped table has `tenantId UUID NOT NULL` referencing `tenant`, plus a covering composite index leading with `tenantId`.
-- **Money/quantities:** integers in the smallest unit, or `Decimal` where exactness matters — never floats.
-- **Enums:** Postgres enums for status/type fields (`TaskStatus`, `ProjectStatus`, `EquipmentStatus`).
-- **Soft delete:** `deletedAt Timestamp?` only where history is required; documented per table.
-- **Naming:** `snake_case` tables/columns in the database (e.g., `tenant_id`, `created_at`); join tables as `a_b` (`project_member`). **Note:** field names shown in the tables below use **Prisma model camelCase** (`tenantId`, `createdAt`) — Prisma maps these to `snake_case` columns automatically. When writing raw SQL or migrations, always use the database `snake_case` form.
+- **Primary keys:** MongoDB `ObjectId` (auto-generated); opaque and URL-safe.
+- **Timestamps:** every collection has `createdAt` and `updatedAt` (Mongoose `timestamps: true`).
+- **Tenant scope:** every tenant-scoped collection has `tenantId` field, plus a covering index leading with `tenantId`.
+- **Money/quantities:** integers in the smallest unit where exactness matters — never floats.
+- **Enums:** string enums in Mongoose schemas for status/type fields (`TaskStatus`, `ProjectStatus`, `EquipmentStatus`).
+- **Soft delete:** `deletedAt` field only where history is required; documented per collection.
+- **Naming:** `snake_case` for collection and field names (`tenant_id`, `created_at`).
 
 ---
 
@@ -86,15 +86,15 @@ A user may belong to multiple tenants; the role is per-tenant.
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `id` | UUID | PK |
-| `userId` | UUID | FK → user |
-| `tenantId` | UUID | FK → tenant |
-| `role` | Enum(`admin`, `manager`, `engineer`, `crew`, `viewer`) | per [security/authorization.md](../security/authorization.md) |
-| `createdAt` / `updatedAt` | Timestamp | |
+| `id` | ObjectId | PK |
+| `userId` | ObjectId | FK → user |
+| `tenantId` | ObjectId | FK → tenant |
+| `role` | Enum(`admin`, `project_manager`, `engineer`, `crew`, `viewer`) | per [security/authorization.md](../security/authorization.md) |
+| `createdAt` / `updatedAt` | Date | |
 | unique | `(userId, tenantId)` | one role per user per tenant |
 
-### `session` / `refresh_token`
-Active sessions and refresh tokens; stored in/revoked via Redis with a DB mirror.
+### `session`
+Active sessions and refresh tokens; stored with hashed tokens for rotation and revocation.
 
 ---
 

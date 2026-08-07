@@ -13,13 +13,13 @@
  *  - PROJECT_RULES.md §5, §8 (backend + security rules)
  */
 import {
-  ConflictException,
+  HttpStatus,
   Injectable,
   Logger,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Role } from '@constructtrack/types';
+import { ErrorCode, Role } from '@constructtrack/types';
+import { DomainException } from '../../common/exceptions/domain.exception';
 import type { AppConfig } from '../../config/configuration';
 import { AuditService } from '../audit/audit.service';
 import { RegisterDto } from './dto/register.dto';
@@ -79,30 +79,49 @@ export class AuthService {
     // Defense-in-depth password check (DTO already validates).
     const strength = this.passwordService.validateStrength(dto.password);
     if (!strength.valid) {
-      throw new ConflictException(strength.errors.join(' '));
+      throw new DomainException(ErrorCode.AUTH_WEAK_PASSWORD, HttpStatus.CONFLICT, strength.errors.join(' '));
     }
 
-    // Check for existing user (global uniqueness on email).
-    const existing = await this.userRepository.existsByEmail(dto.email);
-    if (existing) {
-      // Generic conflict — don't reveal that the email exists vs other reasons.
-      throw new ConflictException('A user with this email already exists.');
+    // Create tenant (slug derived from name, retry on collision).
+    let tenant;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const slug = this.slugify(dto.name);
+      try {
+        tenant = await this.tenantRepository.create({
+          name: `${dto.name} Organization`,
+          slug,
+        });
+        break;
+      } catch (err: unknown) {
+        if (attempt === 4) throw err;
+        continue;
+      }
     }
-
-    // Create tenant (slug derived from name, uniqueness enforced).
-    const slug = this.slugify(dto.name);
-    const tenant = await this.tenantRepository.create({
-      name: `${dto.name} Organization`,
-      slug,
-    });
+    if (!tenant) {
+      throw new DomainException(ErrorCode.INTERNAL_ERROR, HttpStatus.INTERNAL_SERVER_ERROR, 'Failed to create tenant.');
+    }
 
     // Create user with hashed+peppered password.
+    // The duplicate-key check and create are intentionally not in a
+    // transaction — Mongoose/MongoDB guarantees a unique index on email,
+    // so a race-condition duplicate lands here as error code 11000.
     const passwordHash = await this.passwordService.hash(dto.password);
-    const user = await this.userRepository.create({
-      email: dto.email,
-      passwordHash,
-      name: dto.name,
-    });
+    let user;
+    try {
+      user = await this.userRepository.create({
+        email: dto.email,
+        passwordHash,
+        name: dto.name,
+      });
+    } catch (err: unknown) {
+      // MongoDB duplicate-key error (code 11000) means the email was
+      // inserted by a concurrent request between the (now-removed)
+      // existsByEmail check and this create.
+      if (typeof err === 'object' && err !== null && (err as { code?: number }).code === 11000) {
+        throw new DomainException(ErrorCode.AUTH_DUPLICATE_EMAIL, HttpStatus.CONFLICT, 'A user with this email already exists.');
+      }
+      throw err;
+    }
 
     // Link user to tenant as admin.
     await this.membershipRepository.create({
@@ -130,7 +149,16 @@ export class AuthService {
       correlationId: meta.correlationId,
     });
 
-    return result;
+    return {
+      ...result,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: Role.ADMIN,
+        tenantId: tenant.id,
+      },
+    };
   }
 
   /**
@@ -140,7 +168,7 @@ export class AuthService {
   async login(dto: LoginDto, meta: RequestMeta): Promise<AuthResult> {
     const user = await this.userRepository.findByEmail(dto.email);
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials.');
+      throw new DomainException(ErrorCode.AUTH_INVALID_CREDENTIALS, HttpStatus.UNAUTHORIZED, 'Invalid credentials.');
     }
 
     const valid = await this.passwordService.compare(
@@ -148,18 +176,18 @@ export class AuthService {
       user.passwordHash,
     );
     if (!valid) {
-      throw new UnauthorizedException('Invalid credentials.');
+      throw new DomainException(ErrorCode.AUTH_INVALID_CREDENTIALS, HttpStatus.UNAUTHORIZED, 'Invalid credentials.');
     }
 
     if (user.status !== 'active') {
-      throw new UnauthorizedException('Account is disabled.');
+      throw new DomainException(ErrorCode.AUTH_DISABLED_ACCOUNT, HttpStatus.UNAUTHORIZED, 'Account is disabled.');
     }
 
     // Load membership to get the tenant + role.
     const membership =
       await this.membershipRepository.findByUserId(user.id);
     if (!membership || membership.length === 0) {
-      throw new UnauthorizedException('No tenant membership found.');
+      throw new DomainException(ErrorCode.AUTH_NO_MEMBERSHIP, HttpStatus.UNAUTHORIZED, 'No tenant membership found.');
     }
     // Use the first membership as the active tenant context.
     const active = membership[0];
@@ -207,7 +235,7 @@ export class AuthService {
         dto.refreshToken,
       );
     } catch {
-      throw new UnauthorizedException('Invalid refresh token.');
+      throw new DomainException(ErrorCode.AUTH_INVALID_REFRESH_TOKEN, HttpStatus.UNAUTHORIZED, 'Invalid refresh token.');
     }
 
     // Look up the active session by token hash.
@@ -222,9 +250,7 @@ export class AuthService {
         `Refresh token reuse detected for user ${refreshPayload.sub} — revoking all sessions.`,
       );
       await this.sessionRepository.revokeAllUserSessions(refreshPayload.sub);
-      throw new UnauthorizedException(
-        'Refresh token has been revoked. Please log in again.',
-      );
+      throw new DomainException(ErrorCode.AUTH_REFRESH_TOKEN_REVOKED, HttpStatus.UNAUTHORIZED, 'Refresh token has been revoked. Please log in again.');
     }
 
     // Revoke the old session (rotation).
@@ -235,12 +261,12 @@ export class AuthService {
       refreshPayload.sub,
     );
     if (!membership || membership.length === 0) {
-      throw new UnauthorizedException('No tenant membership found.');
+      throw new DomainException(ErrorCode.AUTH_NO_MEMBERSHIP, HttpStatus.UNAUTHORIZED, 'No tenant membership found.');
     }
     const active = membership[0];
     const user = await this.userRepository.findById(refreshPayload.sub);
     if (!user || user.status !== 'active') {
-      throw new UnauthorizedException('Account is disabled or not found.');
+      throw new DomainException(ErrorCode.AUTH_DISABLED_ACCOUNT, HttpStatus.UNAUTHORIZED, 'Account is disabled or not found.');
     }
 
     const result = await this.issueTokens(
@@ -265,15 +291,19 @@ export class AuthService {
   /**
    * Logs out the user by revoking their session.
    * The access token naturally expires; logout invalidates the refresh token.
+   *
+   * The refresh token is accepted in the request body so the server can
+   * revoke the matching session. If the client cannot provide the refresh
+   * token (e.g., it was lost), only an audit record is created.
    */
   async logout(
     userId: string,
-    sessionId: string,
     tenantId: string,
+    refreshToken: string | undefined,
     meta: RequestMeta,
   ): Promise<void> {
-    if (sessionId) {
-      await this.sessionRepository.revokeSession(sessionId);
+    if (refreshToken) {
+      await this.sessionRepository.revokeSessionByToken(refreshToken);
     }
     await this.auditService.record({
       tenantId,
@@ -297,7 +327,7 @@ export class AuthService {
   }> {
     const user = await this.userRepository.findById(userId);
     if (!user) {
-      throw new UnauthorizedException('User not found.');
+      throw new DomainException(ErrorCode.AUTH_USER_NOT_FOUND, HttpStatus.UNAUTHORIZED, 'User not found.');
     }
     const membership = await this.membershipRepository.findByUserAndTenant(
       userId,
@@ -375,7 +405,7 @@ export class AuthService {
       .trim()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '')
-      .slice(0, 40);
+      .slice(0, 40) || 'org';
     const suffix = Math.random().toString(36).slice(2, 8);
     return `${base}-${suffix}`;
   }

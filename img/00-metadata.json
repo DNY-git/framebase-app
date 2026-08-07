@@ -1,0 +1,153 @@
+{
+  "$schema": "https://constructtrack.dev/design-spec/v1",
+  "specVersion": "1.0.0",
+  "project": {
+    "name": "ConstructTrack",
+    "codename": "FrameBase",
+    "description": "AI-first construction management platform.",
+    "type": "Web Application",
+    "architecture": "SPA",
+    "framework": {
+      "frontend": "React 19",
+      "bundler": "Vite 6",
+      "language": "TypeScript",
+      "styling": "Tailwind CSS v4",
+      "primaryComponentLibrary": "shadcn/ui",
+      "secondaryComponentLibrary": "Astryx",
+      "icons": "Lucide React"
+    }
+  },
+  "designGoals": {
+    "style": [
+      "Minimal",
+      "Professional",
+      "Construction-focused",
+      "Modern",
+      "Data-first",
+      "Large whitespace",
+      "Low visual noise"
+    ],
+    "principles": [
+      "Every screen should feel spacious.",
+      "Information hierarchy must always be obvious.",
+      "Actions should always be visible.",
+      "No unnecessary decoration.",
+      "Cards over panels.",
+      "Rounded modern interface.",
+      "Consistent spacing.",
+      "Responsive by default.",
+      "Keyboard friendly.",
+      "Accessible."
+    ]
+  },
+  "implementation": {
+    "componentPriority": [
+      "shadcn/ui",
+      "Astryx",
+      "Custom Components"
+    ],
+    "styling": {
+      "utilityFramework": "TailwindCSS",
+      "customCssAllowed": true,
+      "inlineStylesAllowed": false
+    }
+  },
+  "pageOrder": [
+    "Landing",
+    "Login",
+    "Dashboard",
+    "Projects",
+    "Tasks",
+    "Equipment",
+    "Inventory",
+    "Reports",
+    "Documents",
+    "Notifications",
+    "AI Assistant",
+    "Audit Log",
+    "Settings"
+  ],
+  "sharedLayout": {
+    "sidebar": true,
+    "topbar": true,
+    "pageHeader": true,
+    "contentContainer": true,
+    "footer": false
+  },
+  "responsiveBreakpoints": {
+    "mobile": 640,
+    "tablet": 768,
+    "laptop": 1024,
+    "desktop": 1280,
+    "wide": 1536
+  },
+  "spacingScale": [
+    0,
+    2,
+    4,
+    8,
+    12,
+    16,
+    20,
+    24,
+    32,
+    40,
+    48,
+    56,
+    64,
+    80,
+    96,
+    128
+  ],
+  "borderRadiusScale": {
+    "none": 0,
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 20,
+    "2xl": 24,
+    "full": 9999
+  },
+  "shadowScale": {
+    "none": "none",
+    "sm": "small",
+    "md": "medium",
+    "lg": "large",
+    "xl": "extra-large"
+  },
+  "animationPolicy": {
+    "enabled": true,
+    "durationFast": 150,
+    "durationNormal": 250,
+    "durationSlow": 400,
+    "preferredEasing": "ease-out"
+  },
+  "designConstraints": [
+    "Never redesign without reference.",
+    "Preserve consistent spacing.",
+    "Prefer reusable components.",
+    "Avoid duplicated layouts.",
+    "Every page must pass accessibility checks.",
+    "Every component must support dark mode.",
+    "Tables must remain responsive.",
+    "Loading and empty states are mandatory.",
+    "Keyboard navigation is mandatory."
+  ],
+  "agentInstructions": {
+    "beforeImplementation": [
+      "Read metadata.",
+      "Read design system.",
+      "Read layout.",
+      "Read components.",
+      "Read target page."
+    ],
+    "afterImplementation": [
+      "Run typecheck.",
+      "Run lint.",
+      "Run build.",
+      "Fix errors.",
+      "Commit changes."
+    ]
+  }
+}

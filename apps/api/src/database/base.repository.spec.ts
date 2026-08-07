@@ -64,7 +64,9 @@ describe('BaseRepository - Tenant Isolation', () => {
   const tenantB = 'tenant-b' as TenantId;
 
   beforeAll(async () => {
-    mongoServer = await MongoMemoryServer.create();
+    mongoServer = await MongoMemoryServer.create({
+      instance: { launchTimeout: 60000 },
+    });
     const uri = mongoServer.getUri();
     connection = await mongoose.createConnection(uri).asPromise();
     DummyModel = connection.model<DummyDocument>('Dummy', dummySchema);

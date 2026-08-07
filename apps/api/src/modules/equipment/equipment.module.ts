@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { EquipmentController } from './equipment.controller';
 import { EquipmentService } from './equipment.service';
+import { EquipmentReportService } from './equipment-report.service';
 import { EquipmentRepository } from './repositories/equipment.repository';
 import { EquipmentAssignmentRepository } from './repositories/equipment-assignment.repository';
 import { Equipment, EquipmentSchema } from '../../schemas/equipment.schema';
@@ -28,12 +29,13 @@ import { AuthorizationModule } from '../../common/authorization/authorization.mo
   controllers: [EquipmentController],
   providers: [
     EquipmentService,
+    EquipmentReportService,
     EquipmentRepository,
     EquipmentAssignmentRepository,
     EquipmentUsageLogRepository,
     MaintenanceRecordRepository,
     DowntimeLogRepository,
   ],
-  exports: [EquipmentService],
+  exports: [EquipmentService, EquipmentReportService],
 })
 export class EquipmentModule {}

@@ -1,6 +1,6 @@
 # Production Deployment
 
-> How ConstructTrack runs in production: containerized API + SPA behind Nginx, managed PostgreSQL and Redis, environment-driven config, and safety rails around every release. Production is where mistakes are most expensive, so the process is deliberate and reversible.
+> How ConstructTrack runs in production: containerized API + SPA behind Nginx, managed MongoDB Atlas, environment-driven config, and safety rails around every release. Production is where mistakes are most expensive, so the process is deliberate and reversible.
 
 Companion docs: [local.md](./local.md), [ci-cd.md](./ci-cd.md), [../security/data-protection.md](../security/data-protection.md), [../architecture/system.md](../architecture/system.md), [../database/security.md](../database/security.md).
 
@@ -25,27 +25,27 @@ Companion docs: [local.md](./local.md), [ci-cd.md](./ci-cd.md), [../security/dat
 
 ```
                       Internet
+                          │
+                          ▼  HTTPS (TLS, CDN-capable)
+                 ┌────────────────┐
+                 │   Nginx / LB   │  (TLS term, static SPA, reverse proxy, headers, rate limit)
+                 └───────┬────────┘
                          │
-                         ▼  HTTPS (TLS, CDN-capable)
-                ┌────────────────┐
-                │   Nginx / LB   │  (TLS term, static SPA, reverse proxy, headers, rate limit)
-                └───────┬────────┘
+          ┌──────────────┼──────────────┐
+          ▼              ▼              ▼
+     ┌─────────┐   ┌─────────┐   ┌─────────┐   API replicas (stateless)
+     │  API 1  │   │  API 2  │   │  API N  │
+     └────┬────┘   └────┬────┘   └────┬────┘
+          │             │             │
+          └─────────────┼─────────────┘
                         │
          ┌──────────────┼──────────────┐
          ▼              ▼              ▼
-    ┌─────────┐   ┌─────────┐   ┌─────────┐   API replicas (stateless)
-    │  API 1  │   │  API 2  │   │  API N  │
-    └────┬────┘   └────┬────┘   └────┬────┘
-         │             │             │
-         └─────────────┼─────────────┘
-                       │
-        ┌──────────────┼──────────────┐
-        ▼              ▼              ▼
-   Managed PG     Managed Redis   Object Storage   (uploads/artifacts)
-   (PITR)         (HA)            (encrypted)
-                       │
-                       ▼
-                 Workers (BullMQ) — reports, notifications, ai queues
+   MongoDB Atlas    Managed Redis   Object Storage   (uploads/artifacts)
+   (PITR + snaps)   (future)        (encrypted)
+                        │
+                        ▼
+                  Workers (BullMQ) — reports, notifications, ai queues
 ```
 
 The API is **stateless** (sessions in Redis), so it scales horizontally behind the load balancer. Workers run as separate processes, scaled independently per queue.
@@ -59,8 +59,8 @@ The API is **stateless** (sessions in Redis), so it scales horizontally behind t
 | **Web (SPA)** | Static build served by Nginx (or a CDN); hashed assets, long cache headers |
 | **API** | Containerized NestJS app; ≥2 replicas for availability |
 | **Workers** | Containerized BullMQ workers per queue (`reports`, `notifications`, `ai`) |
-| **PostgreSQL** | Managed Postgres 16 with point-in-time recovery, automated backups, HA |
-| **Redis** | Managed Redis 7 (HA) for cache, sessions, and queues |
+| **MongoDB Atlas** | Managed MongoDB with PITR, automated cloud backups, multi-region option |
+| **Redis** | Managed Redis 7 (HA) — deferred; cache/sessions/queues when needed |
 | **Object storage** | S3-compatible, encrypted, for uploads and report artifacts |
 | **Email** | Transactional SMTP provider for notifications |
 | **Nginx/LB** | TLS termination, security headers, gzip, rate limiting, static SPA |
@@ -81,23 +81,23 @@ The API is **stateless** (sessions in Redis), so it scales horizontally behind t
 
 1. **CI green on `main`** (lint, type-check, unit, integration, build) — see [ci-cd.md](./ci-cd.md).
 2. **Build artifacts** — container images tagged by git SHA (+ semantic version for releases).
-3. **Apply migrations** (`prisma migrate deploy`) as the deploy step, **before** new code serves traffic. Migrations must be backward-compatible with the running version ([../database/migrations.md](../database/migrations.md)).
+3. **Schema changes** are additive (new fields, new indexes); no formal migration tool is used. Destructive changes ship in a later release.
 4. **Rolling deploy** of API replicas; health checks gate each instance into the pool.
 5. **Workers redeployed** after the API is healthy.
 6. **Smoke tests** against production post-deploy (auth, health, a representative read/write).
-7. **Monitor** for errors/latency; rollback path is the previous image (safe, because migrations are backward-compatible).
+7. **Monitor** for errors/latency; rollback path is the previous image.
 
-**Rollback** = redeploy the previous image. Because every migration is backward-compatible with the prior code, rolling back the code does not require rolling back the DB.
+**Rollback** = redeploy the previous image. Because schema changes are additive, rolling back the code does not require a DB rollback.
 
 ---
 
 ## Database Migrations in Production
 
-- Applied with **`prisma migrate deploy`** (never `dev`) as a deploy step, via the elevated migration role.
-- **Forward-only and backward-compatible** — see the expansive/contractive pattern in [../database/migrations.md](../database/migrations.md).
-- **Destructive/contractive migrations** ship in a *later* release than the code that stops using the old shape, with a cooldown.
-- **Review every migration** in PR for locking, index choices, and destructiveness.
-- **Point-in-time recovery** is the safety net for catastrophic mistakes, tested in restore drills ([ROADMAP.md](../../ROADMAP.md) Phase 6).
+- Mongoose schemas define the data model — no schema-migration tool is used. New fields are additive and backward-compatible.
+- **Destructive changes** (dropping fields, renaming collections) ship in a *later* release than the code that stops using the old shape.
+- **Review every schema change** in PR for index choices, performance, and destructiveness.
+- **Pre-migration safety**: run `npm run backup:local` before applying schema changes.
+- **Point-in-time recovery** is the safety net for catastrophic mistakes, tested in restore drills ([backup-drill.md](./backup-drill.md)).
 
 ---
 
@@ -111,10 +111,10 @@ The API is **stateless** (sessions in Redis), so it scales horizontally behind t
 
 ## Backups & Recovery
 
-- **PostgreSQL:** automated daily backups + continuous WAL for point-in-time recovery (managed).
-- **Restore drills** are a Phase 6 exit criterion — backups are assumed broken until a restore is proven.
-- **Object storage:** versioning + cross-region replication for uploads/artifacts; deletion is reversible within a window.
-- **Redis is disposable** — it holds only cache/sessions/queues; losing it never loses data, only sessions (users re-login) and in-flight jobs (retried or recoverable).
+- **MongoDB Atlas Cloud Backups** with PITR enabled in production — continuous snapshots with 24-hour PITR window, retained per [backup-drill.md](./backup-drill.md).
+- **Restore drills** are a Phase 6 exit criterion — backups are assumed broken until a restore is proven. Full procedure in [backup-drill.md](./backup-drill.md).
+- **Pre-deployment safety**: run `npm run backup:local` (or Atlas snapshot download) before destructive operations.
+- **Backup verification script**: `npm run backup:verify -- --uri "<MONGODB_URI>"` — validates collection existence, document counts, indexes, and tenant isolation on a restored cluster.
 
 ---
 
@@ -143,11 +143,12 @@ Before a production environment is considered ready:
 
 - [ ] TLS everywhere; HSTS enabled; security headers set by Nginx.
 - [ ] Distinct, rotated secrets; secrets manager integrated; no `change-me` placeholders.
-- [ ] Least-privilege DB roles (app vs migration).
-- [ ] Backups + PITR enabled; a restore drill completed.
+- [ ] Least-privilege DB roles (app-only CRUD; elevated role for migrations).
+- [ ] Atlas Cloud Backup with PITR enabled; a restore drill completed (see [backup-drill.md](./backup-drill.md)).
 - [ ] Health checks wired to the LB; rolling deploys verified.
 - [ ] Rate limiting and request size limits enforced.
 - [ ] Logging/monitoring/alerting operational.
+- [ ] Backup verification script passes against restored cluster.
 - [ ] Dependency audit clean; pen-test scheduled/remediated ([ROADMAP.md](../../ROADMAP.md) Phase 6).
 - [ ] Runbooks for common incidents (deploy rollback, DB failover, queue backlog).
 

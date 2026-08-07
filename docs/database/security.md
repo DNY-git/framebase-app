@@ -41,12 +41,10 @@ Goals: tenant isolation is **impossible to bypass from the app** without a delib
 **Defense in depth — three layers, each must fail for isolation to break:**
 
 1. **Application authorization** — services attach the caller's `tenantId` to the request context; repositories scope every query by it. This is the first, fast layer.
-2. **Prisma client extension (enforcement)** — a client extension intercepts every tenant-scoped query and **injects `tenantId`** from the request context. A query missing a tenant filter **fails closed** (throws) rather than running unscoped. This catches the "forgot the `where`" bug.
-3. **Schema constraints** — every tenant-scoped table has `tenantId NOT NULL` with a foreign key to `tenant`, so even a raw insert can't create an orphan or mis-tenant row.
+2. **Base repository enforcement** — the abstract `BaseRepository` automatically injects `tenantId` into every query, insert, and update operation. A query missing a tenant filter fails closed by design.
+3. **Schema constraints** — every tenant-scoped collection has a `tenantId` index and field; even a raw insert without `tenantId` would be quickly identifiable.
 
-**Global tables** (rare lookups not owned by a tenant) intentionally omit `tenantId` and are explicitly documented as exceptions in [schema.md](./schema.md).
-
-> **Postgres Row-Level Security (RLS)** is a future hardening option (set policies by `tenantId` from the session). It is not enabled on day one to keep the dev experience simple; it's a candidate for [ROADMAP.md](../../ROADMAP.md) Phase 6 hardening, behind an [ADR](../decisions/).
+**Global collections** (e.g., tenant metadata) intentionally omit `tenantId` and are explicitly documented as exceptions in [schema.md](./schema.md).
 
 ---
 
@@ -58,15 +56,15 @@ Isolation is **proven, not assumed**. Every feature suite includes:
 - A **missing-tenant-filter test**: confirm a repository call made without a tenant context throws (the client extension fails closed).
 - A **multi-tenant query test**: with records in both tenants, list queries return only the caller's tenant.
 
-These tests run against a **real PostgreSQL** instance (the disposable Docker DB in CI), not mocks — mocking the ORM would hide the very bugs we're guarding against ([PROJECT_RULES.md §9](../../PROJECT_RULES.md#9-testing-rules)).
+These tests run against a **real MongoDB** instance (the disposable mongodb-memory-server in CI), not mocks — mocking the ORM would hide the very bugs we're guarding against ([PROJECT_RULES.md §9](../../PROJECT_RULES.md#9-testing-rules)).
 
 ---
 
 ## Least-Privilege Access
 
-- **The application DB user** has only the privileges it needs (CRUD on application tables, sequence usage) — **not** superuser, **not** `DDL` in production. Migrations run via a separate, elevated role during deploys only.
-- **No shared DB credentials** across environments; each environment has its own user and password, from the environment ([.env.example](../../.env.example)).
-- **Direct DB access** is restricted to a small number of operators and is audited; routine work goes through the application, never ad-hoc SQL against production.
+- **The application DB user** has only the privileges it needs (read/write on application collections) — **not** admin-level access. Schema changes are additive and don't require elevated privileges.
+- **No shared DB credentials** across environments; each environment has its own connection string, from the environment ([.env.example](../../.env.example)).
+- **Direct DB access** is restricted to a small number of operators and is audited; routine work goes through the application, never ad-hoc queries against production.
 
 ---
 
@@ -83,9 +81,9 @@ These tests run against a **real PostgreSQL** instance (the disposable Docker DB
 
 | Layer | Mechanism |
 | --- | --- |
-| **In transit** | TLS between API ↔ PostgreSQL and between workers ↔ PostgreSQL. TLS to clients terminates at Nginx. |
-| **At rest** | Managed PostgreSQL disk encryption (platform-managed key) in production. |
-| **Sensitive columns** | Application-level encryption for highly sensitive fields (e.g., integration credentials) using keys from the environment — never as plain columns. |
+| **In transit** | TLS between API ↔ MongoDB Atlas and between clients ↔ API. TLS to clients terminates at Nginx. |
+| **At rest** | MongoDB Atlas disk encryption (platform-managed key) in production. |
+| **Sensitive fields** | Application-level encryption for highly sensitive fields (e.g., integration credentials) using keys from the environment — never as plain fields. |
 
 Encryption complements, never replaces, isolation and access control.
 
@@ -93,8 +91,8 @@ Encryption complements, never replaces, isolation and access control.
 
 ## Auditing & Tamper-Resistance
 
-- **`audit_log` is append-only** ([schema.md](./schema.md)): inserts only, no updates or deletes through the application. The application DB user lacks `UPDATE`/`DELETE` on it.
-- Every **mutating** operation writes an audit record **inside the same transaction** as the change, capturing actor, action, entity, before/after, and correlation id.
+- **`audit_log` is append-only** ([schema.md](./schema.md)): inserts only, no updates or deletes through the application.
+- Every **mutating** operation writes an audit record alongside the change, capturing actor, action, entity, before/after, and correlation id.
 - **Audit records survive their subject:** when a business row is deleted, its audit history remains.
 - **Tamper-evidence** (hash-chaining or append-only storage) is a future hardening candidate for compliance-sensitive tenants; logged in [ROADMAP.md](../../ROADMAP.md) Phase 6.
 
@@ -102,17 +100,18 @@ Encryption complements, never replaces, isolation and access control.
 
 ## Backups & Retention
 
-- **Point-in-time recovery** on managed PostgreSQL in production ([../architecture/database.md → Backups & Recovery](../architecture/database.md#backups--recovery)).
-- **Restore drills** are a Phase 6 exit criterion — an untested backup is assumed broken.
+- **MongoDB Atlas Cloud Backups with PITR** in production: automated snapshots at configurable intervals with 24-hour point-in-time recovery window ([../deployment/backup-drill.md](../deployment/backup-drill.md)).
+- **Restore drills** are a Phase 6 exit criterion — an untested backup is assumed broken. Full procedure in [backup-drill.md](../deployment/backup-drill.md).
 - **Retention policy** balances recoverability against storage cost and compliance (e.g., data-retention obligations per tenant contract).
-- **Backups are encrypted** and access-restricted; a backup is a full copy of tenant data and is treated with the same care as production.
+- **Backups are encrypted** (Atlas-managed) and access-restricted; a backup is a full copy of tenant data and is treated with the same care as production.
+- **Pre-migration safety snapshots**: run `mongodump` or use Atlas snapshot download before any destructive operation.
 
 ---
 
 ## Tenant Lifecycle (Export & Deletion)
 
-- **Tenant data export** (for portability/contract end) is a first-class operation producing a complete, structured dump — never ad-hoc SQL.
-- **Tenant deletion** is irreversible and therefore **double-confirmed**, logged in the audit trail (itself retained per policy), and processed via a job that removes all tenant-scoped rows in dependency order.
+- **Tenant data export** (for portability/contract end) is a first-class operation producing a complete, structured dump — never ad-hoc queries.
+- **Tenant deletion** is irreversible and therefore **double-confirmed**, logged in the audit trail (itself retained per policy), and processed via a job that removes all tenant-scoped documents in dependency order.
 - **Soft suspend vs. hard delete:** suspending a tenant (`status = suspended`) blocks access while preserving data; deletion is the permanent, separate step.
 
 ---

@@ -1,0 +1,146 @@
+{
+  "project": "FrameBase",
+  "description": "Construction budget tracking web app. Next.js 15 + React + TypeScript + Tailwind + shadcn/ui frontend, Flask + MongoDB backend.",
+  "global_layout": {
+    "structure": "Two-panel layout on a light-gray page background (#B8B8B8-ish outer canvas). Left sidebar (fixed width ~184px, white background, rounded corners) + main content panel (white background, rounded corners) filling the rest of the viewport, with an outer gray gutter/margin around both.",
+    "sidebar": {
+      "background": "white",
+      "nav_items_top_to_bottom": [
+        "Projects",
+        "Tasks",
+        "Equipment",
+        "Inventory",
+        "Reports",
+        "Notifications",
+        "AI assistant",
+        "Audit log"
+      ],
+      "active_item_style": "Light gray rounded-rectangle background behind the active label, darker/bolder text than inactive items",
+      "footer_items": ["Help & support", "Settings"],
+      "footer_position": "Bottom of sidebar, separated from nav by empty space (sidebar is tall with lots of whitespace between nav and footer)"
+    },
+    "header_pattern": {
+      "description": "Every main-content page repeats this header block at the top",
+      "elements": [
+        {"element": "page_title", "style": "Large monospace/mono-style font, bold, e.g. 'Projects', 'Tasks', 'Equipment'"},
+        {"element": "page_subtitle", "style": "Small gray text directly under title, e.g. 'Manage and track all construction projects'"},
+        {"element": "search_bar", "style": "Rounded pill input top-center-right area, placeholder 'Search.....', magnifying-glass icon on left inside input", "present_on": ["Projects", "Equipment", "Inventory", "Reports", "Documents"]},
+        {"element": "toggle_switch", "style": "Rounded pill toggle top-right, filled black circle on right side (appears to be a dark/light mode or on/off toggle)"}
+      ]
+    },
+    "filter_row": {
+      "description": "Row beneath header on list pages",
+      "elements": [
+        {"element": "dropdown_filter", "label": "All projects", "style": "Bordered rounded-rectangle button with chevron-down icon", "present_on": ["Projects", "Tasks", "Equipment", "Inventory", "Reports"]},
+        {"element": "secondary_dropdown_filter", "label": "All projects", "style": "Second identical dropdown, appears only on Documents page (project filter distinct from type filter)", "present_on": ["Documents"]},
+        {"element": "primary_action_button", "style": "Solid green filled rounded button, white text, plus-icon prefix, right-aligned", "label_by_page": {
+          "Projects": "+ New project",
+          "Tasks": "+ New task",
+          "Equipment": "+ New task",
+          "Inventory": "+ Add stock",
+          "Documents": "+ Upload"
+        }}
+      ]
+    },
+    "color_tokens": {
+      "status_active": "green pill badge, dark-green text on light-green background, label 'Active'",
+      "status_delayed": "red/pink pill badge, label 'Delayed'",
+      "status_complete": "yellow pill badge, black text, label 'complete' (lowercase, unlike others)",
+      "status_onhold": "gray pill badge, label 'onhold' (lowercase, no space)",
+      "status_inactive": "pink/magenta pill badge, label 'Inactive'",
+      "status_maintenance": "orange pill badge, label 'Maintenance'",
+      "progress_text_color": "varies per row — green, orange/yellow, or red text depending on percentage value (not a bar-only indicator; the % text itself is colored)",
+      "row_leading_dot": "Small colored circle to the left of project/item name on Projects and Equipment tables; color appears to correlate loosely with status but is inconsistently applied in the mock"
+    }
+  },
+  "screens": [
+    {
+      "name": "Projects",
+      "route": "/projects",
+      "subtitle": "Manage and track all construction projects",
+      "table_columns": ["Projects", "Location", "Manager", "Status", "Budget", "Start date", "End date", "Progress"],
+      "row_notes": "Each row: colored leading dot + project name (e.g. 'Skyline'), city location (Lagos, Abuja, Ikeja, Enugu, Ibadan, Lokoja, Owerri), 'Manager' placeholder text, status pill, budget value with M suffix (e.g. '17.43M'), start/end dates, progress % in colored text",
+      "sample_row": {
+        "name": "Skyline",
+        "location": "Lagos",
+        "manager": "Manager",
+        "status": "Active",
+        "budget": "17.43M",
+        "start_date": "30 june 2026",
+        "end_date": "30 june 2026",
+        "progress": "70%"
+      }
+    },
+    {
+      "name": "Tasks",
+      "route": "/tasks",
+      "subtitle": "Track and manage project tasks",
+      "layout_type": "Kanban board, 4 columns with dark gray header bar spanning all columns",
+      "columns": ["To do", "In progress", "In review", "Completed"],
+      "card_structure": {
+        "elements": [
+          "Task title (bold), e.g. 'Executive function', 'Concrete foundation', 'Plumbing rough-in', 'Slab-decking'",
+          "Project name subtitle, e.g. 'Skyline apartments', 'Oceanview resort'",
+          "Priority/status pill badge: 'high' (red/pink), 'Medium' (peach/orange), or 'Completed' (purple) depending on column",
+          "Assignee avatar: solid black circle, bottom-left of card",
+          "Either a due date ('Due 23 june') OR a progress bar with % label (e.g. 65%, 40%) depending on column — To do cards show due date, In progress/In review/Completed cards show a progress bar"
+        ]
+      },
+      "note": "3 rows of cards visible, each row reusing the same 4 task types across columns (mock data, not meant to be taken literally per-column)"
+    },
+    {
+      "name": "Equipment",
+      "route": "/equipment",
+      "subtitle": "Track and manage project tasks",
+      "table_columns": ["equipment", "Location", "Assigned-to", "Status", "type", "Start date", "End date", "utilisation"],
+      "status_values_seen": ["Inactive", "Active", "Maintenance"],
+      "type_values_seen": ["Excavator", "Bulldozer", "Backhloader", "Dump-truck", "Compactor", "Conc-mixer"],
+      "note": "Column headers use inconsistent casing in the mock (lowercase 'equipment', 'type', 'utilisation' vs capitalized 'Location', 'Status') — flag for the agent to normalize to consistent casing in the real build. 'Backhloader' is likely a typo for 'Backhoe loader'."
+    },
+    {
+      "name": "Inventory",
+      "route": "/inventory",
+      "subtitle": "Track materials and stock levels",
+      "layout_note": "Reuses the exact same table structure/columns/data as the Equipment page in this mock (equipment/type table rather than a materials/stock table) — treat as a placeholder; real Inventory page should show materials + stock quantities, not equipment utilisation.",
+      "search_bar": true,
+      "primary_action": "+ Add stock"
+    },
+    {
+      "name": "Reports",
+      "route": "/reports",
+      "subtitle": "Track materials and stock levels",
+      "layout_note": "Also reuses the Equipment/Inventory table verbatim in this mock, with an extra 'All projects' filter dropdown top-right and a duplicated column header row (columns appear twice, once above the search bar and once below) — likely a mock artifact rather than intentional; real Reports page should have distinct report content (charts/summaries), not a repeated equipment table.",
+      "search_bar": true
+    },
+    {
+      "name": "Documents",
+      "route": "/documents",
+      "subtitle": "Track materials and stock levels",
+      "table_columns": ["Name", "Type", "Project", "Uploaded by", "type", "date", "Size"],
+      "filters": ["All projects (dropdown 1)", "All projects (dropdown 2)"],
+      "primary_action": "+ Upload",
+      "size_values_seen": "All rows show '20.46mb' — placeholder/mock data",
+      "note": "Sidebar nav highlights 'Inventory' as active even though header title is 'Documents' — likely mock inconsistency; clarify routing with the agent (Documents may be a sub-view or modal under Inventory rather than its own top-level nav item)."
+    },
+    {
+      "name": "AI assistant",
+      "route": "/ai-assistant",
+      "subtitle": null,
+      "layout_type": "Empty chat interface",
+      "elements": [
+        "Empty white main panel (no messages shown)",
+        "Bottom-anchored chat input bar: light-gray rounded pill container",
+        "Plus icon (attachment) on far left of input",
+        "Text input field (empty, no placeholder visible)",
+        "Microphone icon button (dark circle) inside input bar",
+        "Up-arrow send button (dark, square) at far right of input bar"
+      ]
+    }
+  ],
+  "open_questions_for_agent_prompt": [
+    "Confirm whether Inventory and Reports should be distinct table schemas from Equipment, since the mocks reuse identical placeholder data across all three.",
+    "Confirm correct nav highlighting per route (Documents mock shows Inventory as the active sidebar item).",
+    "Confirm intended casing convention for table headers (mixed Title Case and lowercase across screens).",
+    "Confirm status taxonomy per entity type: Projects use Active/Delayed/complete/onhold; Equipment uses Active/Inactive/Maintenance — decide whether these are separate enums or a shared one."
+  ]
+}

@@ -1,6 +1,6 @@
 # Backend Architecture
 
-> How the ConstructTrack API is structured: a NestJS modular monolith with strict layering — controllers translate HTTP, services hold business logic, Prisma owns data access — enforced by TypeScript strict mode, validation at the edge, and authorization in the service layer.
+> How the ConstructTrack API is structured: a NestJS modular monolith with strict layering — controllers translate HTTP, services hold business logic, Mongoose repositories own data access — enforced by TypeScript strict mode, validation at the edge, and authorization in the service layer.
 
 Companion docs: [system.md](./system.md) (whole-system view), [database.md](./database.md) (persistence detail), [docs/api/](../api/) (HTTP contract), [../security/authentication.md](../security/authentication.md), [../security/authorization.md](../security/authorization.md), [BIBLE.md §6](../../BIBLE.md#6-architecture-overview).
 
@@ -14,7 +14,7 @@ Companion docs: [system.md](./system.md) (whole-system view), [database.md](./da
 - [Request Pipeline](#request-pipeline)
 - [Domain Modules](#domain-modules)
 - [Cross-Cutting Services](#cross-cutting-services)
-- [Data Access (Prisma)](#data-access-prisma)
+- [Data Access (Mongoose)](#data-access-mongoose)
 - [Background Processing](#background-processing)
 - [Events & Notifications](#events--notifications)
 - [Error Handling](#error-handling)
@@ -32,7 +32,7 @@ Design tenets (mirrored from [PROJECT_RULES.md §5](../../PROJECT_RULES.md#5-bac
 - **Validation at the edge** — DTOs + class-validator; controllers trust nothing raw.
 - **Authorization in the service** — re-checked on every mutation, never only in the controller.
 - **Business logic in services** — controllers translate HTTP ↔ domain, nothing more.
-- **Background work to a queue** (BullMQ), never in-process `setTimeout`.
+- **Background work to a queue** (InMemoryJobQueue, with BullMQ swap planned), never in-process `setTimeout`.
 - **Every mutation auditable.**
 
 ## Module Structure
@@ -47,9 +47,9 @@ modules/projects/
 ├── dto/                      # Request/response DTOs + class-validator rules
 │   ├── create-project.dto.ts
 │   └── project.query.dto.ts
-├── entities/                 # Domain entity types (mapped from Prisma models)
+├── entities/                 # Domain entity types (mapped from Mongoose models)
 ├── events/                   # Domain event emitters
-├── projects.repository.ts    # Prisma access scoped to this module
+├── projects.repository.ts    # Mongoose access scoped to this module
 └── __tests__/                # Unit + integration tests
 ```
 
@@ -60,14 +60,14 @@ A module declares its public API via its `.module.ts` `exports` and may consume 
 Dependencies point **inward**, one direction:
 
 ```
-   Controller  ──▶  Service  ──▶  Repository  ──▶  Prisma  ──▶  PostgreSQL
+   Controller  ──▶  Service  ──▶  Repository  ──▶  Mongoose  ──▶  MongoDB
    (HTTP)          (domain)       (data access)                (truth)
 ```
 
 - **Controller** parses and validates input, calls a service, shapes the response envelope. No business rules.
 - **Service** enforces authorization, runs business logic inside transactions where needed, emits domain events, writes the audit log. This is where decisions live.
-- **Repository** isolates Prisma queries for one domain, making them mockable and consistent.
-- **Prisma** is the single ORM; the schema is authoritative ([database.md](./database.md)).
+- **Repository** isolates Mongoose queries for one domain, making them mockable and consistent.
+- **Mongoose** is the ODM; the schemas are authoritative ([database.md](./database.md)).
 
 A service may call another module's *exported service*, but never another module's repository or controller. This single rule prevents the tangle that ages most monoliths.
 
@@ -108,32 +108,32 @@ Shared infrastructure available to every module:
 - **`AuditService`** — writes an immutable audit record (actor, action, entity, before/after) on mutating calls.
 - **`AuthService` / `AuthorizationService`** — current user, role resolution, permission checks, tenant context.
 - **`LoggerService`** — structured JSON logger with request/tenant/user correlation ids; never secrets/PII.
-- **`CacheService`** — Redis wrapper with stale-while-revalidate for hot aggregates.
-- **`QueueService`** — BullMQ producer wrapper for enqueuing jobs with idempotency keys.
+- **`CacheService`** — Redis wrapper (planned) with stale-while-revalidate for hot aggregates.
+- **`QueueService`** — `IJobQueue` wrapper for enqueuing jobs with idempotency keys.
 - **`EventBus`** — lightweight in-process event emitter for domain events (consumed by `notifications`, cache invalidation, audit).
 
-## Data Access (Prisma)
+## Data Access (Mongoose)
 
-Prisma is the **sole** ORM; the `schema.prisma` file is the source of truth ([docs/database/schema.md](../database/schema.md)). The generated client is fully typed, eliminating an entire class of query-shape bugs.
+Mongoose is the **sole** ODM; the schemas in `apps/api/src/schemas/` are the source of truth ([docs/database/schema.md](../database/schema.md)). Mongoose provides typed models, validation, and middleware.
 
 Conventions ([PROJECT_RULES.md §6](../../PROJECT_RULES.md#6-database-rules)):
 
-- **Tenant isolation** is enforced by a Prisma client extension that injects `tenantId` from the request context into every query and fails closed if absent. See [system.md → Multi-Tenancy Model](./system.md#multi-tenancy-model) and [docs/database/security.md](../database/security.md).
-- **No `SELECT *`** — repositories select the columns they consume, keeping responses lean and intentional.
-- **Transactions** wrap multi-write operations; the audit entry is written within the same transaction so it never drifts from the mutation it records.
-- **Migrations are append-only** and generated from the schema; never hand-edit an applied migration ([docs/database/migrations.md](../database/migrations.md)).
+- **Tenant isolation** is enforced by the `BaseRepository` which injects `tenantId` from the request context into every query and fails closed if absent. See [system.md → Multi-Tenancy Model](./system.md#multi-tenancy-model) and [docs/database/security.md](../database/security.md).
+- **No unbounded queries** — repositories use pagination by default, keeping responses lean and intentional.
+- **Transactions** wrap multi-write operations where atomicity is required; the audit entry is written alongside the mutation.
+- **Schema changes are additive** and backward-compatible; destructive changes ship in a later release ([docs/database/migrations.md](../database/migrations.md)).
 
 ## Background Processing
 
-Asynchronous work runs on **BullMQ** (Redis-backed). Producers use the `QueueService`; workers are registered per queue in a dedicated `workers/` entrypoint so they can be scaled independently of the API.
+Asynchronous work uses the **InMemoryJobQueue** (synchronous, no Redis required). The `IJobQueue` interface is the extension point for swapping to BullMQ/Redis when hardware allows. Workers process jobs inline for now; future scaling will separate worker processes.
 
 | Queue | Example jobs | Notes |
 | --- | --- | --- |
 | `reports` | generate weekly summary, render PDF | idempotency key required |
-| `notifications` | send email, fan-out push | retries with backoff |
+| `notifications` | send email, fan-out push | retries with backoff (planned) |
 | `ai` | long-running LLM synthesis | per-request timeout + token cap |
 
-Jobs log start/success/failure with a correlation id and are visible in the queue admin for debugging. Long-running or expensive operations (report rendering, AI synthesis) are **never** run inline in a request — they enqueue and return a job reference the client polls or receives via push.
+Jobs log start/success/failure with a correlation id. Long-running or expensive operations (report rendering, AI synthesis) are **never** run inline in a request — they enqueue and return a job reference the client polls or receives via push.
 
 ## Events & Notifications
 

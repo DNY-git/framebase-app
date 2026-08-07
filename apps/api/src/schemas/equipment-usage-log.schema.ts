@@ -12,6 +12,9 @@ export class EquipmentUsageLog implements Omit<EquipmentUsageLogDomain, 'id'> {
   @Prop({ type: String, required: true, index: true })
   equipmentId!: string;
 
+  @Prop({ type: String })
+  taskId?: string;
+
   @Prop({ type: Date, required: true })
   date!: Date;
 
@@ -30,5 +33,5 @@ export class EquipmentUsageLog implements Omit<EquipmentUsageLogDomain, 'id'> {
 
 export const EquipmentUsageLogSchema = SchemaFactory.createForClass(EquipmentUsageLog);
 
-// A piece of equipment usually only has one log per day
-EquipmentUsageLogSchema.index({ equipmentId: 1, date: 1 }, { unique: true });
+EquipmentUsageLogSchema.index({ tenantId: 1, equipmentId: 1, date: 1 });
+EquipmentUsageLogSchema.index({ tenantId: 1, taskId: 1 });

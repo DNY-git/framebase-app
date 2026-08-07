@@ -1,6 +1,6 @@
 # System Architecture
 
-> Bird's-eye view of how ConstructTrack fits together: a multi-tenant modular monolith serving a feature-based SPA, backed by PostgreSQL as the source of truth, Redis for cache/queue, and a provider-agnostic AI layer.
+> Bird's-eye view of how ConstructTrack fits together: a multi-tenant modular monolith serving a feature-based SPA, backed by MongoDB Atlas as the source of truth, and a provider-agnostic AI layer.
 
 This is the entry point to the architecture docs. Drill into [frontend.md](./frontend.md), [backend.md](./backend.md), [database.md](./database.md), and [ai.md](./ai.md) for depth. For the *why*, see [BIBLE.md §6](../../BIBLE.md#6-architecture-overview) and [TECH_STACK.md](../../TECH_STACK.md).
 
@@ -51,12 +51,11 @@ The frontend is a **feature-based SPA** (React) that consumes a versioned REST A
                        │  Shared: validation · authz · audit · logger │
                        └─────┬────────────┬───────────────┬───────────┘
                              │            │               │
-                  ┌──────────▼──┐  ┌──────▼──────┐  ┌──────▼──────────────┐
-                  │ PostgreSQL  │  │   Redis 7   │  │  AI Provider(s)     │
-                  │   16        │  │ • cache     │  │  (OpenAI/Anthropic) │
-                  │ (truth)     │  │ • sessions  │  │  via abstraction    │
-                  └─────────────┘  │ • BullMQ    │  └─────────────────────┘
-                                   └─────────────┘
+                   ┌──────────▼──┐  ┌──────▼──────┐  ┌──────▼──────────────┐
+                   │  MongoDB    │  │   Redis 7   │  │  AI Provider(s)     │
+                   │  Atlas      │  │ (planned)   │  │  (OpenAI/Anthropic) │
+                   │  (truth)    │  │             │  │  via abstraction    │
+                   └─────────────┘  └─────────────┘  └─────────────────────┘
 ```
 
 External (out-of-process) integrations: SMTP for email, S3-compatible storage for uploads, Sentry/OTLP for observability — all configured via environment (see [.env.example](../../.env.example)).
@@ -119,27 +118,27 @@ A typical authenticated mutation (e.g., "create task"):
 5. Controller        → thin; calls service
 6. Service           → authorization check (role + tenant + record ownership)
                      → business logic
-                     → Prisma transaction → PostgreSQL
+                     → Mongoose persistence → MongoDB Atlas
                      → audit log entry written (actor, action, before/after)
 7. Response          → standard envelope (see api/standards.md)
 8. Side effects      → emit domain event → notifications module may enqueue
                      → cache invalidation via Redis if applicable
 ```
 
-Reads follow the same path through guard/validate/service, but may short-circuit via the Redis cache layer with a stale-while-revalidate policy for hot dashboard aggregates.
+Reads follow the same path through guard/validate/service, but may short-circuit via a cache layer with a stale-while-revalidate policy for hot dashboard aggregates (when Redis is available).
 
 ## Multi-Tenancy Model
 
 - **Strategy:** shared database, shared schema, row-level isolation via `tenantId`.
-- **Every tenant-scoped table** has a `tenantId` column (FK to `tenant`), a covering index, and a NOT NULL constraint.
-- **Enforcement:** Prisma client extension injects `tenantId` into every query based on the request context. A query missing a `tenantId` filter is a bug — the extension fails closed.
+- **Every tenant-scoped collection** has a `tenantId` field and a covering index.
+- **Enforcement:** `BaseRepository` injects `tenantId` into every query based on the request context. A query missing a `tenantId` filter is a bug — the repository fails closed.
 - **Verification:** every feature's test suite includes a **cross-tenant access test** that must fail. See [docs/security/authorization.md](../security/authorization.md) and [docs/database/security.md](../database/security.md).
 
 This model trades some query complexity for operational simplicity (one DB to back up, one to reason about) and is appropriate until a tenant's data volume justifies dedicated infrastructure.
 
 ## Background Jobs
 
-Asynchronous work runs on **BullMQ** backed by Redis. Jobs are durable, retryable, and idempotent.
+Asynchronous work uses the **InMemoryJobQueue** (synchronous, no Redis required). The `IJobQueue` interface is the extension point for future BullMQ/Redis swap.
 
 | Queue | Producers | Work | Phase |
 | --- | --- | --- | --- |

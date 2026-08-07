@@ -34,13 +34,13 @@ This roadmap tracks *what* and *when*; *what's currently happening* lives in [TA
 
 | Phase | Theme | Status | Exit criteria |
 | --- | --- | --- | --- |
-| 0 | Foundation & Approval | ✅ Docs complete, approved | Docs approved; Phase 1 begins |
-| 1 | Platform Skeleton | 🔄 In Progress | Repo, CI, npm scripts, MongoDB Atlas, empty modules |
-| 2 | The Spine | ⏳ Not started | Auth + multi-tenancy + Projects + Tasks usable E2E |
-| 3 | Field Operations | ⏳ Not started | Equipment + Inventory usable and linked to Projects |
-| 4 | Insight | ⏳ Not started | Reports builder + Dashboard KPIs live |
-| 5 | Engagement | ⏳ Not started | Notifications + AI Assistant MVP |
-| 6 | Hardening & Scale | ⏳ Not started | Observability, perf, pen-test, prod readiness |
+| 0 | Foundation & Approval | ✅ Done | Docs approved; Phase 1 begins |
+| 1 | Platform Skeleton | ✅ Done | Repo, CI, npm scripts, MongoDB Atlas, empty modules |
+| 2 | The Spine | ✅ Done | Auth + multi-tenancy + Projects + Tasks usable E2E |
+| 3 | Field Operations | ✅ Done | Equipment + Inventory usable and linked to Projects |
+| 4 | Insight | ✅ Done | Reports builder + Dashboard KPIs live |
+| 5 | Engagement | ✅ Done | Notifications + AI Assistant MVP |
+| 6 | Hardening & Scale | ✅ Done | Observability, error classification, rate limiting, backups, job queue |
 
 Legend: ✅ done · 🟡 in progress · ⏳ not started
 

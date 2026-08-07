@@ -1,0 +1,317 @@
+{
+  "$schema": "https://constructtrack.dev/design-spec/design-system/v1",
+
+  "name": "ConstructTrack Design System",
+
+  "version": "1.0.0",
+
+  "extends": "00-metadata.json",
+
+  "theme": {
+    "default": "light",
+    "supportsDarkMode": true,
+    "supportsHighContrast": true
+  },
+
+  "colorSystem": {
+    "semantic": {
+      "background": {
+        "primary": "#F8F9FA",
+        "secondary": "#F2F4F7",
+        "tertiary": "#EAECF0"
+      },
+
+      "surface": {
+        "primary": "#FFFFFF",
+        "secondary": "#FCFCFD",
+        "elevated": "#FFFFFF"
+      },
+
+      "text": {
+        "primary": "#101828",
+        "secondary": "#475467",
+        "tertiary": "#667085",
+        "disabled": "#98A2B3",
+        "inverse": "#FFFFFF"
+      },
+
+      "brand": {
+        "primary": "#50F249",
+        "primaryHover": "#44D83E",
+        "primaryPressed": "#36B730",
+        "primaryForeground": "#101828"
+      },
+
+      "success": {
+        "background": "#ECFDF3",
+        "foreground": "#027A48",
+        "border": "#ABEFC6"
+      },
+
+      "warning": {
+        "background": "#FFFAEB",
+        "foreground": "#B54708",
+        "border": "#FEC84B"
+      },
+
+      "danger": {
+        "background": "#FEF3F2",
+        "foreground": "#B42318",
+        "border": "#FDA29B"
+      },
+
+      "info": {
+        "background": "#EFF8FF",
+        "foreground": "#175CD3",
+        "border": "#B2DDFF"
+      },
+
+      "border": {
+        "default": "#E4E7EC",
+        "strong": "#D0D5DD",
+        "subtle": "#F2F4F7"
+      }
+    }
+  },
+
+  "typography": {
+
+    "fontFamilies": {
+      "primary": "IBM Plex Mono",
+      "fallback": [
+        "Inter",
+        "system-ui",
+        "sans-serif"
+      ]
+    },
+
+    "weights": {
+      "regular": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    },
+
+    "sizes": {
+
+      "displayXL": 48,
+      "displayLG": 40,
+
+      "h1": 36,
+      "h2": 30,
+      "h3": 24,
+      "h4": 20,
+
+      "bodyLG": 18,
+      "body": 16,
+      "bodySM": 14,
+      "caption": 12
+    },
+
+    "lineHeights": {
+      "tight": 1.2,
+      "normal": 1.5,
+      "relaxed": 1.7
+    }
+  },
+
+  "spacing": {
+
+    "baseUnit": 4,
+
+    "scale": {
+      "0": 0,
+      "1": 4,
+      "2": 8,
+      "3": 12,
+      "4": 16,
+      "5": 20,
+      "6": 24,
+      "8": 32,
+      "10": 40,
+      "12": 48,
+      "16": 64,
+      "20": 80,
+      "24": 96,
+      "32": 128
+    }
+  },
+
+  "radius": {
+
+    "none": 0,
+
+    "sm": 8,
+
+    "md": 12,
+
+    "lg": 16,
+
+    "xl": 20,
+
+    "2xl": 24,
+
+    "full": 9999
+  },
+
+  "shadows": {
+
+    "sm": {
+      "y": 1,
+      "blur": 2,
+      "opacity": 0.05
+    },
+
+    "md": {
+      "y": 4,
+      "blur": 12,
+      "opacity": 0.08
+    },
+
+    "lg": {
+      "y": 12,
+      "blur": 32,
+      "opacity": 0.12
+    },
+
+    "xl": {
+      "y": 24,
+      "blur": 48,
+      "opacity": 0.18
+    }
+  },
+
+  "borders": {
+
+    "thin": 1,
+
+    "normal": 2,
+
+    "heavy": 3
+  },
+
+  "motion": {
+
+    "fast": 150,
+
+    "normal": 250,
+
+    "slow": 400,
+
+    "easing": {
+      "default": "ease-out",
+      "enter": "ease-in-out",
+      "exit": "ease-in"
+    }
+  },
+
+  "grid": {
+
+    "desktopColumns": 12,
+
+    "tabletColumns": 8,
+
+    "mobileColumns": 4,
+
+    "gutter": 24,
+
+    "container": {
+
+      "maxWidth": 1440,
+
+      "padding": {
+        "desktop": 40,
+        "tablet": 32,
+        "mobile": 20
+      }
+    }
+  },
+
+  "iconography": {
+
+    "library": "Lucide",
+
+    "defaultStroke": 1.75,
+
+    "defaultSize": 20,
+
+    "sizes": {
+      "sm": 16,
+      "md": 20,
+      "lg": 24,
+      "xl": 32
+    }
+  },
+
+  "componentDefaults": {
+
+    "libraryPriority": [
+
+      "shadcn/ui",
+
+      "Astryx",
+
+      "Custom"
+
+    ],
+
+    "button": {
+      "defaultVariant": "default",
+      "defaultSize": "lg",
+      "radius": "xl"
+    },
+
+    "input": {
+      "height": 48,
+      "radius": "lg"
+    },
+
+    "card": {
+      "radius": "xl",
+      "padding": 24,
+      "shadow": "md"
+    },
+
+    "table": {
+      "rowHeight": 60,
+      "headerHeight": 56
+    },
+
+    "dialog": {
+      "radius": "2xl",
+      "padding": 32
+    }
+  },
+
+  "interactionStates": {
+
+    "hover": {
+      "brightness": 0.98,
+      "duration": 150
+    },
+
+    "pressed": {
+      "scale": 0.98
+    },
+
+    "disabled": {
+      "opacity": 0.45
+    },
+
+    "focus": {
+      "ringWidth": 2,
+      "ringColor": "brand.primary"
+    }
+  },
+
+  "accessibility": {
+
+    "minimumTouchTarget": 44,
+
+    "minimumContrast": "WCAG AA",
+
+    "keyboardNavigation": true,
+
+    "visibleFocusRing": true
+  }
+}

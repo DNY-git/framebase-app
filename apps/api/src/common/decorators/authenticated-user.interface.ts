@@ -1,11 +1,10 @@
 /**
  * Authenticated user attached to the request by the JwtAuthGuard.
- * `tenantId` is the active tenant from the access token payload.
- * `sessionId` references the server-side session for revocation.
+ * Extends AuthContext with session tracking for revocation.
  */
-export interface AuthenticatedUser {
-  userId: string;
-  tenantId: string;
-  role: string;
+import type { AuthContext } from '../authorization/authorization.types';
+
+export interface AuthenticatedUser extends AuthContext {
+  /** Session id for refresh-token revocation. Empty when not available. */
   sessionId: string;
 }

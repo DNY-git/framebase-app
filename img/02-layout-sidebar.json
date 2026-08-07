@@ -1,0 +1,280 @@
+{
+  "$schema": "https://constructtrack.dev/design-spec/layout/sidebar/v1",
+
+  "name": "Application Sidebar",
+
+  "version": "1.0.0",
+
+  "extends": [
+    "00-metadata.json",
+    "01-design-system.json"
+  ],
+
+  "component": "Sidebar",
+
+  "implementation": {
+    "preferred": "shadcn/ui",
+    "fallback": "Astryx NavigationRail",
+    "customAllowed": true
+  },
+
+  "position": {
+    "type": "fixed",
+    "anchor": "left",
+    "top": 0,
+    "left": 0,
+    "bottom": 0
+  },
+
+  "dimensions": {
+    "desktopWidth": 272,
+    "tabletWidth": 240,
+    "collapsedWidth": 80,
+    "mobile": "drawer"
+  },
+
+  "appearance": {
+    "background": "surface.primary",
+    "borderRight": {
+      "enabled": true,
+      "color": "border.default",
+      "width": 1
+    },
+    "shadow": "none"
+  },
+
+  "padding": {
+    "top": 32,
+    "bottom": 24,
+    "left": 20,
+    "right": 20
+  },
+
+  "sections": [
+    "logo",
+    "workspace",
+    "navigation",
+    "secondaryNavigation",
+    "footer"
+  ],
+
+  "logo": {
+    "height": 48,
+    "alignment": "left",
+    "spacingBelow": 32,
+    "icon": {
+      "shape": "rounded-square",
+      "size": 36
+    },
+    "text": {
+      "primary": "ConstructTrack",
+      "secondary": "Construction Management"
+    }
+  },
+
+  "workspace": {
+    "enabled": true,
+    "type": "organization-switcher",
+    "height": 52,
+    "marginBottom": 32
+  },
+
+  "navigation": {
+    "gap": 8,
+    "itemHeight": 48,
+    "iconSize": 20,
+    "textSize": 15,
+    "radius": 14
+  },
+
+  "navigationItems": [
+
+    {
+      "id": "dashboard",
+      "label": "Dashboard",
+      "icon": "layout-dashboard",
+      "route": "/dashboard"
+    },
+
+    {
+      "id": "projects",
+      "label": "Projects",
+      "icon": "folder-kanban",
+      "route": "/projects"
+    },
+
+    {
+      "id": "tasks",
+      "label": "Tasks",
+      "icon": "list-checks",
+      "route": "/tasks"
+    },
+
+    {
+      "id": "equipment",
+      "label": "Equipment",
+      "icon": "truck",
+      "route": "/equipment"
+    },
+
+    {
+      "id": "inventory",
+      "label": "Inventory",
+      "icon": "boxes",
+      "route": "/inventory"
+    },
+
+    {
+      "id": "reports",
+      "label": "Reports",
+      "icon": "chart-column",
+      "route": "/reports"
+    },
+
+    {
+      "id": "documents",
+      "label": "Documents",
+      "icon": "file-text",
+      "route": "/documents"
+    }
+  ],
+
+  "secondaryNavigation": {
+
+    "spacingTop": 24,
+
+    "items": [
+
+      {
+        "id": "notifications",
+        "label": "Notifications",
+        "icon": "bell"
+      },
+
+      {
+        "id": "assistant",
+        "label": "AI Assistant",
+        "icon": "sparkles"
+      },
+
+      {
+        "id": "audit",
+        "label": "Audit Log",
+        "icon": "history"
+      },
+
+      {
+        "id": "help",
+        "label": "Help & Support",
+        "icon": "circle-help"
+      },
+
+      {
+        "id": "settings",
+        "label": "Settings",
+        "icon": "settings"
+      }
+
+    ]
+  },
+
+  "navigationStates": {
+
+    "default": {
+      "background": "transparent",
+      "text": "text.secondary",
+      "icon": "text.secondary"
+    },
+
+    "hover": {
+      "background": "surface.secondary",
+      "text": "text.primary",
+      "icon": "text.primary"
+    },
+
+    "active": {
+      "background": "brand.primary",
+      "text": "text.primary",
+      "icon": "text.primary"
+    },
+
+    "disabled": {
+      "opacity": 0.4
+    }
+
+  },
+
+  "footer": {
+
+    "userCard": {
+
+      "enabled": true,
+
+      "avatar": {
+        "size": 40,
+        "shape": "circle"
+      },
+
+      "showRole": true,
+
+      "showOrganization": false
+    }
+
+  },
+
+  "collapse": {
+
+    "enabled": true,
+
+    "triggerPosition": "bottom",
+
+    "collapsedBehavior": {
+
+      "iconsOnly": true,
+
+      "tooltips": true,
+
+      "logoReduced": true
+
+    }
+
+  },
+
+  "responsive": {
+
+    "desktop": {
+
+      "mode": "fixed"
+
+    },
+
+    "tablet": {
+
+      "mode": "fixed"
+
+    },
+
+    "mobile": {
+
+      "mode": "drawer",
+
+      "overlay": true,
+
+      "gestureClose": true
+
+    }
+
+  },
+
+  "accessibility": {
+
+    "keyboardNavigation": true,
+
+    "arrowNavigation": true,
+
+    "ariaNavigation": true,
+
+    "focusVisible": true
+
+  }
+}

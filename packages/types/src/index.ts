@@ -41,6 +41,75 @@ export enum Role {
 }
 
 // ---------------------------------------------------------------------------
+// Standardized Error Codes (T-502)
+// See: docs/features/observability.md → Error Classification
+// ---------------------------------------------------------------------------
+
+export enum ErrorCode {
+  // Auth
+  AUTH_INVALID_CREDENTIALS = 'AUTH_INVALID_CREDENTIALS',
+  AUTH_DISABLED_ACCOUNT = 'AUTH_DISABLED_ACCOUNT',
+  AUTH_NO_MEMBERSHIP = 'AUTH_NO_MEMBERSHIP',
+  AUTH_INVALID_REFRESH_TOKEN = 'AUTH_INVALID_REFRESH_TOKEN',
+  AUTH_REFRESH_TOKEN_REVOKED = 'AUTH_REFRESH_TOKEN_REVOKED',
+  AUTH_DUPLICATE_EMAIL = 'AUTH_DUPLICATE_EMAIL',
+  AUTH_WEAK_PASSWORD = 'AUTH_WEAK_PASSWORD',
+  AUTH_USER_NOT_FOUND = 'AUTH_USER_NOT_FOUND',
+
+  // Projects
+  PROJECT_NOT_FOUND = 'PROJECT_NOT_FOUND',
+  PROJECT_DUPLICATE_CODE = 'PROJECT_DUPLICATE_CODE',
+  PROJECT_INVALID_STATUS_TRANSITION = 'PROJECT_INVALID_STATUS_TRANSITION',
+  PROJECT_LAST_MANAGER = 'PROJECT_LAST_MANAGER',
+  PROJECT_MEMBER_NOT_FOUND = 'PROJECT_MEMBER_NOT_FOUND',
+  PROJECT_DUPLICATE_MEMBER = 'PROJECT_DUPLICATE_MEMBER',
+
+  // Tasks
+  TASK_NOT_FOUND = 'TASK_NOT_FOUND',
+  TASK_INVALID_STATUS_TRANSITION = 'TASK_INVALID_STATUS_TRANSITION',
+  TASK_PROJECT_ON_HOLD = 'TASK_PROJECT_ON_HOLD',
+  TASK_PREDECESSOR_INCOMPLETE = 'TASK_PREDECESSOR_INCOMPLETE',
+  TASK_SELF_DEPENDENCY = 'TASK_SELF_DEPENDENCY',
+  TASK_DUPLICATE_DEPENDENCY = 'TASK_DUPLICATE_DEPENDENCY',
+  TASK_CYCLE_DETECTED = 'TASK_CYCLE_DETECTED',
+  TASK_DEPENDENCY_NOT_FOUND = 'TASK_DEPENDENCY_NOT_FOUND',
+  TASK_ASSIGNEE_NOT_MEMBER = 'TASK_ASSIGNEE_NOT_MEMBER',
+  TASK_CREW_LIMITED = 'TASK_CREW_LIMITED',
+
+  // Equipment
+  EQUIPMENT_NOT_FOUND = 'EQUIPMENT_NOT_FOUND',
+  EQUIPMENT_DUPLICATE_SERIAL = 'EQUIPMENT_DUPLICATE_SERIAL',
+  EQUIPMENT_ASSIGNMENT_CONFLICT = 'EQUIPMENT_ASSIGNMENT_CONFLICT',
+  EQUIPMENT_WRONG_STATUS = 'EQUIPMENT_WRONG_STATUS',
+  EQUIPMENT_ASSIGNMENT_NOT_FOUND = 'EQUIPMENT_ASSIGNMENT_NOT_FOUND',
+  MAINTENANCE_RECORD_NOT_FOUND = 'MAINTENANCE_RECORD_NOT_FOUND',
+
+  // Inventory
+  MATERIAL_NOT_FOUND = 'MATERIAL_NOT_FOUND',
+  MATERIAL_DUPLICATE_SKU = 'MATERIAL_DUPLICATE_SKU',
+  STOCK_LEVEL_NOT_FOUND = 'STOCK_LEVEL_NOT_FOUND',
+  INSUFFICIENT_STOCK = 'INSUFFICIENT_STOCK',
+  DELIVERY_NOT_FOUND = 'DELIVERY_NOT_FOUND',
+
+  // Notifications
+  NOTIFICATION_NOT_FOUND = 'NOTIFICATION_NOT_FOUND',
+
+  // Reports
+  REPORT_TEMPLATE_NOT_FOUND = 'REPORT_TEMPLATE_NOT_FOUND',
+  REPORT_RUN_NOT_FOUND = 'REPORT_RUN_NOT_FOUND',
+
+  // AI
+  AI_JOB_NOT_FOUND = 'AI_JOB_NOT_FOUND',
+
+  // Common
+  FORBIDDEN = 'FORBIDDEN',
+  VALIDATION_ERROR = 'VALIDATION_ERROR',
+  INTERNAL_ERROR = 'INTERNAL_ERROR',
+  RATE_LIMITED = 'RATE_LIMITED',
+  BAD_REQUEST = 'BAD_REQUEST',
+}
+
+// ---------------------------------------------------------------------------
 // Standard API Response Envelope
 // See: docs/api/standards.md
 // ---------------------------------------------------------------------------
@@ -57,8 +126,14 @@ export interface ApiMeta {
   requestId: string;
   /** ISO 8601 timestamp of the response. */
   timestamp: string;
-  /** Pagination metadata (present on list endpoints). */
-  pagination?: PaginationMeta;
+  /** Current page number (present on list endpoints). */
+  page?: number;
+  /** Number of items per page (present on list endpoints). */
+  perPage?: number;
+  /** Total items matching the query (present on list endpoints). */
+  totalItems?: number;
+  /** Total pages (present on list endpoints). */
+  totalPages?: number;
 }
 
 export interface PaginationMeta {
@@ -246,6 +321,19 @@ export interface DashboardOverview {
     atRisk: number;
     mineToday: number;
   };
+  equipment: {
+    total: number;
+    available: number;
+    assigned: number;
+    inMaintenance: number;
+    utilizationRate: number;
+    upcomingMaintenance: number;
+  };
+  inventory: {
+    totalMaterials: number;
+    lowStockItems: number;
+    totalStockQuantity: number;
+  };
 }
 
 // ============================================================================
@@ -306,6 +394,7 @@ export interface EquipmentUsageLogDomain {
   id: string;
   tenantId: string;
   equipmentId: string;
+  taskId?: string;
   date: Date;
   hoursUsed: number;
   operatorId?: string;
@@ -356,6 +445,280 @@ export interface DowntimeLogDomain {
   updatedAt: Date;
 }
 
+// ============================================================================
+// INVENTORY DOMAIN
+// ============================================================================
+
+export interface MaterialDomain {
+  id: string;
+  tenantId: string;
+  sku: string;
+  name: string;
+  unit: string;
+  reorderPoint: number;
+  archivedAt?: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface StockLevelDomain {
+  id: string;
+  tenantId: string;
+  materialId: string;
+  quantity: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface MaterialWithStockDomain extends MaterialDomain {
+  stockLevel: StockLevelDomain | null;
+  isLowStock: boolean;
+}
+
+export enum TransactionType {
+  RECEIVE = 'receive',
+  CONSUME = 'consume',
+  ADJUST = 'adjust',
+  TRANSFER = 'transfer',
+}
+
+export interface InventoryTransactionDomain {
+  id: string;
+  tenantId: string;
+  type: TransactionType;
+  quantity: number;
+  materialId: string;
+  projectId?: string;
+  taskId?: string;
+  costCents?: number;
+  note?: string;
+  actorId: string;
+  createdAt: Date;
+}
+
+export interface DeliveryReceiptDomain {
+  id: string;
+  tenantId: string;
+  supplier: string;
+  materialId: string;
+  quantity: number;
+  costCents?: number;
+  notes?: string;
+  createdAt: Date;
+}
+
+// ============================================================================
+// NOTIFICATIONS DOMAIN
+// ============================================================================
+
+export type NotificationType =
+  | 'task.assigned'
+  | 'task.due_soon'
+  | 'task.blocked'
+  | 'task.overdue'
+  | 'task.unblocked'
+  | 'dependency.completed'
+  | 'inventory.below_reorder'
+  | 'equipment.maintenance_due'
+  | 'report.completed'
+  | 'report.failed'
+  | 'project.status_changed';
+
+export interface NotificationDomain {
+  id: string;
+  tenantId: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  payload: Record<string, unknown>;
+  link?: string;
+  readAt?: Date;
+  createdAt: Date;
+}
+
+export type NotificationChannel = 'in_app' | 'email' | 'push';
+
+export interface NotificationSubscriptionDomain {
+  id: string;
+  tenantId: string;
+  userId: string;
+  type: NotificationType;
+  channels: NotificationChannel[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// ============================================================================
+// REPORTS DOMAIN
+// ============================================================================
+
+export enum ReportStatus {
+  PENDING = 'pending',
+  GENERATING = 'generating',
+  SUCCEEDED = 'succeeded',
+  FAILED = 'failed',
+}
+
+export interface ReportTemplateDomain {
+  id: string;
+  tenantId: string;
+  name: string;
+  description?: string;
+  type: string;
+  config: Record<string, unknown>;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ReportRunDomain {
+  id: string;
+  tenantId: string;
+  templateId: string;
+  status: ReportStatus;
+  params: Record<string, unknown>;
+  resultUrl?: string;
+  errorMessage?: string;
+  requestedBy: string;
+  createdAt: Date;
+  completedAt?: Date;
+}
+
+// ============================================================================
+// AI ASSISTANT DOMAIN
+// ============================================================================
+
+export enum AiJobStatus {
+  PENDING = 'pending',
+  PROCESSING = 'processing',
+  SUCCEEDED = 'succeeded',
+  FAILED = 'failed',
+}
+
+export enum AiJobType {
+  QUERY = 'query',
+  SUMMARIZE = 'summarize',
+  DRAFT_REPORT = 'draft_report',
+}
+
+export interface AiConversationDomain {
+  id: string;
+  tenantId: string;
+  userId: string;
+  title?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AiMessageDomain {
+  id: string;
+  tenantId: string;
+  conversationId?: string;
+  userId: string;
+  role: 'user' | 'assistant';
+  content: string;
+  citations?: Array<{ entityType: string; entityId: string; label: string }>;
+  createdAt: Date;
+}
+
+export interface AiJobDomain {
+  id: string;
+  tenantId: string;
+  userId: string;
+  type: AiJobType;
+  status: AiJobStatus;
+  params: Record<string, unknown>;
+  result?: string;
+  citations?: Array<{ entityType: string; entityId: string; label: string }>;
+  errorMessage?: string;
+  provider: string;
+  model?: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  costCents?: number;
+  createdAt: Date;
+  completedAt?: Date;
+}
+
+export interface AiFeedbackDomain {
+  id: string;
+  tenantId: string;
+  userId: string;
+  messageId: string;
+  jobId?: string;
+  rating: 'up' | 'down';
+  comment?: string;
+  createdAt: Date;
+}
+
+export interface AiCompletionRequest {
+  systemPrompt: string;
+  userPrompt: string;
+  groundingContext: string;
+  maxTokens?: number;
+  timeoutMs?: number;
+}
+
+export interface AiCompletionResponse {
+  content: string;
+  provider: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  costCents: number;
+}
+
+export interface AIProvider {
+  complete(request: AiCompletionRequest): Promise<AiCompletionResponse>;
+  embed?(text: string): Promise<number[]>;
+}
+
+// ============================================================================
+// JOB QUEUE (Provider-agnostic background job abstraction)
+// ============================================================================
+
+export enum JobStatus {
+  PENDING = 'pending',
+  PROCESSING = 'processing',
+  SUCCEEDED = 'succeeded',
+  FAILED = 'failed',
+}
+
+export interface JobPayload {
+  [key: string]: unknown;
+}
+
+export interface JobResult {
+  success: boolean;
+  data?: unknown;
+  error?: string;
+}
+
+export interface Job<TPayload extends JobPayload = JobPayload> {
+  id: string;
+  type: string;
+  status: JobStatus;
+  payload: TPayload;
+  result?: JobResult;
+  createdAt: Date;
+  startedAt?: Date;
+  completedAt?: Date;
+}
+
+export interface IJobProcessor<TPayload extends JobPayload = JobPayload> {
+  readonly jobType: string;
+  process(payload: TPayload): Promise<JobResult>;
+}
+
+export interface IJobQueue {
+  enqueue<TPayload extends JobPayload>(
+    type: string,
+    payload: TPayload,
+  ): Promise<Job<TPayload>>;
+  getJob(id: string): Promise<Job | null>;
+  registerProcessor(processor: IJobProcessor): void;
+}
+
 // Explicit exports to ensure downstream packages import these names reliably.
 // End of file
-

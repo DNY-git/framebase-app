@@ -95,7 +95,7 @@ Authorization is enforced in **multiple places**, defense-in-depth:
 
 1. **Route guard (edge):** verifies authentication; attaches `user`, `tenantId`, role.
 2. **Service layer (decision):** the authoritative check — role + tenant + record ownership — on every operation, especially mutations ([PROJECT_RULES.md §5](../../PROJECT_RULES.md#5-backend-rules)).
-3. **Data layer (scoping):** Prisma client extension injects `tenantId` into queries and fails closed; see [Tenant Isolation](#tenant-isolation) and [../database/security.md](../database/security.md).
+3. **Data layer (scoping):** BaseRepository injects `tenantId` into queries and fails closed; see [Tenant Isolation](#tenant-isolation) and [../database/security.md](../database/security.md).
 
 The service-layer check is the load-bearing one — controllers are deliberately thin, and the DB layer is a backstop, not the primary gate.
 
@@ -104,7 +104,7 @@ The service-layer check is the load-bearing one — controllers are deliberately
 ## Tenant Isolation
 
 - **Shared DB, shared schema, row-level isolation** via `tenantId` on every tenant-scoped table ([../database/security.md](../database/security.md)).
-- A Prisma client extension **injects `tenantId`** from the request context into every query; a query lacking a tenant scope **fails closed**.
+- `BaseRepository` **injects `tenantId`** from the request context into every query; a query lacking a tenant scope **fails closed**.
 - **Existence is hidden:** a request for a resource in another tenant returns `404`, indistinguishable from "doesn't exist," so attackers can't enumerate.
 - **Verified by tests:** every feature suite includes cross-tenant tests that must fail (see [Testing Authorization](#testing-authorization)).
 - **Global tables** (rare, non-tenant lookups) omit `tenantId` and are documented as explicit exceptions.

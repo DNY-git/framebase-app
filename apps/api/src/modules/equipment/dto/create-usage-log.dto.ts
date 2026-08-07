@@ -10,6 +10,10 @@ export class CreateUsageLogDto {
 
   @IsString()
   @IsOptional()
+  taskId?: string;
+
+  @IsString()
+  @IsOptional()
   operatorId?: string;
 
   @IsString()

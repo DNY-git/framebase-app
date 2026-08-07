@@ -47,6 +47,9 @@ async function bootstrap(): Promise<void> {
   // Cookie parsing for refresh-token transport (HttpOnly cookies).
   app.use(cookieParser());
 
+  // Global API prefix — all routes live under /api/v1.
+  app.setGlobalPrefix('api/v1');
+
   // CORS — configured origins only.
   app.enableCors({
     origin: corsOrigins,

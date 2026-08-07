@@ -28,7 +28,7 @@ Companion docs: [frontend.md](./frontend.md), [backend.md](./backend.md), [../de
 2. **The right test in the right layer.** Validate DOM behavior in component tests, business rules in unit tests, and full flows in integration tests — don't test everything everywhere.
 3. **Every bug ships with a regression test.** The test that would have caught it, written before the fix.
 4. **Deterministic by construction.** No flaky tests in the main suite. Time, randomness, and network are stubbed or controlled.
-5. **Real DBs for integration.** Mocking the ORM hides tenant-isolation bugs; integration tests use disposable Postgres ([PROJECT_RULES.md §9](../../PROJECT_RULES.md#9-testing-rules)).
+5. **Real DB for integration.** Mocking the ORM hides tenant-isolation bugs; integration tests use a real MongoDB instance ([PROJECT_RULES.md §9](../../PROJECT_RULES.md#9-testing-rules)).
 
 ## Testing Pyramid
 
@@ -48,7 +48,7 @@ Companion docs: [frontend.md](./frontend.md), [backend.md](./backend.md), [../de
 | --- | --- | --- |
 | **Unit** | Vitest | Jest-compatible, Vite-native, fast, shared config across monorepo |
 | **Component** | Vitest + Testing Library + jsdom | User-centric assertions; accessible queries (`getByRole`) |
-| **Integration** | Vitest + disposable Docker (Postgres, Redis) | Real DBs, not mocks — catches schema/isolation bugs |
+| **Integration** | Vitest + mongodb-memory-server | Real MongoDB, not mocks — catches schema/isolation bugs |
 | **E2E** | Playwright | Cross-browser, reliable traces, time-travel debugging |
 
 All tests share TypeScript strict, the same type imports, and the same lint/format config.
@@ -60,7 +60,7 @@ All tests share TypeScript strict, the same type imports, and the same lint/form
 | **Unit — component** | Renders a React component; asserts on output, interactions, and accessible names. | jsdom (in-memory) | <100ms |
 | **Unit — service** | Calls a service method with mocked repositories; asserts on business logic and errors. | Node (in-memory) | <50ms |
 | **Unit — utility** | Pure function in → out. | Node | <10ms |
-| **Integration** | Calls a real service against a real Postgres/Redis; applies migrations first. | Docker (disposable) | 1–5s |
+| **Integration** | Calls a real service against a real MongoDB; validates tenant isolation and audit logging. | mongodb-memory-server (disposable) | 1–5s |
 | **E2E** | Browser drives the full app (API + web) through a user flow. | Docker (full stack) | 5–30s |
 
 ## What We Test
@@ -83,7 +83,7 @@ All tests share TypeScript strict, the same type imports, and the same lint/form
 
 ## What We Don't Test (Much)
 
-- **Prisma internals** — we trust the ORM; we test our queries, not the query builder.
+- **Mongoose internals** — we trust the ODM; we test our queries, not the query builder.
 - **React internals** — we trust the framework; we test user-visible behavior, not state updates.
 - **NestJS boilerplate** — module wiring is tested implicitly by integration; we don't unit-test every `@Injectable`.
 - **Third-party libraries** — we wrap them and test our wrappers; we don't test the library.
@@ -94,14 +94,14 @@ All tests share TypeScript strict, the same type imports, and the same lint/form
 - **No `Date.now()` in tests** — use a controllable clock (Vitest's `vi.useFakeTimers`).
 - **No `Math.random()` in tests** — seed or stub.
 - **No real network in tests** — services are called directly or via test harness; external calls are stubbed.
-- **Disposable databases** — each integration test suite spins up a fresh Postgres/Redis; nothing is shared.
+- **Disposable databases** — each integration test suite spins up a fresh MongoDB instance; nothing is shared.
 - **Parallelism-safe:** Vitest runs files in parallel; tests must not share mutable state or collide on ports.
 - **Flaky tests are fixed immediately** — a flaky test is a bug in the test, not a fact of life. Move it to a serial file or fix the isolation, then re-enable.
 
 ## Test Data & Fixtures
 
-- **Factory functions** (`src/__tests__/factories/`) create valid test entities with minimal, overridable defaults. Factories call Prisma directly in integration tests.
-- **Seed data** (`prisma/seed.ts`) creates the baseline local-dev dataset (a tenant, projects, tasks, users). CI uses its own minimal seed.
+- **Factory functions** (`src/__tests__/factories/`) create valid test entities with minimal, overridable defaults. Factories call Mongoose models directly in integration tests.
+- **Seed data** creates the baseline local-dev dataset (a tenant, projects, tasks, users). CI uses its own minimal seed.
 - **Test users** include one per role (`adminUser`, `managerUser`, `crewUser`, `viewerUser`) so every test can grab the right persona.
 - **Cross-tenant test fixtures** create two tenants with data; the test asserts one cannot see the other.
 

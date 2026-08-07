@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import type { ReactNode } from 'react';
+import { usePageTitleStore } from '@/stores/page-title-store';
 
 import { cn } from '@/lib/utils';
 
@@ -10,18 +12,16 @@ interface PageHeaderProps {
 }
 
 export function PageHeader({ title, subtitle, actions, className }: PageHeaderProps) {
+  const setPageTitle = usePageTitleStore((s) => s.setPageTitle);
+
+  useEffect(() => {
+    setPageTitle(title, subtitle);
+    return () => setPageTitle('');
+  }, [title, subtitle, setPageTitle]);
+
   return (
-    <div
-      className={cn(
-        'mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between',
-        className,
-      )}
-    >
-      <div className="min-w-0">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-foreground-muted">{subtitle}</p>}
-      </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+    <div className={cn(className)}>
+      {actions && <div className="mb-6 flex items-center justify-end gap-2">{actions}</div>}
     </div>
   );
 }

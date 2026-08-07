@@ -31,10 +31,9 @@ import { CurrentTenant, CurrentUser } from '../../common/decorators/auth.decorat
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role, TenantId, EntityId } from '@constructtrack/types';
 import type { AuthenticatedUser } from '../../common/decorators/authenticated-user.interface';
-import type { AuthContext } from '../../common/authorization/authorization.types';
 import { parsePagination, formatPaginatedResponse } from '../../common/utils/pagination.util';
 
-@Controller('v1/projects')
+@Controller('projects')
 export class ProjectsController {
   constructor(
     private readonly projectsService: ProjectsService,
@@ -50,7 +49,7 @@ export class ProjectsController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateProjectDto,
   ) {
-    const project = await this.projectsService.create(user as unknown as AuthContext, dto);
+    const project = await this.projectsService.create(user, dto);
     return { data: project };
   }
 
@@ -73,7 +72,7 @@ export class ProjectsController {
       ];
     }
 
-    const result = await this.projectsService.find(user as unknown as AuthContext, filter, options);
+    const result = await this.projectsService.find(user, filter, options);
     return formatPaginatedResponse(result);
   }
 
@@ -83,7 +82,7 @@ export class ProjectsController {
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: EntityId,
   ) {
-    const project = await this.projectsService.findById(user as unknown as AuthContext, id);
+    const project = await this.projectsService.findById(user, id);
     return { data: project };
   }
 
@@ -95,7 +94,7 @@ export class ProjectsController {
     @Param('id') id: EntityId,
     @Body() dto: UpdateProjectDto,
   ) {
-    const project = await this.projectsService.update(user as unknown as AuthContext, id, dto);
+    const project = await this.projectsService.update(user, id, dto);
     return { data: project };
   }
 
@@ -107,7 +106,7 @@ export class ProjectsController {
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: EntityId,
   ) {
-    await this.projectsService.delete(user as unknown as AuthContext, id);
+    await this.projectsService.delete(user, id);
   }
 
   @Get(':id/activity')
@@ -118,7 +117,7 @@ export class ProjectsController {
     @Query('page') page?: string,
     @Query('perPage') perPage?: string,
   ) {
-    await this.authzService.assertProjectAccess(user as unknown as AuthContext, tenantId, id as string);
+    await this.authzService.assertProjectAccess(user, tenantId, id as string);
 
     const options = parsePagination(page, perPage);
 
@@ -137,7 +136,7 @@ export class ProjectsController {
     @CurrentUser() user: AuthenticatedUser,
     @Param('projectId') projectId: string,
   ) {
-    const members = await this.projectsService.listMembers(user as unknown as AuthContext, projectId);
+    const members = await this.projectsService.listMembers(user, projectId);
     return { data: members };
   }
 
@@ -151,7 +150,7 @@ export class ProjectsController {
     @Body() dto: CreateProjectMemberDto,
   ) {
     const member = await this.projectsService.addMember(
-      user as unknown as AuthContext,
+      user,
       projectId,
       dto.userId,
       dto.role,
@@ -169,7 +168,7 @@ export class ProjectsController {
     @Body() dto: UpdateProjectMemberDto,
   ) {
     const member = await this.projectsService.updateMemberRole(
-      user as unknown as AuthContext,
+      user,
       projectId,
       userId,
       dto.role,
@@ -187,7 +186,7 @@ export class ProjectsController {
     @Param('userId') userId: string,
   ) {
     await this.projectsService.removeMember(
-      user as unknown as AuthContext,
+      user,
       projectId,
       userId,
     );

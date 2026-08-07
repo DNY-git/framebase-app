@@ -103,6 +103,7 @@ See [../api/endpoints.md → Equipment](../api/endpoints.md#equipment). Key flow
 - `POST /equipment/:id/usage` → log hours.
 - `GET/POST /equipment/:id/maintenance` → view/schedule service.
 - `POST /equipment/:id/downtime` → log downtime.
+- `GET /equipment/:id/utilization`, `/equipment/:id/usage-timeline`, `/equipment/maintenance/upcoming` → utilization and maintenance reporting reads.
 
 ## UI / UX
 
