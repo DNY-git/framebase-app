@@ -7,6 +7,13 @@ Until implementation starts, versions are documented as `0.0.x` documentation re
 ## [Unreleased]
 
 ### Added
+- **Documents: upload, list, download, delete (2026-08-07)**
+  - New `documents` domain: Mongoose schema/collection, `DocumentRepository`, `DocumentsService` (tenant-scoped, viewer uploads forbidden), `DocumentsStorageService` (content-addressed local disk under `storage/uploads/<tenantId>`, dedupe by SHA-256), `DocumentsController` (`POST /documents`, `GET /documents`, `GET /documents/:id`, `GET /documents/:id/download`, `DELETE /documents/:id`), optional `projectId` on upload, `document.upload`/`document.delete` audit events. 25 MB upload cap.
+  - Wired the frontend Documents screen into the real API: upload via hidden file input (`multipart/form-data` through `authFetch`), project filter populated from `/projects`, search, download (token‑aware blob download), and delete with uploader/admin gating (confirm modal). Added a `Download` icon.
+  - Added `DocumentDomain` + `DOCUMENT_*` error codes to `@constructtrack/types`; `@types/multer` dev-dep for the API; feature spec (`docs/features/documents.md`) and endpoint catalog entries.
+  - Unit specs for `DocumentsService` (upload/empty-file/viewer rejection, list filters, not-found, delete ownership, name sanitization) — 10 tests. Verification (2026-08-07): typecheck, lint (0 warnings), build, documents spec green.
+- **Delete projects from the UI (2026-08-07)**
+  - `ProjectDetail` now shows an admin-only **Delete** button with a confirmation modal that calls the existing `DELETE /api/v1/projects/:id` and navigates back to the list; added a `Trash` icon.
 - **Frontend overhaul + hardening (2026-08-07)**
   - Reworked app chrome: `AppShell`, `Sidebar`, `MobileSidebar`, `TopNav`, `PageLayout` with a page-title store; auth pages (`LoginPage`, `RegisterPage`, `ForgotPasswordPage`, `ResetPasswordPage`), `NotFound`, `Unauthorized`, and an `ErrorBoundary`.
   - Added `auth.ts` + `auth-fetch.ts` (token storage, automatic refresh with 401 debounce, redirect on refresh failure); feature screens now fetch through `authFetch` instead of receiving `token` props.

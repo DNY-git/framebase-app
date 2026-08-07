@@ -18,6 +18,7 @@ Companion docs: [../architecture/backend.md](../architecture/backend.md), featur
 - [Inventory](#inventory)
 - [Reports](#reports)
 - [Dashboard](#dashboard)
+- [Documents](#documents)
 - [Notifications](#notifications)
 - [AI Assistant](#ai-assistant)
 - [Observability / Metrics](#observability--metrics)
@@ -216,6 +217,22 @@ Spec: [../features/dashboard.md](../features/dashboard.md). Phase 4.
 | `GET` | `/dashboard/inventory-health` | 🔒 | Stock health + reorder alerts |
 
 Dashboard reads are cache-heavy (stale-while-revalidate); see [../architecture/system.md → Background Jobs](../architecture/system.md#background-jobs).
+
+---
+
+## Documents
+
+Spec: [../features/documents.md](../features/documents.md). Phase 3.
+
+| Method | Path | Auth | Purpose |
+| --- | --- | --- | --- |
+| `POST` | `/documents` | 🔒 | Upload a document (`multipart/form-data`, field `file`; optional `projectId`). Max 25 MB. Any role except `viewer` |
+| `GET` | `/documents` | 🔒 | List documents (paginated; `projectId`, `search` filters) |
+| `GET` | `/documents/:id` | 🔒 | Get a document record |
+| `GET` | `/documents/:id/download` | 🔒 | Download the file (streamed, bypasses JSON envelope) |
+| `DELETE` | `/documents/:id` | 🔒 | Delete a document (uploader or `admin` only) |
+
+Files are stored content-addressed under `storage/uploads/<tenantId>`; see [../features/documents.md](../features/documents.md#storage) for the storage design.
 
 ---
 

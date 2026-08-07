@@ -27,6 +27,7 @@ import { InventoryModule } from './modules/inventory/inventory.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AiModule } from './modules/ai/ai.module';
+import { DocumentsModule } from './modules/documents/documents.module';
 import { MetricsModule } from './modules/metrics/metrics.module';
 import { AuthorizationModule } from './common/authorization/authorization.module';
 import { RateLimitModule } from './common/rate-limiter/rate-limit.module';
@@ -52,6 +53,7 @@ import { MetricsInterceptor } from './common/interceptors/metrics.interceptor';
     ReportsModule,
     NotificationsModule,
     AiModule,
+    DocumentsModule,
     MetricsModule,
     AuthorizationModule,
     RateLimitModule,

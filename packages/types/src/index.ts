@@ -98,6 +98,11 @@ export enum ErrorCode {
   REPORT_TEMPLATE_NOT_FOUND = 'REPORT_TEMPLATE_NOT_FOUND',
   REPORT_RUN_NOT_FOUND = 'REPORT_RUN_NOT_FOUND',
 
+  // Documents
+  DOCUMENT_NOT_FOUND = 'DOCUMENT_NOT_FOUND',
+  DOCUMENT_EMPTY_FILE = 'DOCUMENT_EMPTY_FILE',
+  DOCUMENT_STORAGE_ERROR = 'DOCUMENT_STORAGE_ERROR',
+
   // AI
   AI_JOB_NOT_FOUND = 'AI_JOB_NOT_FOUND',
 
@@ -718,6 +723,30 @@ export interface IJobQueue {
   ): Promise<Job<TPayload>>;
   getJob(id: string): Promise<Job | null>;
   registerProcessor(processor: IJobProcessor): void;
+}
+
+// ============================================================================
+// DOCUMENTS DOMAIN
+// ============================================================================
+
+export interface DocumentDomain {
+  id: string;
+  tenantId: string;
+  /** Sanitised display name (original upload filename). */
+  name: string;
+  /** MIME type as reported by the upload. */
+  mimeType: string;
+  /** Size in bytes. */
+  sizeBytes: number;
+  /** Content hash of the stored file (sha256). */
+  fileHash: string;
+  /** Relative key under the tenant's uploads root, e.g. stored.hex -> original.pdf. */
+  storageKey: string;
+  /** Project the document is attached to, if any. */
+  projectId?: string;
+  uploadedBy: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 // Explicit exports to ensure downstream packages import these names reliably.

@@ -314,3 +314,8 @@ export const ArrowUp = createPathsWithElements([
   <path key="1" d="m5 12 7-7 7 7" />,
   <path key="2" d="M12 19V5" />,
 ]);
+
+export const Download = createPathsWithElements([
+  <path key="1" d="m12 3 7 7h-4v6h-6v-6H5z" />,
+  <path key="2" d="M5 21h14" />,
+]);
