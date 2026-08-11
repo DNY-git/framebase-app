@@ -7,6 +7,7 @@ import { DomainException } from '../../common/exceptions/domain.exception';
 import { ProjectRepository } from './repositories/project.repository';
 import type { ProjectCreateInput } from './repositories/project.repository';
 import { ProjectMemberRepository } from './repositories/project-member.repository';
+import { MembershipRepository } from '../auth/repositories/membership.repository';
 import { AuditService } from '../audit/audit.service';
 import { AuthorizationService } from '../../common/authorization/authorization.service';
 import type { AuthContext } from '../../common/authorization/authorization.types';
@@ -40,6 +41,7 @@ export class ProjectsService {
   constructor(
     private readonly projectRepo: ProjectRepository,
     private readonly memberRepo: ProjectMemberRepository,
+    private readonly membershipRepo: MembershipRepository,
     private readonly auditService: AuditService,
     private readonly authzService: AuthorizationService,
   ) {}
@@ -231,6 +233,20 @@ export class ProjectsService {
 
     // Verify the project exists (also enforces tenant scoping).
     await this.findById(auth, projectId as EntityId);
+
+    // Phase 6 — cross-organization project membership is structurally
+    // impossible: the target user must be a member of this organization.
+    const isOrgMember = await this.membershipRepo.exists(
+      userId,
+      auth.tenantId,
+    );
+    if (!isOrgMember) {
+      throw new DomainException(
+        ErrorCode.ORG_MEMBERSHIP_REQUIRED,
+        HttpStatus.FORBIDDEN,
+        'Only organization members can be assigned to a project.',
+      );
+    }
 
     // Check the user isn't already a member.
     const existing = await this.memberRepo.findByProjectAndUser(

@@ -10,7 +10,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { DomainException } from '../../common/exceptions/domain.exception';
 import { ProjectsService } from './projects.service';
-import { ProjectRole, ProjectStatus, Role } from '@constructtrack/types';
+import { ProjectRole, ProjectStatus, Role, ErrorCode } from '@constructtrack/types';
 import type { AuthContext } from '../../common/authorization/authorization.types';
 
 // ---------------------------------------------------------------------------
@@ -43,6 +43,12 @@ function mockProjectMemberRepository() {
 function mockAuditService() {
   return {
     record: vi.fn(),
+  };
+}
+
+function mockMembershipRepository() {
+  return {
+    exists: vi.fn().mockResolvedValue(true),
   };
 }
 
@@ -98,6 +104,7 @@ function makeMember(overrides: Record<string, unknown> = {}) {
 describe('ProjectsService', () => {
   let projectRepo: ReturnType<typeof mockProjectRepository>;
   let memberRepo: ReturnType<typeof mockProjectMemberRepository>;
+  let membershipRepo: ReturnType<typeof mockMembershipRepository>;
   let auditService: ReturnType<typeof mockAuditService>;
   let authzService: ReturnType<typeof mockAuthorizationService>;
   let service: ProjectsService;
@@ -105,6 +112,7 @@ describe('ProjectsService', () => {
   beforeEach(() => {
     projectRepo = mockProjectRepository();
     memberRepo = mockProjectMemberRepository();
+    membershipRepo = mockMembershipRepository();
     auditService = mockAuditService();
     authzService = mockAuthorizationService();
 
@@ -113,11 +121,13 @@ describe('ProjectsService', () => {
     authzService.assertProjectAccess.mockResolvedValue(undefined);
     authzService.assertProjectManager.mockResolvedValue(undefined);
 
-    service = new ProjectsService(
+service = new ProjectsService(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
       projectRepo as any,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
       memberRepo as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      membershipRepo as any,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
       auditService as any,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -478,6 +488,16 @@ describe('ProjectsService', () => {
       await expect(
         service.addMember(MOCK_AUTH, 'invalid', 'user-2', ProjectRole.ENGINEER),
       ).rejects.toThrow(DomainException);
+    });
+
+    it('rejects adding a user who is not a member of the organization (cross-org prevention)', async () => {
+      projectRepo.findById.mockResolvedValue(makeProject());
+      membershipRepo.exists.mockResolvedValue(false);
+
+      await expect(
+        service.addMember(MOCK_AUTH, 'proj-1', 'user-megabuild', ProjectRole.ENGINEER),
+      ).rejects.toMatchObject({ errorCode: ErrorCode.ORG_MEMBERSHIP_REQUIRED });
+      expect(memberRepo.create).not.toHaveBeenCalled();
     });
   });
 
