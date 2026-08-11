@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { HardHat, Loader2 } from '../shared/components/icons';
 import { useAuthStore } from '../stores/auth-store';
 
@@ -15,6 +15,8 @@ interface RegisterApiResponse {
 
 export function RegisterPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const next = searchParams.get('next') ?? '/';
   const { login } = useAuthStore();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -49,7 +51,7 @@ export function RegisterPage() {
 
       if (body.data) {
         login(body.data.accessToken, body.data.refreshToken, body.data.user);
-        navigate('/');
+        navigate(next);
       }
     } catch (err) {
       setError((err as Error).message);

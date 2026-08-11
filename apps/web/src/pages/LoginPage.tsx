@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { HardHat, Loader2 } from '../shared/components/icons';
 import { useAuthStore } from '../stores/auth-store';
 import type { User } from '../stores/auth-store';
@@ -15,6 +15,8 @@ interface LoginApiResponse {
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const next = searchParams.get('next') ?? '/';
   const { login, fetchUser } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,7 +43,7 @@ export function LoginPage() {
       if (body.data) {
         login(body.data.accessToken, body.data.refreshToken, body.data.user);
         await fetchUser();
-        navigate('/');
+        navigate(next);
       }
     } catch (err) {
       setError((err as Error).message);
@@ -118,7 +120,7 @@ export function LoginPage() {
 
           <div className="mt-4 text-center text-sm text-foreground-muted">
             Don&apos;t have an account?{' '}
-            <Link to="/register" className="font-medium text-primary hover:underline">
+            <Link to={next !== '/' ? `/register?next=${encodeURIComponent(next)}` : '/register'} className="font-medium text-primary hover:underline">
               Sign up
             </Link>
           </div>

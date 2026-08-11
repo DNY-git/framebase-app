@@ -319,3 +319,35 @@ export const Download = createPathsWithElements([
   <path key="1" d="m12 3 7 7h-4v6h-6v-6H5z" />,
   <path key="2" d="M5 21h14" />,
 ]);
+
+export const Camera = createPathsWithElements([
+  <path key="1" d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />,
+  <circle key="2" cx="12" cy="13" r="3" />,
+]);
+
+export const Copy = createPathsWithElements([
+  <rect key="1" x="9" y="9" width="13" height="13" rx="2" ry="2" />,
+  <path key="2" d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />,
+]);
+
+export const UserPlus = createPathsWithElements([
+  <path key="1" d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />,
+  <circle key="2" cx="9" cy="7" r="4" />,
+  <line key="3" x1="19" x2="19" y1="8" y2="14" />,
+  <line key="4" x1="22" x2="16" y1="11" y2="11" />,
+]);
+
+export const Mail = createPathsWithElements([
+  <rect key="1" x="2" y="4" width="20" height="16" rx="2" />,
+  <path key="2" d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />,
+]);
+
+export const Building2 = createPathsWithElements([
+  <path key="1" d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" />,
+  <path key="2" d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" />,
+  <path key="3" d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" />,
+  <path key="4" d="M10 6h4" />,
+  <path key="5" d="M10 10h4" />,
+  <path key="6" d="M10 14h4" />,
+  <path key="7" d="M10 18h4" />,
+]);

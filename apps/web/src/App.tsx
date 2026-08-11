@@ -7,6 +7,7 @@ import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { InvitationAcceptPage } from './pages/InvitationAcceptPage';
 import { NotFound } from './pages/NotFound';
 import { Unauthorized } from './pages/Unauthorized';
 import { UiLab } from './pages/UiLab';
@@ -20,6 +21,7 @@ import { TaskBoard } from './features/tasks/TaskBoard';
 import { TaskDetail } from './features/tasks/TaskDetail';
 import { AiAssistant } from './features/ai/AiAssistant';
 import { ProjectsList } from './features/projects/ProjectsList';
+import { Team } from './features/team/Team';
 import { Reports } from './features/reports/Reports';
 import { Documents } from './features/documents/Documents';
 import { AuditLog } from './features/audit/AuditLog';
@@ -87,6 +89,7 @@ export function App(): React.JSX.Element {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/invitations/:token" element={<InvitationAcceptPage />} />
           <Route path="/ui-lab" element={<UiLab />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
 
@@ -94,6 +97,7 @@ export function App(): React.JSX.Element {
             <Route element={<AppShell />}>
               <Route index element={<TokenAware>{(t) => <Dashboard token={t} />}</TokenAware>} />
               <Route path="projects" element={<ProjectsPageWrapper />} />
+              <Route path="team" element={<Team />} />
               <Route path="projects/:id" element={<ProjectDetailPageWrapper />} />
               <Route path="tasks" element={<TaskBoard />} />
               <Route path="tasks/:taskId" element={<TaskDetail />} />

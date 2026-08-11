@@ -1,19 +1,33 @@
 import { useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { HardHat, X } from '../shared/components/icons';
+import {
+  HardHat,
+  X,
+  LayoutDashboard,
+  FolderKanban,
+  Users,
+  CheckSquare,
+  Wrench,
+  Package,
+  FileText,
+  Bot,
+  Shield,
+  Settings as SettingsIcon,
+} from '../shared/components/icons';
 import { useSidebarStore } from '../stores/sidebar-store';
 
 const NAV_ITEMS = [
-  { to: '/', label: 'Dashboard' },
-  { to: '/projects', label: 'Projects' },
-  { to: '/tasks', label: 'Tasks' },
-  { to: '/equipment', label: 'Equipment' },
-  { to: '/inventory', label: 'Inventory' },
-  { to: '/reports', label: 'Reports' },
-  { to: '/documents', label: 'Documents' },
-  { to: '/ai', label: 'AI Assistant' },
-  { to: '/audit', label: 'Audit Log' },
-  { to: '/settings', label: 'Settings' },
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/projects', label: 'Projects', icon: FolderKanban },
+  { to: '/team', label: 'Team', icon: Users },
+  { to: '/tasks', label: 'Tasks', icon: CheckSquare },
+  { to: '/equipment', label: 'Equipment', icon: Wrench },
+  { to: '/inventory', label: 'Inventory', icon: Package },
+  { to: '/reports', label: 'Reports', icon: FileText },
+  { to: '/documents', label: 'Documents', icon: FileText },
+  { to: '/ai', label: 'AI Assistant', icon: Bot },
+  { to: '/audit', label: 'Audit Log', icon: Shield },
+  { to: '/settings', label: 'Settings', icon: SettingsIcon },
 ] as const;
 
 export function MobileSidebar() {
@@ -57,7 +71,7 @@ export function MobileSidebar() {
 
         <nav className="flex-1 overflow-y-auto px-3 py-2">
           <ul className="space-y-0.5">
-            {NAV_ITEMS.map(({ to, label }) => (
+            {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
               <li key={to}>
                 <NavLink
                   to={to}
@@ -71,6 +85,7 @@ export function MobileSidebar() {
                     }`
                   }
                 >
+                  {Icon && <Icon className="h-4 w-4" />}
                   {label}
                 </NavLink>
               </li>

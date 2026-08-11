@@ -1,9 +1,10 @@
 import { NavLink } from 'react-router-dom';
-import { HardHat } from '../shared/components/icons';
+import { HardHat, Settings as SettingsIcon } from '../shared/components/icons';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard' },
   { to: '/projects', label: 'Projects' },
+  { to: '/team', label: 'Team' },
   { to: '/tasks', label: 'Tasks' },
   { to: '/equipment', label: 'Equipment' },
   { to: '/inventory', label: 'Inventory' },
@@ -14,7 +15,7 @@ const NAV_ITEMS = [
 ] as const;
 
 const BOTTOM_ITEMS = [
-  { to: '/settings', label: 'Settings' },
+  { to: '/settings', label: 'Settings', icon: SettingsIcon },
 ] as const;
 
 export function Sidebar() {
@@ -52,7 +53,7 @@ export function Sidebar() {
 
         <div className="border-t border-sidebar-border px-3 py-2">
           <ul className="space-y-0.5">
-            {BOTTOM_ITEMS.map(({ to, label }) => (
+            {BOTTOM_ITEMS.map(({ to, label, icon: Icon }) => (
               <li key={to}>
                 <NavLink
                   to={to}
@@ -64,6 +65,7 @@ export function Sidebar() {
                     }`
                   }
                 >
+                  <Icon className="h-4 w-4" />
                   {label}
                 </NavLink>
               </li>

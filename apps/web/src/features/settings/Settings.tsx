@@ -1,7 +1,10 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
 import { useAuthStore, type User } from '../../stores/auth-store';
 import { useThemeStore } from '../../stores/theme-store';
 import { authFetch } from '../../auth-fetch';
+import { storeTokens } from '../../auth';
 import {
   User as UserIcon,
   Loader2,
@@ -12,6 +15,8 @@ import {
   Moon,
   Monitor,
   Check,
+  Camera,
+  Trash,
 } from '../../shared/components/icons';
 
 export function SettingsPage() {
@@ -54,8 +59,66 @@ export function SettingsPage() {
 function ProfileTab({ user, setUser }: { user: User | null; setUser: (u: User) => void }) {
   const [name, setName] = useState(user?.name ?? '');
   const [isLoading, setIsLoading] = useState(false);
+  const [isAvatarUploading, setIsAvatarUploading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setError('Photo must be a JPEG, PNG, or WebP image');
+      setSuccess(false);
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setError('Photo must be 2 MB or smaller');
+      setSuccess(false);
+      return;
+    }
+
+    setIsAvatarUploading(true);
+    setError(null);
+    setSuccess(false);
+    try {
+      const form = new FormData();
+      form.append('avatar', file);
+      const res = await authFetch('/api/v1/auth/me/avatar', {
+        method: 'POST',
+        body: form,
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message ?? 'Failed to upload photo');
+      }
+      const body = await res.json();
+      if (user) {
+        setUser({ ...user, avatarUrl: body?.data?.avatarUrl ?? user.avatarUrl, name });
+      }
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setIsAvatarUploading(false);
+    }
+  };
+
+  const handleAvatarRemove = async () => {
+    if (!user?.avatarUrl) return;
+    setError(null);
+    try {
+      const res = await authFetch('/api/v1/auth/me/avatar', { method: 'DELETE' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message ?? 'Failed to remove photo');
+      }
+      setUser({ ...user, avatarUrl: null, name });
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,6 +158,45 @@ function ProfileTab({ user, setUser }: { user: User | null; setUser: (u: User) =
           <CheckCircle className="h-4 w-4" /> Profile updated successfully
         </div>
       )}
+
+      <div className="mb-6 flex items-center gap-4">
+        <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-primary text-lg font-semibold text-primary-foreground">
+          {user?.avatarUrl ? (
+            <img
+              src={`/api/v1/auth/${user.id}/avatar?v=${encodeURIComponent(user.avatarUrl)}`}
+              alt="Profile photo"
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            user?.name
+              ?.split(' ')
+              .map((n) => n[0])
+              .join('')
+              .toUpperCase()
+              .slice(0, 2) ?? '?'
+          )}
+        </div>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted">
+              {isAvatarUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+              {isAvatarUploading ? 'Uploading…' : 'Upload photo'}
+              <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleAvatarChange} disabled={isAvatarUploading} />
+            </label>
+            {user?.avatarUrl && (
+              <button
+                type="button"
+                onClick={handleAvatarRemove}
+                className="flex items-center gap-2 rounded-lg border border-danger/20 px-3 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger/5"
+              >
+                <Trash className="h-4 w-4" />
+                Remove
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-foreground-muted">JPEG, PNG or WebP up to 2 MB</p>
+        </div>
+      </div>
 
       <form onSubmit={handleSave} className="space-y-4 max-w-lg">
         <div>
@@ -139,26 +241,154 @@ function ProfileTab({ user, setUser }: { user: User | null; setUser: (u: User) =
 }
 
 function OrganizationTab() {
-  const { user } = useAuthStore();
+  const { user, organizations, fetchOrganizations, switchOrganization, setUser } = useAuthStore();
+  const [orgName, setOrgName] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    fetchOrganizations();
+  }, [fetchOrganizations]);
+
+  const handleCreate = async () => {
+    if (!orgName.trim()) return;
+    setIsCreating(true);
+    setError(null);
+    setSuccess(false);
+    try {
+      const res = await authFetch('/api/v1/organizations', {
+        method: 'POST',
+        body: JSON.stringify({ name: orgName.trim() }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(body?.message ?? 'Failed to create organization');
+      }
+      const data = body?.data ?? body;
+      if (data?.accessToken && data?.refreshToken) {
+        storeTokens(data.accessToken, data.refreshToken);
+        setUser({
+          id: data.user?.id ?? user?.id ?? '',
+          email: data.user?.email ?? user?.email ?? '',
+          name: data.user?.name ?? user?.name ?? '',
+          role: data.user?.role ?? 'owner',
+          tenantId: data.user?.tenantId ?? '',
+          avatarUrl: data.user?.avatarUrl ?? user?.avatarUrl ?? null,
+        });
+      }
+      setOrgName('');
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+      window.location.reload();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleSwitch = async (id: string) => {
+    setError(null);
+    const ok = await switchOrganization(id);
+    if (ok) {
+      window.location.reload();
+    } else {
+      setError('Could not switch organization.');
+    }
+  };
 
   return (
     <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
       <h3 className="mb-4 text-sm font-semibold text-foreground">Organization</h3>
+
+      {error && (
+        <div className="mb-4 rounded-lg border border-danger/20 bg-danger/5 p-3 text-sm text-danger">{error}</div>
+      )}
+      {success && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-success/20 bg-success/5 p-3 text-sm text-success">
+          <CheckCircle className="h-4 w-4" /> Organization created
+        </div>
+      )}
+
       <div className="space-y-4 max-w-lg">
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-foreground">Tenant ID</label>
-          <div className="h-10 w-full rounded-lg border border-border bg-surface-muted px-3 flex items-center text-sm text-foreground-muted font-mono">
-            {user?.tenantId ?? '—'}
+          <label className="mb-1.5 block text-sm font-medium text-foreground">Active organization</label>
+          <div className="flex h-10 w-full items-center gap-2 rounded-lg border border-border bg-surface-muted px-3 text-sm text-foreground">
+            <Building className="h-4 w-4 text-foreground-muted" />
+            <span className="flex-1 truncate">
+              {organizations?.find((o) => o.id === user?.tenantId)?.name ?? 'Unknown'}
+            </span>
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase text-primary">
+              {user?.role?.replace(/_/g, ' ') ?? '—'}
+            </span>
           </div>
         </div>
+
         <div>
           <label className="mb-1.5 block text-sm font-medium text-foreground">Role</label>
           <div className="h-10 w-full rounded-lg border border-border bg-surface-muted px-3 flex items-center text-sm text-foreground-muted">
             {user?.role?.replace(/_/g, ' ') ?? '—'}
           </div>
         </div>
+
+        {organizations && organizations.length > 0 && (
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-foreground">All organizations</label>
+            <div className="space-y-1.5">
+              {organizations.map((org) => (
+                <div
+                  key={org.id}
+                  className="flex items-center gap-2 rounded-lg border border-border px-3 py-2"
+                >
+                  <Building className="h-4 w-4 text-foreground-muted" />
+                  <span className="min-w-0 flex-1 truncate text-sm text-foreground">{org.name}</span>
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase text-primary">
+                    {org.role.replace(/_/g, ' ')}
+                  </span>
+                  {org.id !== user?.tenantId && (
+                    <button
+                      onClick={() => handleSwitch(org.id)}
+                      className="rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-surface-muted"
+                    >
+                      Switch
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="border-t border-border pt-4">
+          <label htmlFor="org-name" className="mb-1.5 block text-sm font-medium text-foreground">
+            Create a new organization
+          </label>
+          <div className="flex gap-2">
+            <input
+              id="org-name"
+              value={orgName}
+              onChange={(e) => setOrgName(e.target.value)}
+              placeholder="e.g. BuildRight Construction"
+              className="h-10 flex-1 rounded-lg border border-border bg-surface px-3 text-sm text-foreground placeholder:text-foreground-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            <button
+              onClick={handleCreate}
+              disabled={isCreating || !orgName.trim()}
+              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+            >
+              {isCreating && <Loader2 className="h-4 w-4 animate-spin" />}
+              Create
+            </button>
+          </div>
+          <p className="mt-1.5 text-xs text-foreground-muted">
+            You become the OWNER and are switched into the new organization immediately.
+          </p>
+        </div>
+
         <p className="text-xs text-foreground-muted">
-          Organization settings are managed by your administrator.
+          Team members and invitations are managed on the{' '}
+          <Link to="/team" className="text-primary hover:underline">Team page</Link>.
         </p>
       </div>
     </div>
