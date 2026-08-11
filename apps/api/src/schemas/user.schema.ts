@@ -36,6 +36,9 @@ export class User {
   @Prop({ type: String, required: true, trim: true })
   name!: string;
 
+  @Prop({ type: String })
+  avatarUrl?: string;
+
   @Prop({
     type: String,
     required: true,

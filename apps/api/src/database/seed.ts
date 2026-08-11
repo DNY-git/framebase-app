@@ -107,9 +107,9 @@ async function seed(): Promise<void> {
     await membershipModel.create({
       userId: admin._id,
       tenantId: tenant._id,
-      role: Role.ADMIN,
+      role: Role.OWNER,
     });
-    console.log(`Linked admin to tenant with role "${Role.ADMIN}".`);
+    console.log(`Linked admin to tenant with role "${Role.OWNER}".`);
   }
 
   await connection.close();

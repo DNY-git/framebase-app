@@ -1,4 +1,4 @@
-import { Injectable, Logger, HttpStatus } from '@nestjs/common';
+import { Injectable, Logger, HttpStatus, Optional } from '@nestjs/common';
 import * as fs from 'fs';
 import * as fsp from 'fs/promises';
 import * as path from 'path';
@@ -24,7 +24,7 @@ export class DocumentsStorageService {
   private readonly logger = new Logger(DocumentsStorageService.name);
   private readonly rootDir: string;
 
-  constructor(rootDir?: string) {
+  constructor(@Optional() rootDir?: string) {
     this.rootDir = rootDir ?? path.resolve(process.cwd(), 'storage', 'uploads');
   }
 

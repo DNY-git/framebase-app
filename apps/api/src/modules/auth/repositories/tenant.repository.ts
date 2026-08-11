@@ -65,6 +65,16 @@ export class TenantRepository {
     return doc !== null;
   }
 
+  /**
+   * Finds multiple tenants by id — used to hydrate organization names
+   * for a user's membership list.
+   */
+  async findByIds(ids: string[]): Promise<TenantDomain[]> {
+    if (ids.length === 0) return [];
+    const docs = await this.model.find({ _id: { $in: ids } }).exec();
+    return docs.map((doc) => this.toDomain(doc));
+  }
+
   protected toDomain(doc: TenantDocument): TenantDomain {
     return {
       id: doc._id.toString(),

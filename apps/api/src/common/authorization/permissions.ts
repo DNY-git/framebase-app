@@ -13,7 +13,7 @@ import { Role, ProjectRole } from '@constructtrack/types';
  * Tenant-level roles that grant administrative access — they bypass
  * project-membership checks and see all projects in their tenant.
  */
-export const TENANT_ADMIN_ROLES: ReadonlySet<Role> = new Set([Role.ADMIN]);
+export const TENANT_ADMIN_ROLES: ReadonlySet<Role> = new Set([Role.OWNER, Role.ADMIN]);
 
 /**
  * Project-level roles that may manage a project: edit fields, manage

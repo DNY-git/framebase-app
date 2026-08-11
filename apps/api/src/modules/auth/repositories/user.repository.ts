@@ -19,6 +19,7 @@ export interface UserDomain {
   passwordHash: string;
   name: string;
   status: string;
+  avatarUrl: string | null;
   lastLoginAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -65,6 +66,19 @@ export class UserRepository {
       .exec();
   }
 
+  async updateProfile(
+    id: string,
+    data: { name?: string; avatarUrl?: string | null },
+  ): Promise<UserDomain | null> {
+    const set: Record<string, unknown> = {};
+    if (data.name !== undefined) set.name = data.name;
+    set.avatarUrl = data.avatarUrl ?? null;
+    const doc = await this.model
+      .findByIdAndUpdate(id, { $set: set }, { new: true })
+      .exec();
+    return doc ? this.toDomain(doc) : null;
+  }
+
   async existsByEmail(email: string): Promise<boolean> {
     const doc = await this.model
       .findOne({ email })
@@ -74,6 +88,14 @@ export class UserRepository {
     return doc !== null;
   }
 
+  /**
+   * Finds multiple users by id — used to hydrate team member names/emails.
+   */
+  async findByIds(ids: string[]): Promise<UserDomain[]> {
+    const docs = await this.model.find({ _id: { $in: ids } }).exec();
+    return docs.map((doc) => this.toDomain(doc));
+  }
+
   protected toDomain(doc: UserDocument): UserDomain {
     return {
       id: doc._id.toString(),
@@ -81,6 +103,7 @@ export class UserRepository {
       passwordHash: doc.passwordHash,
       name: doc.name,
       status: doc.status,
+      avatarUrl: doc.avatarUrl ?? null,
       lastLoginAt: doc.lastLoginAt ?? null,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,

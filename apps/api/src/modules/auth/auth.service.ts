@@ -18,6 +18,8 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as path from 'path';
+import * as fsp from 'fs/promises';
 import { ErrorCode, Role } from '@constructtrack/types';
 import { DomainException } from '../../common/exceptions/domain.exception';
 import type { AppConfig } from '../../config/configuration';
@@ -25,6 +27,7 @@ import { AuditService } from '../audit/audit.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
 import { TenantRepository } from './repositories/tenant.repository';
@@ -39,6 +42,21 @@ export interface RequestMeta {
   correlationId?: string;
 }
 
+const AVATAR_MAX_BYTES = 2 * 1024 * 1024; // 2 MB
+
+const AVATAR_EXT_BY_MIME: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
+
+const AVATAR_MIME_BY_EXT: Record<string, string> = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+};
+
 /** Response shape for register/login/refresh — the token pair + profile. */
 export interface AuthResult {
   accessToken: string;
@@ -50,6 +68,7 @@ export interface AuthResult {
     name: string;
     role: Role;
     tenantId: string;
+    avatarUrl: string | null;
   };
 }
 
@@ -123,18 +142,18 @@ export class AuthService {
       throw err;
     }
 
-    // Link user to tenant as admin.
+    // Link user to tenant as owner (the founder of their organization).
     await this.membershipRepository.create({
       userId: user.id,
       tenantId: tenant.id,
-      role: Role.ADMIN,
+      role: Role.OWNER,
     });
 
     // Issue session + token pair.
     const result = await this.issueTokens(
       user.id,
       tenant.id,
-      Role.ADMIN,
+      Role.OWNER,
       meta,
     );
 
@@ -155,8 +174,9 @@ export class AuthService {
         id: user.id,
         email: user.email,
         name: user.name,
-        role: Role.ADMIN,
+        role: Role.OWNER,
         tenantId: tenant.id,
+        avatarUrl: user.avatarUrl ?? null,
       },
     };
   }
@@ -218,6 +238,7 @@ export class AuthService {
         name: user.name,
         role: active.role,
         tenantId: active.tenantId,
+        avatarUrl: user.avatarUrl ?? null,
       },
     };
   }
@@ -284,6 +305,7 @@ export class AuthService {
         name: user.name,
         role: active.role,
         tenantId: active.tenantId,
+        avatarUrl: user.avatarUrl ?? null,
       },
     };
   }
@@ -324,6 +346,7 @@ export class AuthService {
     name: string;
     role: Role;
     tenantId: string;
+    avatarUrl: string | null;
   }> {
     const user = await this.userRepository.findById(userId);
     if (!user) {
@@ -339,7 +362,130 @@ export class AuthService {
       name: user.name,
       role: membership?.role ?? Role.VIEWER,
       tenantId,
+      avatarUrl: user.avatarUrl ?? null,
     };
+  }
+
+  /**
+   * Updates the current user's editable profile fields (name).
+   * Email and role are immutable and rejected by the DTO.
+   */
+  async updateProfile(
+    userId: string,
+    tenantId: string,
+    dto: UpdateProfileDto,
+  ): Promise<{
+    id: string;
+    email: string;
+    name: string;
+    role: Role;
+    tenantId: string;
+    avatarUrl: string | null;
+  }> {
+    const user = await this.userRepository.updateProfile(userId, {
+      name: dto.name,
+    });
+    if (!user) {
+      throw new DomainException(ErrorCode.AUTH_USER_NOT_FOUND, HttpStatus.UNAUTHORIZED, 'User not found.');
+    }
+    const membership = await this.membershipRepository.findByUserAndTenant(
+      userId,
+      tenantId,
+    );
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: membership?.role ?? Role.VIEWER,
+      tenantId,
+      avatarUrl: user.avatarUrl ?? null,
+    };
+  }
+
+  /**
+   * Persists a user's avatar image on local disk and records the relative
+   * storage key (`avatars/<userId>.<ext>`) on the user document. Old avatar
+   * files are removed when replaced or deleted.
+   *
+   * Mirrors the documents storage driver (ADR-002): object storage arrives
+   * later; this is the local driver.
+   */
+  async setAvatar(
+    userId: string,
+    buffer: Buffer | undefined,
+    mimeType: string | undefined,
+  ): Promise<string | null> {
+    if (!buffer || !mimeType) {
+      throw new DomainException(ErrorCode.AUTH_INVALID_AVATAR, HttpStatus.BAD_REQUEST, 'An image file is required (field "avatar").');
+    }
+    const ext = AVATAR_EXT_BY_MIME[mimeType];
+    if (!ext) {
+      throw new DomainException(ErrorCode.AUTH_INVALID_AVATAR, HttpStatus.BAD_REQUEST, 'Unsupported image type. Use JPEG, PNG, or WebP.');
+    }
+    if (buffer.length > AVATAR_MAX_BYTES) {
+      throw new DomainException(ErrorCode.AUTH_INVALID_AVATAR, HttpStatus.BAD_REQUEST, 'Avatar image must be 2 MB or smaller.');
+    }
+
+    const current = await this.userRepository.findById(userId);
+    if (!current) {
+      throw new DomainException(ErrorCode.AUTH_USER_NOT_FOUND, HttpStatus.UNAUTHORIZED, 'User not found.');
+    }
+
+    const storageKey = `avatars/${userId}.${ext}`;
+    const dest = this.avatarAbsPath(storageKey);
+    try {
+      await fsp.mkdir(path.dirname(dest), { recursive: true });
+      await fsp.writeFile(dest, buffer);
+    } catch {
+      throw new DomainException(ErrorCode.AUTH_INVALID_AVATAR, HttpStatus.INTERNAL_SERVER_ERROR, 'Failed to persist avatar image.');
+    }
+
+    const updated = await this.userRepository.updateProfile(userId, {
+      avatarUrl: storageKey,
+    });
+    if (!updated) {
+      throw new DomainException(ErrorCode.AUTH_USER_NOT_FOUND, HttpStatus.UNAUTHORIZED, 'User not found.');
+    }
+
+    // Remove the previous avatar file (different extension ⇒ different file).
+    if (current.avatarUrl && current.avatarUrl !== storageKey) {
+      await fsp.unlink(this.avatarAbsPath(current.avatarUrl)).catch(() => {});
+    }
+
+    return storageKey;
+  }
+
+  /** Removes the user's avatar (file + DB record). */
+  async removeAvatar(userId: string): Promise<void> {
+    const user = await this.userRepository.findById(userId);
+    if (!user || !user.avatarUrl) return;
+    await this.userRepository.updateProfile(userId, { avatarUrl: null });
+    await fsp.unlink(this.avatarAbsPath(user.avatarUrl)).catch(() => {});
+  }
+
+  /**
+   * Resolves an avatar's absolute path + MIME type for serving.
+   * Returns null when the user has no avatar.
+   */
+  async resolveAvatar(userId: string): Promise<{ absPath: string; mimeType: string } | null> {
+    const user = await this.userRepository.findById(userId);
+    if (!user || !user.avatarUrl) return null;
+    const absPath = this.avatarAbsPath(user.avatarUrl);
+    try {
+      await fsp.access(absPath);
+    } catch {
+      return null;
+    }
+    const ext = path.extname(user.avatarUrl).replace('.', '').toLowerCase();
+    return { absPath, mimeType: AVATAR_MIME_BY_EXT[ext] ?? 'application/octet-stream' };
+  }
+
+  private avatarAbsPath(storageKey: string): string {
+    return path.join(
+      process.cwd(),
+      'storage',
+      ...storageKey.split('/'),
+    );
   }
 
   /**
@@ -391,6 +537,7 @@ export class AuthService {
         name: '', // filled in by caller
         role,
         tenantId,
+        avatarUrl: null,
       },
     };
   }

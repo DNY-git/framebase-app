@@ -113,7 +113,7 @@ describe('AuthService', () => {
   });
 
   describe('register', () => {
-    it('creates a tenant, user, admin membership, and issues tokens', async () => {
+    it('creates a tenant, user, owner membership, and issues tokens', async () => {
       const result = await service.register(
         { email: 'test@example.com', password: 'Password1', name: 'Test' },
         { userAgent: 'vitest', ipAddress: '127.0.0.1' },
@@ -124,7 +124,7 @@ describe('AuthService', () => {
       expect(repos.membership.create).toHaveBeenCalledWith({
         userId: 'user-1',
         tenantId: 'tenant-1',
-        role: Role.ADMIN,
+        role: Role.OWNER,
       });
       expect(repos.audit.record).toHaveBeenCalledOnce();
       expect(result.accessToken).toBe('at');
