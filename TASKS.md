@@ -94,7 +94,9 @@ Each task carries an ID (`T-###`), an owner, and a phase from the roadmap. Branc
 
 ## In Progress
 
-*No tasks currently in progress.*
+| ID | Task | Status | Owner | Notes |
+| --- | --- | --- | --- | --- |
+| T-207 | Multi-tenant organizations, team & invitations (prompt2.txt) | 👀 In Review | Full-stack | `OrganizationsModule` (context, switch, members, invitations) on the existing Tenant/Membership models; `Role.OWNER` founder; Team page + invitation accept page + org switcher; cross-org project membership prevented; 37 new tests, 257 API tests pass. Work is staged for review/commit. |
 
 ---
 
@@ -138,6 +140,7 @@ Each task carries an ID (`T-###`), an owner, and a phase from the roadmap. Branc
 | T-504 | Backup & restore drill | DevOps | 2026-07-10 | Runbook, verification script, npm scripts, production.md/security.md/ci-cd.md updated for MongoDB Atlas. |
 | T-303 | Report generation via lightweight job queue | Full-stack | 2026-07-11 | InMemoryJobQueue (synchronous, no Redis), IJobQueue interface, ReportProcessor with abstract interfaces, 18 tests. |
 | T-206 | Figma wireframe implementation (7 screens) | Frontend | 2026-08-06 | Documents screen + nav entry/route; Equipment + Inventory spec tables (real fields); Reports stat cards; AI assistant token restyle + spec input bar. No mock data / fake endpoints. |
+| T-207 | Multi-tenant orgs, team & invitations (prompt2.txt) | Full-stack | 2026-08-11 | See In Progress section. |
 
 ---
 

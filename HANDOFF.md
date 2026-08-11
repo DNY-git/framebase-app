@@ -25,9 +25,9 @@ Observability, Error Classification, API Rate Limiting, Backup & Restore Drill, 
 
 **Phase:** Phase 5 (Engagement) — **T-401 ✅, T-402 ✅, T-403 ✅, T-404 ✅.** T-303 backlog (blocked by Redis).
 
-**One-line state:** Phase 3 (equipment, inventory, task linkage) ✅, Phase 4 (reports + dashboard KPIs) ✅, Phase 5 (notifications + AI assistant) ✅, Phase 6 (hardening + job queue) ✅ complete. **React 19 upgrade ✅** (deps bumped, all `JSX` namespace breakage + typecheck blockers + 30 lint warnings fixed; typecheck/build/lint green). **shadcn/ui Phase 1 ✅** (infra installed, Button generated, token bridge, `/ui-lab` smoke page; commit `fd5b4e9`). **Design Foundation (Phase 2) ✅** (13 reusable UI primitives in `apps/web/src/components/ui/` + barrel `@/components/ui`, Design Foundation smoke section on `/ui-lab`; commit `035dc69`). **Figma implementation ✅** (all 7 wireframe screens implemented from `figma/img.json` — see "Completed Work → Phase 3 (Figma screenshot implementation)").
+**One-line state:** Phase 3 (equipment, inventory, task linkage) ✅, Phase 4 (reports + dashboard KPIs) ✅, Phase 5 (notifications + AI assistant) ✅, Phase 6 (hardening + job queue) ✅ complete. **React 19 upgrade ✅** (deps bumped, all `JSX` namespace breakage + typecheck blockers + 30 lint warnings fixed; typecheck/build/lint green). **shadcn/ui Phase 1 ✅** (infra installed, Button generated, token bridge, `/ui-lab` smoke page; commit `fd5b4e9`). **Design Foundation (Phase 2) ✅** (13 reusable UI primitives in `apps/web/src/components/ui/` + barrel `@/components/ui`, Design Foundation smoke section on `/ui-lab`; commit `035dc69`). **Figma implementation ✅** (all 7 wireframe screens implemented from `figma/img.json` — see "Completed Work → Phase 3 (Figma screenshot implementation)"). **Multi-tenant organizations (T-207) — implemented, staged for review** (prompt2.txt): OrganizationsModule on the existing Tenant/Membership models, OWNER founder role, Team page, invitation accept flow, org switcher, cross-org project-membership prevention, 37 new tests — work sits in the working tree, commit sequence outlined below.
 
-**Last updated:** 2026-08-06 (Phase 3 Figma screenshot implementation complete).
+**Last updated:** 2026-08-11 (multi-tenant organizations/team/invitations per prompt2.txt).
 
 ---
 
@@ -209,16 +209,52 @@ Observability, Error Classification, API Rate Limiting, Backup & Restore Drill, 
 - **Audit logging:** All mutations (assignments, usage, maintenance, downtime) recorded via `AuditService`.
 - **Status at T-202 handoff:** Typecheck ✅, Lint ✅ (zero warnings), Tests ✅ (116/116 passing; 7 skipped — tenant isolation tests require local mongodb-memory-server binary). All T-202 changes committed.
 
+### 2026-08-08 — Nest DI crash fix + profile photo feature — complete
+
+- **Startup crash fixed.** `DocumentsStorageService` had an optional primitive constructor arg (`rootDir?: string`) so Nest DI tried to inject `String` (no provider exists) → `UnknownDependenciesException` aborted boot. Fixed by marking the param `@Optional()` — tests using `new DocumentsStorageService(tmpRoot)` still work. (DEP0190 deprecation warnings in `bug.txt` come from `concurrently` dev tooling, not app code.)
+- **Profile photo — full-stack (`src/modules/auth`):**
+  - `User` schema + `UserDomain` gained `avatarUrl`; `UserRepository.updateProfile()` added.
+  - `AuthService`: `setAvatar()` (2 MB max, JPEG/PNG/WebP only, stored at `storage/avatars/<userId>.<ext>`, old file removed on replace), `removeAvatar()`, `resolveAvatar()`; `avatarUrl` now returned in register/login/refresh/`getMe` responses.
+  - `AuthController`: new `PATCH /api/v1/auth/me` (was missing — the existing profile form previously 404'd), `POST /api/v1/auth/me/avatar` (multipart), `DELETE /api/v1/auth/me/avatar`, public `GET /api/v1/auth/:userId/avatar` (ObjectId URLs are unguessable so `<img>` tags work without headers; `Cache-Control: private, max-age=86400`).
+  - New error code `AUTH_INVALID_AVATAR` + `UpdateProfileDto` in `@constructtrack/types` / `apps/api`.
+- **Frontend (`apps/web`):**
+  - `Settings icon (cog)` now renders beside **Settings** in `Sidebar.tsx`; `MobileSidebar.tsx` gained icons for all rows.
+  - `Settings.tsx` Profile tab: avatar preview circle, "Upload photo" (client-side type/size validation), "Remove" button; cache-busting `?v=` query on avatar URL.
+  - `UserProfileMenu.tsx` shows the photo in the topbar dropdown; `auth-store.ts` `User` type gained `avatarUrl`.
+- **Verification (2026-08-08):** API `tsc --noEmit` ✅ · web `tsc --noEmit` ✅ · eslint (changed files) ✅ · API tests 220/220 ✅.
+
+### 2026-08-11 — Multi-tenant organizations, team & invitations (prompt2.txt, T-207) — implemented, staged for review
+
+Built directly on the existing MongoDB/Mongoose/NestJS architecture — no Prisma/PostgreSQL, no new ORM. The existing `Tenant` model **is** the organization; `Membership` is the join entity.
+
+- **Organizations module** (`apps/api/src/modules/organizations/`, wired into `AppModule`):
+  - `GET /api/v1/organizations/me` — active organization context + full membership list (organization switcher data). The server derives context from the authenticated JWT + membership docs; a client-supplied organizationId is never trusted (prompt Phase 3/4).
+  - `POST /api/v1/organizations` — creates an org (slug retry on collision), founder becomes OWNER, fresh token pair scoped to the new org.
+  - `POST /api/v1/organizations/switch` — verifies the target membership server-side before re-issuing tokens; switching to an org without a membership is `403 ORG_MEMBERSHIP_REQUIRED` (Phase 4).
+  - Team management (`GET/PATCH/DELETE /api/v1/organizations/members`, Phase 8/10): OWNER/ADMIN only via `@Roles` + service-level `assertManagement`. Self role-change/removal blocked; only OWNER grants OWNER; last OWNER/ADMIN cannot be demoted or removed.
+  - Invitations (`POST/GET/DELETE /api/v1/organizations/invitations`, Phase 9): `crypto.randomBytes(32).toString('hex')` token, 7-day TTL, pending/accepted/revoked status, tenant-scoped queries, OWNER/ADMIN only. `devAcceptUrl` = development-only acceptance link (production email deferred per prompt).
+  - Public acceptance (`InvitationsController`): `GET /api/v1/invitations/:token` (sanitized info + `hasAccount`) and `POST /api/v1/invitations/:token/accept` (optional Bearer auth). Existing users must be authenticated as the invited email; new users create their account (name + password) inline. Acceptance invalidates other pending invites for that email; the unique `(userId, tenantId)` membership index makes duplicates structurally impossible. Response carries a token pair already scoped to the invited org.
+  - `Invitation` schema (`apps/api/src/schemas/invitation.schema.ts`) with `{tenantId, email}` and `{status, expiresAt}` indexes; `InvitationRepository` (create/findByToken/findById-scoped/findPendingByTenantAndEmail/findByTenant/markAccepted/revoke/revokePendingForEmail).
+  - New error codes: `ORG_*`, `MEMBER_*`, `INVITATION_*` in `@constructtrack/types`; `Role.OWNER` added.
+- **Roles & registration (Phase 7):** `Role.OWNER` added; `TENANT_ADMIN_ROLES` now includes OWNER (owners bypass project-membership checks like admins). Registration and the seed script now grant the founder **OWNER** (was ADMIN) — the registering user owns their auto-created org.
+- **Project isolation (Phase 5/6):** project queries were already tenant-scoped at the repository layer; `ProjectsService.addMember` now additionally verifies the target user holds an organization membership (`MembershipRepository.exists`) — cross-organization project membership is rejected with `ORG_MEMBERSHIP_REQUIRED` (Phase 12 "David cannot be added to Lagos Mall").
+- **Frontend:**
+  - `Team.tsx` (`/team`, desktop + mobile sidebar entries): members table with avatar/initials, role dropdown (self-role locked), remove member; invite form (OWNER excluded from invitables); pending invitations with copyable dev links, expiry badges, revoke.
+  - `InvitationAcceptPage.tsx` (`/invitations/:token`): public resolve → existing-user login/accept (with `?next=` redirect support in Login/Register) or new-user create-account-and-accept → lands in the invited org.
+  - `UserProfileMenu.tsx`: organization switcher (fetches memberships on open, server-verified switch, fresh tokens, navigates to `/`); shows active org name + role badge.
+  - `auth-store.ts`: `organizations`, `fetchOrganizations()`, `switchOrganization()`, `avatarUrl` on `User`.
+  - `LoginPage`/`RegisterPage` honor `?next=` (used by the invitation flow).
+- **Tests (Phase 14):** 36 new `OrganizationsService` tests + 1 new project cross-org membership test. Coverage includes: context resolution, secure switching, team authorization (own-role, owner-only OWNER grant, last-owner guard), invitation lifecycle (create/dup/already-member/revoke/expiry/tamper), accept flows (CASE A new user, CASE B existing user, wrong-account rejection, no duplicate membership, weak password), and the Phase 12 invariants. **API suite: 257/257 passing.** Typecheck + lint (0 warnings) clean.
+- **Commit sequence (not yet committed — working tree only):** `feat(org): organization context + membership` → `feat(members): team + invitation flow` → `feat(projects): prevent cross-org project membership` → `test(authz): multi-tenant coverage` → `docs(handoff): T-207 multi-tenant status`. The profile-photo work (2026-08-08) is also still uncommitted — commit it first if desired.
+
 ---
 
 ## Outstanding Work
 
-1. **Phase 5 (Engagement)** ([ROADMAP.md](./ROADMAP.md)):
-   - T-401: Notification service ✅ complete.
-   - T-402: Notification subscriptions ✅ complete.
-   - T-403: AI Assistant backend ✅ complete.
-   - T-404: AI Assistant frontend ✅ complete.
-2. **Phase 6:** Hardening — T-501 ✅, T-502 ✅, T-503 ✅, T-504 ✅, T-303 ✅. All complete.
+1. **T-207 — Multi-tenant organizations/team/invitations (prompt2.txt):** implemented and green, but **not yet committed** — working tree contains the full feature + profile photos. Follow the commit sequence at the end of the "2026-08-11" section below.
+2. **Production email delivery for invitations:** the dev acceptance link is development-only by design (prompt Phase 9 / Email). Layer a mail provider onto `devAcceptUrl` when ready.
+3. **Phase 5 (Engagement)** ([ROADMAP.md](./ROADMAP.md)): T-401–T-404 complete.
+4. **Phase 6:** Hardening — T-501 ✅, T-502 ✅, T-503 ✅, T-504 ✅, T-303 ✅. All complete.
 
 ---
 
@@ -258,9 +294,9 @@ Browser ──▶ API (NestJS modular monolith)
 
 ## Current Priorities
 
-1. **Preserve `main` releasability.** All further work must pass CI before merging (typecheck, lint, 145+ tests).
-2. **Phase 3 (Figma implementation) — complete** (2026-08-06). All 7 screens implemented per `figma/img.json`.
-3. **Phase 6 (Hardening) — all tasks complete** (T-501 ✅, T-502 ✅, T-503 ✅, T-504 ✅, T-303 ✅).
+1. **Preserve `main` releasability.** All further work must pass CI before merging (typecheck, lint, 257 tests).
+2. **Commit T-207 (multi-tenant organizations) + profile photos.** Work is green in the working tree; the suggested commit sequence is at the bottom of the "2026-08-11" Completed Work entry.
+3. **Production email delivery** for invitations (dev links are development-only).
 4. **Remaining work:** real AI provider adapters, Redis for async jobs (when hardware allows), conversational memory for AI Assistant.
 
 ---
@@ -269,11 +305,16 @@ Browser ──▶ API (NestJS modular monolith)
 
 In order, for whoever picks this up:
 
-1. **Phase 3 — Figma screenshot implementation ✅ complete (2026-08-06).** All 7 screens implemented from `figma/img.json` + `figma/prompt.txt` (Documents added as its own nav entry; Equipment/Inventory as distinct real-data tables; Reports summary stat cards; AI assistant restyled to spec). Constraint honored: no mock data, no fake endpoints. Follow-up polish: restyle `EquipmentDetail` internals (legacy gray/blue classes) to design tokens; revisit Tasks columns if a real "In review" status is ever added to `TaskStatus`.
-
-2. **Set up AI provider.** The `NoneProvider` is the default (returns "not configured" message). To enable real AI, implement an adapter (e.g., `OpenAIProvider` implementing `IAIProvider`), install the vendor SDK, and set `AI_PROVIDER=openai` (or `anthropic`) in `.env`. Prefer OpenRouter free models per `prompt.txt`.
-
-3. **Phase 6 (Hardening) complete** — T-501 ✅, T-502 ✅, T-503 ✅, T-504 ✅, T-303 ✅.
+1. **Commit the T-207 multi-tenant work + profile photos** (working tree, all green). Suggested sequence:
+   - `feat(org): organization context + membership` (Tenant/Membership/User repo extensions, Role.OWNER, auth register→OWNER, OrganizationsModule, error codes)
+   - `feat(members): team + invitation flow` (invitation schema/repo/DTOs, team endpoints, Team.tsx, InvitationAcceptPage, org switcher, ?next= redirects)
+   - `feat(projects): prevent cross-org project membership`
+   - `test(authz): multi-tenant coverage`
+   - `docs(handoff): T-207 multi-tenant status`
+   - Optionally `feat(auth): profile photos` first (2026-08-08 work is also uncommitted).
+2. **Production email delivery for invitations** — replace the dev acceptance link with a mail provider (prompt Phase 9/Email). Inspect the notifications module first — it may already have email infrastructure to reuse.
+3. **Set up AI provider.** The `NoneProvider` is the default (returns "not configured" message). To enable real AI, implement an adapter (e.g., `OpenAIProvider` implementing `IAIProvider`), install the vendor SDK, and set `AI_PROVIDER=openai` (or `anthropic`) in `.env`. Prefer OpenRouter free models per `prompt.txt`.
+4. **Phase 6 (Hardening) complete** — T-501 ✅, T-502 ✅, T-503 ✅, T-504 ✅, T-303 ✅.
     - Real AI adapters: OpenAI or Anthropic provider implementations (or OpenRouter).
     - Conversational memory: multi-turn context for the AI Assistant.
     - Redis caching / BullMQ: swap `InMemoryJobQueue` for `BullMQJobQueue` when hardware allows.
