@@ -239,6 +239,45 @@ export class OrganizationsService {
     joinedAt: Date;
   }>> {
     this.assertManagement(auth, 'list members');
+    return this.listDirectoryUnchecked(auth);
+  }
+
+  /**
+   * Read-only member directory for project assignment.
+   *
+   * Available to PROJECT_MANAGER and above so project managers can add
+   * organization members to projects (prompt Phase 6). Non-management
+   * mutations remain OWNER/ADMIN-only; this endpoint never reveals
+   * sensitive data and cannot mutate anything.
+   */
+  async listDirectory(auth: AuthContext): Promise<Array<{
+    id: string;
+    name: string;
+    email: string;
+    role: Role;
+    avatarUrl: string | null;
+    joinedAt: Date;
+  }>> {
+    if (
+      !this.canViewDirectory(auth.role)
+    ) {
+      throw new DomainException(
+        ErrorCode.FORBIDDEN,
+        HttpStatus.FORBIDDEN,
+        'You do not have permission to view the member directory.',
+      );
+    }
+    return this.listDirectoryUnchecked(auth);
+  }
+
+  private async listDirectoryUnchecked(auth: AuthContext): Promise<Array<{
+    id: string;
+    name: string;
+    email: string;
+    role: Role;
+    avatarUrl: string | null;
+    joinedAt: Date;
+  }>> {
     const memberships = await this.membershipRepository.findByTenant(auth.tenantId);
     const users = await this.userRepository.findByIds(
       memberships.map((m) => m.userId),
@@ -255,6 +294,15 @@ export class OrganizationsService {
         joinedAt: m.createdAt,
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /** Directory access: OWNER, ADMIN, PROJECT_MANAGER (project assignment). */
+  private canViewDirectory(role: Role): boolean {
+    return (
+      role === Role.OWNER ||
+      role === Role.ADMIN ||
+      role === Role.PROJECT_MANAGER
+    );
   }
 
   /**

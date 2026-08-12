@@ -35,6 +35,7 @@ interface AuthStore {
   fetchUser: () => Promise<void>;
   fetchOrganizations: () => Promise<void>;
   switchOrganization: (tenantId: string) => Promise<boolean>;
+  createOrganization: (name: string) => Promise<{ ok: boolean; message?: string }>;
 }
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
@@ -133,6 +134,55 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       return true;
     } catch {
       return false;
+    }
+  },
+
+  createOrganization: async (name) => {
+    const token = get().token;
+    if (!token) return { ok: false, message: 'Not authenticated.' };
+
+    try {
+      const res = await fetch('/api/v1/organizations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        return {
+          ok: false,
+          message:
+            (body as { message?: string } | null)?.message ??
+            `Failed to create organization (${res.status}).`,
+        };
+      }
+
+      const data = body?.data ?? body;
+      if (!data?.accessToken || !data?.refreshToken) {
+        return { ok: false, message: 'Unexpected server response.' };
+      }
+
+      storeTokens(data.accessToken, data.refreshToken);
+      set({
+        token: data.accessToken,
+        refreshToken: data.refreshToken,
+        user: {
+          id: data.user?.id ?? get().user?.id ?? '',
+          email: data.user?.email ?? get().user?.email ?? '',
+          name: data.user?.name ?? get().user?.name ?? '',
+          role: data.user?.role ?? get().user?.role ?? '',
+          tenantId: data.user?.tenantId ?? '',
+          avatarUrl: data.user?.avatarUrl ?? get().user?.avatarUrl ?? null,
+        },
+        isAuthenticated: true,
+      });
+      await get().fetchOrganizations();
+      return { ok: true };
+    } catch {
+      return { ok: false, message: 'Could not reach the server.' };
     }
   },
 }));

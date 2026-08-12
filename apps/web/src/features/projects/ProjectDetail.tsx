@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import type { ProjectDomain, ProjectMemberDomain, AuditLogDomain } from '@constructtrack/types';
-import { ProjectStatus } from '@constructtrack/types';
+import { ProjectStatus, ProjectRole } from '@constructtrack/types';
 import { authFetch } from '../../auth-fetch';
 import { useAuthStore } from '../../stores/auth-store';
 import { ProjectForm } from './ProjectForm';
@@ -15,6 +15,7 @@ import {
   Clock,
   Loader2,
   Building,
+  UserPlus,
 } from '../../shared/components/icons';
 
 const STATUS_STYLES: Record<string, string> = {
@@ -37,6 +38,37 @@ function formatBudget(cents?: number): string {
   return `$${(cents / 100).toLocaleString()}`;
 }
 
+/** Organization member directory entry (GET /organizations/directory). */
+interface DirectoryEntry {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  avatarUrl: string | null;
+  joinedAt: string;
+}
+
+const PROJECT_ROLE_LABELS: Record<string, string> = {
+  [ProjectRole.VIEWER]: 'Viewer',
+  [ProjectRole.CREW]: 'Crew',
+  [ProjectRole.ENGINEER]: 'Engineer',
+  [ProjectRole.MANAGER]: 'Manager',
+  [ProjectRole.ADMIN]: 'Admin',
+};
+
+function projectRoleLabel(role: string): string {
+  return PROJECT_ROLE_LABELS[role] ?? role.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function initials(name: string): string {
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+}
+
 function timeAgo(date: Date | string): string {
   const now = new Date();
   const then = new Date(date);
@@ -55,11 +87,15 @@ export function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const canEdit = user?.role === 'admin' || user?.role === 'project_manager';
-  const isAdmin = user?.role === 'admin';
+  const canEdit =
+    user?.role === 'owner' ||
+    user?.role === 'admin' ||
+    user?.role === 'project_manager';
+  const isAdmin = user?.role === 'owner' || user?.role === 'admin';
 
   const [project, setProject] = useState<ProjectDomain | null>(null);
   const [members, setMembers] = useState<ProjectMemberDomain[]>([]);
+  const [directory, setDirectory] = useState<DirectoryEntry[]>([]);
   const [activity, setActivity] = useState<AuditLogDomain[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +104,13 @@ export function ProjectDetail() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'members' | 'activity'>('overview');
+
+  // Member assignment state
+  const [assignUserId, setAssignUserId] = useState('');
+  const [assignRole, setAssignRole] = useState<string>(ProjectRole.ENGINEER);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [memberError, setMemberError] = useState<string | null>(null);
+  const [removingUserId, setRemovingUserId] = useState<string | null>(null);
 
   const fetchProject = useCallback(async () => {
     if (!id) return;
@@ -111,11 +154,88 @@ export function ProjectDetail() {
     }
   }, [id]);
 
+  const fetchDirectory = useCallback(async () => {
+    try {
+      const res = await authFetch('/api/v1/organizations/directory');
+      if (!res.ok) return;
+      const body = await res.json();
+      const items = body.data ?? body;
+      setDirectory(Array.isArray(items) ? items : []);
+    } catch {
+      // Directory is optional (non-manager roles get nothing)
+      setDirectory([]);
+    }
+  }, []);
+
   useEffect(() => {
     fetchProject();
     fetchMembers();
     fetchActivity();
-  }, [fetchProject, fetchMembers, fetchActivity]);
+    fetchDirectory();
+  }, [fetchProject, fetchMembers, fetchActivity, fetchDirectory]);
+
+  const handleAssignMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !assignUserId) return;
+    setIsAssigning(true);
+    setMemberError(null);
+    try {
+      const res = await authFetch(`/api/v1/projects/${id}/members`, {
+        method: 'POST',
+        body: JSON.stringify({ userId: assignUserId, role: assignRole }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(
+          (body as { message?: string } | null)?.message ??
+            `Failed to add member (${res.status})`,
+        );
+      }
+      setAssignUserId('');
+      await fetchMembers();
+    } catch (err) {
+      setMemberError((err as Error).message);
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleRemoveMember = async (userId: string) => {
+    if (!id || !window.confirm('Remove this member from the project?')) return;
+    if (userId === user?.id) {
+      setMemberError('You cannot remove yourself from a project you manage.');
+      return;
+    }
+    setRemovingUserId(userId);
+    setMemberError(null);
+    try {
+      const res = await authFetch(`/api/v1/projects/${id}/members/${userId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(
+          (body as { message?: string } | null)?.message ??
+            `Failed to remove member (${res.status})`,
+        );
+      }
+      await fetchMembers();
+    } catch (err) {
+      setMemberError((err as Error).message);
+    } finally {
+      setRemovingUserId(null);
+    }
+  };
+
+  const memberDirectory = useCallback(
+    (userId: string): DirectoryEntry | undefined =>
+      directory.find((d) => d.id === userId),
+    [directory],
+  );
+
+  const assignableMembers = directory.filter(
+    (d) => !members.some((m) => m.userId === d.id),
+  );
 
   const handleDelete = async () => {
     if (!id) return;
@@ -258,26 +378,127 @@ export function ProjectDetail() {
 
       {activeTab === 'members' && (
         <div className="space-y-4">
+          {canEdit && (
+            <form
+              onSubmit={handleAssignMember}
+              className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 shadow-sm sm:flex-row sm:items-end"
+            >
+              <div className="flex-1">
+                <label htmlFor="assign-user" className="mb-1.5 block text-xs font-medium text-foreground-muted">
+                  Assign organization member
+                </label>
+                <select
+                  id="assign-user"
+                  value={assignUserId}
+                  onChange={(e) => setAssignUserId(e.target.value)}
+                  required
+                  className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground focus:border-primary focus:outline-none sm:w-64"
+                >
+                  <option value="" disabled>
+                    {assignableMembers.length > 0
+                      ? 'Select a member…'
+                      : 'No unassigned members'}
+                  </option>
+                  {assignableMembers.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name} ({d.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="assign-role" className="mb-1.5 block text-xs font-medium text-foreground-muted">
+                  Project role
+                </label>
+                <select
+                  id="assign-role"
+                  value={assignRole}
+                  onChange={(e) => setAssignRole(e.target.value)}
+                  className="h-10 rounded-lg border border-border bg-surface px-3 text-sm text-foreground focus:border-primary focus:outline-none sm:w-44"
+                >
+                  {Object.values(ProjectRole).map((r) => (
+                    <option key={r} value={r}>
+                      {projectRoleLabel(r)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="submit"
+                disabled={isAssigning || assignableMembers.length === 0}
+                className="flex h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+              >
+                {isAssigning ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+                Add member
+              </button>
+            </form>
+          )}
+
+          {memberError && (
+            <div className="rounded-lg border border-danger/20 bg-danger/5 p-3 text-sm text-danger">
+              {memberError}
+            </div>
+          )}
+
           {members.length === 0 ? (
             <div className="rounded-xl border border-border bg-surface p-8 text-center">
               <Users className="mx-auto mb-2 h-8 w-8 text-foreground-muted/30" />
               <p className="text-sm text-foreground-muted">No members assigned</p>
             </div>
           ) : (
-            <div className="rounded-xl border border-border bg-surface divide-y divide-border">
-              {members.map((m) => (
-                <div key={m.id} className="flex items-center justify-between px-5 py-3">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">
-                      User {m.userId?.slice(0, 8)}...
-                    </p>
-                    <p className="text-xs text-foreground-muted">Joined {formatDate(m.createdAt)}</p>
-                  </div>
-                  <span className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-foreground-muted capitalize">
-                    {m.role}
-                  </span>
-                </div>
-              ))}
+            <div className="overflow-hidden rounded-xl border border-border bg-surface">
+              <div className="divide-y divide-border">
+                {members.map((m) => {
+                  const entry = memberDirectory(m.userId);
+                  return (
+                    <div key={m.id} className="flex items-center justify-between px-5 py-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                          {entry?.avatarUrl ? (
+                            <img
+                              src={`/api/v1/auth/${entry.id}/avatar?v=${encodeURIComponent(entry.avatarUrl)}`}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            initials(entry?.name ?? '?')
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-foreground">
+                            {entry?.name ?? `User ${m.userId?.slice(0, 8)}…`}
+                            {m.userId === user?.id && (
+                              <span className="ml-1.5 text-xs text-foreground-muted">(you)</span>
+                            )}
+                          </p>
+                          <p className="truncate text-xs text-foreground-muted">
+                            {entry?.email ?? `Member since ${formatDate(m.createdAt)}`}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-3">
+                        <span className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-foreground-muted capitalize">
+                          {projectRoleLabel(m.role)}
+                        </span>
+                        {canEdit && m.userId !== user?.id && (
+                          <button
+                            onClick={() => handleRemoveMember(m.userId)}
+                            disabled={removingUserId === m.userId}
+                            title="Remove from project"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-danger/20 text-danger transition-colors hover:bg-danger/5 disabled:opacity-50"
+                          >
+                            {removingUserId === m.userId ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Trash className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>

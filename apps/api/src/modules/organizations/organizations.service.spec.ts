@@ -326,6 +326,39 @@ describe('OrganizationsService', () => {
     });
   });
 
+  describe('listDirectory (Phase 6 — project assignment)', () => {
+    it('lets a PROJECT_MANAGER view the member directory', async () => {
+      repos.membership.findByTenant.mockResolvedValue([
+        makeMembership({ userId: 'user-1', role: Role.OWNER }),
+        makeMembership({ id: 'm2', userId: 'user-2', role: Role.SITE_ENGINEER }),
+      ]);
+      repos.user.findByIds.mockResolvedValue([
+        makeUser(),
+        makeUser({ id: 'user-2', email: 'david@gmail.com', name: 'David' }),
+      ]);
+
+      const directory = await service.listDirectory(
+        makeAuth({ role: Role.PROJECT_MANAGER }),
+      );
+
+      expect(directory).toHaveLength(2);
+      expect(directory[0]).toMatchObject({ email: 'david@gmail.com' });
+    });
+
+    it('rejects roles below PROJECT_MANAGER', async () => {
+      await expect(
+        service.listDirectory(makeAuth({ role: Role.VIEWER })),
+      ).rejects.toMatchObject({ errorCode: ErrorCode.FORBIDDEN });
+      expect(repos.membership.findByTenant).not.toHaveBeenCalled();
+    });
+
+    it('rejects SITE_ENGINEER (no project-management powers)', async () => {
+      await expect(
+        service.listDirectory(makeAuth({ role: Role.SITE_ENGINEER })),
+      ).rejects.toMatchObject({ errorCode: ErrorCode.FORBIDDEN });
+    });
+  });
+
   describe('updateMemberRole (Phase 10 — authorization)', () => {
     it('rejects a member changing their own role', async () => {
       await expect(

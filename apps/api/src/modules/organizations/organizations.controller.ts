@@ -96,6 +96,17 @@ export class OrganizationsController {
     return { data: await this.organizationsService.listMembers(user) };
   }
 
+  /**
+   * Read-only member directory for project assignment. PROJECT_MANAGER+
+   * (Phase 6 — project managers must be able to add org members to
+   * projects without gaining team-management powers).
+   */
+  @Get('directory')
+  @Roles(Role.OWNER, Role.ADMIN, Role.PROJECT_MANAGER)
+  async listDirectory(@CurrentUser() user: AuthenticatedUser) {
+    return { data: await this.organizationsService.listDirectory(user) };
+  }
+
   @Patch('members/:userId')
   @Roles(...MANAGE_ROLES())
   async updateMemberRole(

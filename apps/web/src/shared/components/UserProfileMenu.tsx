@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, LogOut, ChevronDown, Building, Check, Loader2 } from './icons';
+import { User, LogOut, ChevronDown, Building, Check, Loader2, Plus } from './icons';
 import { useAuthStore } from '../../stores/auth-store';
 import { logoutAll } from '../../auth-fetch';
 
@@ -12,10 +12,14 @@ export function UserProfileMenu() {
     organizations,
     fetchOrganizations,
     switchOrganization,
+    createOrganization,
   } = useAuthStore();
   const [open, setOpen] = useState(false);
   const [orgsLoading, setOrgsLoading] = useState(false);
   const [switching, setSwitching] = useState<string | null>(null);
+  const [creatingOrg, setCreatingOrg] = useState(false);
+  const [orgName, setOrgName] = useState('');
+  const [orgError, setOrgError] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -56,6 +60,23 @@ export function UserProfileMenu() {
     if (ok) {
       setOpen(false);
       navigate('/');
+    }
+  };
+
+  const handleCreateOrg = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = orgName.trim();
+    if (!name) return;
+    setCreatingOrg(true);
+    setOrgError(null);
+    const result = await createOrganization(name);
+    setCreatingOrg(false);
+    if (result.ok) {
+      setOrgName('');
+      setOpen(false);
+      navigate('/');
+    } else {
+      setOrgError(result.message ?? 'Failed to create organization.');
     }
   };
 
@@ -139,6 +160,32 @@ export function UserProfileMenu() {
               )}
             </div>
           )}
+
+          <div className="border-b border-border px-2 py-2">
+            <form onSubmit={handleCreateOrg} className="flex items-center gap-2">
+              <input
+                type="text"
+                value={orgName}
+                onChange={(e) => setOrgName(e.target.value)}
+                placeholder="New organization name"
+                disabled={creatingOrg}
+                aria-label="New organization name"
+                className="h-8 min-w-0 flex-1 rounded-lg border border-border bg-surface px-2.5 text-xs text-foreground placeholder:text-foreground-muted focus:border-primary focus:outline-none disabled:opacity-50"
+              />
+              <button
+                type="submit"
+                disabled={creatingOrg || !orgName.trim()}
+                title="Create organization"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+              >
+                {creatingOrg ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-4 w-4" />}
+              </button>
+            </form>
+            {orgError && <p className="px-1 pt-1.5 text-[11px] text-danger">{orgError}</p>}
+            <p className="px-1 pt-1.5 text-[10px] text-foreground-muted">
+              Create an organization — you become its owner.
+            </p>
+          </div>
 
           <div className="py-1">
             <Link

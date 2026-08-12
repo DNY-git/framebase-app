@@ -49,13 +49,27 @@ Tenant-level roles (the `role` on `membership`):
 
 | Role | Intent |
 | --- | --- |
+| `owner` | Organization owner (the founder of the org, or promoted). Full control like `admin`, plus the exclusive power to grant the `owner` role and manage organization-level ownership. |
 | `admin` | Full tenant control: users, settings, billing-relevant actions, all data. |
 | `manager` | Create/manage projects and resources, manage project members, generate/schedule reports. |
 | `engineer` | Day-to-day project work: edit tasks, assign equipment, record inventory. |
 | `crew` | Field execution: update their own assigned tasks, log usage. Limited scope. |
 | `viewer` | Read-only access for stakeholders/observers. |
 
-Roles are assigned per-tenant (a user can be an `engineer` in tenant A and a `viewer` in tenant B).
+Roles are assigned per-tenant (a user can be an `engineer` in tenant A and a `viewer` in tenant B). Membership is the only source of a user's organization role — the server derives it from the authenticated identity, never from client input.
+
+### Organization-level capabilities
+
+| Capability | Roles |
+| --- | --- |
+| View the team / invite / revoke / manage members | `owner`, `admin` |
+| Grant or remove the `owner` role | `owner` only |
+| Change own role / remove self | blocked (self-role change and self-removal are rejected) |
+| Demote/remove the last `owner`/`admin` | blocked (leadership guard) |
+| Read the member directory (project assignment) | `owner`, `admin`, `manager` |
+| Invite a member as `owner` | not allowed via invitation — OWNER is granted only by an existing owner's promotion |
+
+`owner` and `admin` are *tenant admins*: they bypass project-membership checks and see all projects in their tenant.
 
 ---
 
@@ -63,19 +77,22 @@ Roles are assigned per-tenant (a user can be an `engineer` in tenant A and a `vi
 
 General capabilities (per-domain detail lives in each [feature spec](../features/)):
 
-| Capability | viewer | crew | engineer | manager | admin |
-| --- | --- | --- | --- | --- | --- |
-| View (within scope) | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Update own task status | ❌ | ✅ | ✅ | ✅ | ✅ |
-| Create/edit tasks | ❌ | ❌ | ✅ | ✅ | ✅ |
-| Assign resources | ❌ | ❌ | ✅ | ✅ | ✅ |
-| Create/manage projects | ❌ | ❌ | ❌ | ✅ | ✅ |
-| Manage project members | ❌ | ❌ | ❌ | ✅ | ✅ |
-| Manage catalog/registry | ❌ | ❌ | ❌ | ✅ | ✅ |
-| Schedule/manage reports | ❌ | ❌ | ❌ | ✅ | ✅ |
-| Adjust inventory | ❌ | ❌ | ❌ | ✅ | ✅ |
-| Tenant admin (users/settings) | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Delete/archived data | ❌ | ❌ | ❌ | archive | ✅ |
+| Capability | viewer | crew | engineer | manager | admin | owner |
+| --- | --- | --- | --- | --- | --- | --- |
+| View (within scope) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Update own task status | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Create/edit tasks | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| Assign resources | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| Create/manage projects | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Manage project members | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Manage catalog/registry | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Schedule/manage reports | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Adjust inventory | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Tenant admin (users/settings) | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Manage team & invitations | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Grant/remove `owner` role | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| View member directory (project assignment) | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Delete/archived data | ❌ | ❌ | ❌ | ❌ | archive | ✅ |
 
 A `crew` member's write access is **further constrained by ownership** (their assigned tasks only) — see [Ownership & Assignment](#ownership--assignment).
 

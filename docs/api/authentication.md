@@ -56,7 +56,7 @@ Validations: email format + uniqueness, password strength (minimum 8 characters,
 
 Response: `201 Created` with the token pair (same envelope as login).
 
-Side effects: creates `user`, initial `membership` (default role, e.g., `admin` for the first user in a new tenant; `viewer` otherwise), and audit record.
+Side effects: creates `user`, a new organization (`Tenant`), and an initial `membership` with the founder role `owner`; records an audit event. (Users who join an existing organization do so through the [invitation flow](../features/organizations.md) — they never register into an existing org.)
 
 ## Login
 

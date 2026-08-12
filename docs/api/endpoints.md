@@ -12,6 +12,8 @@ Companion docs: [../architecture/backend.md](../architecture/backend.md), featur
 
 - [Conventions](#conventions)
 - [Auth](#auth)
+- [Organizations & Team](#organizations--team)
+- [Invitations](#invitations)
 - [Projects](#projects)
 - [Tasks](#tasks)
 - [Equipment](#equipment)
@@ -43,15 +45,63 @@ See [authentication.md](./authentication.md) for full detail.
 
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
-| `POST` | `/auth/register` | 🌐 | Register a new user (creates initial tenant/membership) |
+| `POST` | `/auth/register` | 🌐 | Register a new user (creates initial tenant/membership; founder becomes `owner`) |
 | `POST` | `/auth/login` | 🌐 | Obtain access + refresh token pair |
 | `POST` | `/auth/refresh` | 🌐 | Rotate token pair |
 | `POST` | `/auth/logout` | 🔒 | Revoke refresh token / end session |
 | `POST` | `/auth/forgot-password` | 🌐 | Request a password reset email |
 | `POST` | `/auth/reset-password` | 🌐 | Reset password with a token |
 | `GET`  | `/auth/me` | 🔒 | Current user + membership/role |
+| `PATCH` | `/auth/me` | 🔒 | Update profile (name) |
+| `POST` | `/auth/me/avatar` | 🔒 | Upload avatar (`multipart`, field `avatar`, ≤2 MB, JPEG/PNG/WebP) |
+| `DELETE` | `/auth/me/avatar` | 🔒 | Remove avatar |
+| `GET` | `/auth/:userId/avatar` | 🌐 | Serve avatar image (ObjectId URLs unguessable; cacheable) |
 | `GET`  | `/auth/sessions` | 🔒 | List active sessions |
 | `DELETE` | `/auth/sessions/:id` | 🔒 | Revoke a specific session |
+
+---
+
+## Organizations & Team
+
+Spec: [../features/organizations.md](../features/organizations.md). Tenancy model: an organization **is** a `Tenant`; membership is the `Membership` join entity. The server derives the active organization from the authenticated JWT + membership — a client-supplied `tenantId` is never trusted for authorization.
+
+| Method | Path | Auth | Purpose |
+| --- | --- | --- | --- |
+| `GET` | `/organizations/me` | 🔒 | Active org context + full membership list (switcher data) |
+| `POST` | `/organizations` | 🔒 | Create an organization (caller becomes `owner`, fresh token pair) |
+| `POST` | `/organizations/switch` | 🔒 | Switch active org (server-verifies membership before re-issuing tokens) |
+| `GET` | `/organizations/members` | 🔒 | List members (OWNER/ADMIN) |
+| `GET` | `/organizations/directory` | 🔒 | Read-only member directory for project assignment (PROJECT_MANAGER+) |
+| `PATCH` | `/organizations/members/:userId` | 🔒 | Change a member's role (OWNER/ADMIN; only OWNER grants OWNER) |
+| `DELETE` | `/organizations/members/:userId` | 🔒 | Remove a member (OWNER/ADMIN; last owner/admin protected) |
+
+**Example — switch organization**
+
+```
+POST /api/v1/organizations/switch
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{ "tenantId": "64f8c2d0e5a1b2c3d4e5f607" }
+
+Response: 200 with a fresh `{ accessToken, refreshToken, user: { tenantId, role, ... } }` pair scoped to the target org. Switching to an org without a membership → `403 ORG_MEMBERSHIP_REQUIRED`.
+```
+
+---
+
+## Invitations
+
+Spec: [../features/organizations.md](../features/organizations.md). Invitations carry a cryptographically random 64-hex token, expire after 7 days, and can be `pending` / `accepted` / `revoked`.
+
+| Method | Path | Auth | Purpose |
+| --- | --- | --- | --- |
+| `POST` | `/organizations/invitations` | 🔒 | Invite a member by email + role (OWNER/ADMIN; OWNER role not invitable) |
+| `GET` | `/organizations/invitations` | 🔒 | List invitations (OWNER/ADMIN) |
+| `DELETE` | `/organizations/invitations/:id` | 🔒 | Revoke a pending invitation (OWNER/ADMIN) |
+| `GET` | `/invitations/:token` | 🌐 | Resolve invitation info for the acceptance page (sanitized) |
+| `POST` | `/invitations/:token/accept` | 🌐 | Accept an invitation (optional Bearer; new users pass `name` + `password`) |
+
+**Accept rules:** an invitee who already has an account must be authenticated as the invited email; a new invitee creates their account inline. Success returns a token pair already scoped to the invited organization. Expired/revoked/already-accepted tokens are rejected (`410`/`409`).
 
 ---
 
