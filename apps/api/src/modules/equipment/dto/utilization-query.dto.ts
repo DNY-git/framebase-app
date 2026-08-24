@@ -9,6 +9,25 @@ export class UtilizationQueryDto {
   @IsDateString()
   @IsNotEmpty()
   to!: string;
+
+  /**
+   * Optional pagination. The usage-timeline endpoint reads these via
+   * `@Query() query` (the whole query object), so they must be declared
+   * here or the global `forbidNonWhitelisted` pipe rejects `perPage`.
+   */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  perPage?: number;
 }
 
 export class UpcomingMaintenanceQueryDto {

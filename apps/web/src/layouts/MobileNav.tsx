@@ -32,7 +32,7 @@ export function MobileNav() {
               className={({ isActive }) =>
                 `flex flex-col items-center gap-0.5 rounded-lg px-3 py-1.5 text-[10px] font-medium transition-colors ${
                   isActive
-                    ? 'text-primary'
+                    ? 'bg-sidebar-active/10 text-sidebar-active'
                     : 'text-foreground-muted active:text-foreground'
                 }`
               }

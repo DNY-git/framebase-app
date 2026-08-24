@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, FilterQuery } from 'mongoose';
 import { InventoryTransaction, InventoryTransactionDocument } from '../../../schemas/inventory-transaction.schema';
 import { BaseRepository } from '../../../database/base.repository';
-import { InventoryTransactionDomain, TenantId, PaginationOptions, PaginatedResponse } from '@constructtrack/types';
+import { InventoryTransactionDomain, TransactionType, TenantId, PaginationOptions, PaginatedResponse } from '@constructtrack/types';
 import { CreateTransactionDto } from '../dto/create-transaction.dto';
 
 @Injectable()
@@ -127,5 +127,43 @@ export class InventoryTransactionRepository extends BaseRepository<
       totalItems,
       totalPages: Math.ceil(totalItems / perPage),
     };
+  }
+
+  /**
+   * Aggregates purchase cost (receive transactions with costCents) by
+   * project and by calendar month. Used by the dashboard spending trend.
+   */
+  async sumCostCentsByProjectAndMonth(
+    tenantId: string,
+    options: { since: Date },
+  ): Promise<Array<{ projectId: string | null; monthKey: string; total: number }>> {
+    const rows = await this.model.aggregate<{
+      _id: { projectId: string | null; month: string };
+      total: number;
+    }>([
+      {
+        $match: {
+          tenantId,
+          type: TransactionType.RECEIVE,
+          costCents: { $gt: 0 },
+          createdAt: { $gte: options.since },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            projectId: { $ifNull: ['$projectId', null] },
+            month: { $dateToString: { format: '%Y-%m', date: '$createdAt' } },
+          },
+          total: { $sum: '$costCents' },
+        },
+      },
+    ]);
+
+    return rows.map((r) => ({
+      projectId: r._id.projectId,
+      monthKey: r._id.month,
+      total: r.total,
+    }));
   }
 }

@@ -16,7 +16,8 @@ import { User, UserDocument } from '../../../schemas/user.schema';
 export interface UserDomain {
   id: string;
   email: string;
-  passwordHash: string;
+  passwordHash: string | null;
+  googleId: string | null;
   name: string;
   status: string;
   avatarUrl: string | null;
@@ -45,19 +46,40 @@ export class UserRepository {
     return doc ? this.toDomain(doc) : null;
   }
 
+  async findByGoogleId(googleId: string): Promise<UserDomain | null> {
+    const doc = await this.model.findOne({ googleId }).exec();
+    return doc ? this.toDomain(doc) : null;
+  }
+
   async create(data: {
     email: string;
-    passwordHash: string;
     name: string;
+    passwordHash?: string;
+    googleId?: string;
+    avatarUrl?: string | null;
     status?: string;
   }): Promise<UserDomain> {
     const doc = await this.model.create({
       email: data.email,
-      passwordHash: data.passwordHash,
       name: data.name,
+      ...(data.passwordHash ? { passwordHash: data.passwordHash } : {}),
+      ...(data.googleId ? { googleId: data.googleId } : {}),
+      ...(data.avatarUrl ? { avatarUrl: data.avatarUrl } : {}),
       status: data.status ?? 'active',
     });
     return this.toDomain(doc);
+  }
+
+  /** Links a Google account to an existing credentials user (same email). */
+  async linkGoogleId(id: string, googleId: string): Promise<UserDomain | null> {
+    const doc = await this.model
+      .findByIdAndUpdate(
+        id,
+        { $set: { googleId } },
+        { new: true },
+      )
+      .exec();
+    return doc ? this.toDomain(doc) : null;
   }
 
   async updateLastLogin(id: string): Promise<void> {
@@ -100,7 +122,8 @@ export class UserRepository {
     return {
       id: doc._id.toString(),
       email: doc.email,
-      passwordHash: doc.passwordHash,
+      passwordHash: doc.passwordHash ?? null,
+      googleId: doc.googleId ?? null,
       name: doc.name,
       status: doc.status,
       avatarUrl: doc.avatarUrl ?? null,

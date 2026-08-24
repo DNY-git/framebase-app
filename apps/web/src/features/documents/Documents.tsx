@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { SearchInput } from '@/components/ui/search-input';
 import { FolderOpen, Plus, Loader2, Trash, Download } from '@/shared/components/icons';
 import { FilterDropdown } from '@/shared/components/FilterDropdown';
+import { Skeleton } from '@/shared/components/Skeleton';
 import { unwrapList, formatDate } from '../../utils';
 import { authFetch } from '../../auth-fetch';
 import { useAuthStore } from '../../stores/auth-store';
@@ -217,14 +218,26 @@ export function Documents() {
             </thead>
             <tbody>
               {isLoading ? (
-                <tr>
-                  <td colSpan={TABLE_HEADERS.length + 1} className="px-4 py-8">
-                    <div className="flex items-center justify-center gap-2 text-sm text-foreground-muted">
-                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                      Loading documents...
-                    </div>
-                  </td>
-                </tr>
+                <>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={i} className="border-b border-border last:border-0">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <Skeleton className="h-9 w-9 rounded-lg" />
+                          <div className="space-y-1.5">
+                            <Skeleton className="h-4 w-40" />
+                            <Skeleton className="h-3 w-24" />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-20" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-24" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-20" /></td>
+                      <td className="px-4 py-3" />
+                    </tr>
+                  ))}
+                </>
               ) : documents.length === 0 ? (
                 <tr>
                   <td colSpan={TABLE_HEADERS.length + 1} className="px-4 py-6">

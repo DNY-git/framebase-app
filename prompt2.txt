@@ -1,0 +1,62 @@
+The Team/Members feature was reported as implemented, including:
+
+- Team page
+- invitation flow
+- organization switcher
+- member directory
+- member management
+
+However, I cannot see "Team" anywhere in the application's navbar/sidebar.
+
+DO NOT rebuild the Team feature.
+
+Inspect the CURRENT frontend and determine why the existing Team page is not accessible from the navigation.
+
+Check:
+
+1. Find the exact Team page file and its route.
+2. Find the frontend route registration for the Team page.
+3. Find the current navbar/sidebar component.
+4. Determine whether Team is missing from the navigation items.
+5. Determine whether Team is intentionally hidden based on role.
+6. Determine whether the current authenticated user's role is preventing it from rendering.
+7. Check whether the Team route is directly accessible even though it is missing from navigation.
+8. Check whether the frontend is using the correct route/path for the newly implemented Team page.
+
+Then fix ONLY the navigation/routing issue.
+
+EXPECTED RESULT:
+
+For an OWNER/ADMIN logged into an organization, the sidebar/navbar should contain:
+
+Team
+
+Clicking Team should navigate to the implemented Team/Members page.
+
+The Team page should then show:
+
+- current organization
+- organization members
+- member roles
+- pending invitations
+- Invite Member control for authorized users
+
+IMPORTANT:
+
+- Do not create a duplicate Team page.
+- Do not create a duplicate invitation system.
+- Do not change the existing MongoDB/Mongoose architecture.
+- Do not change the authorization model unless the existing implementation is actually preventing the authorized OWNER/ADMIN from seeing Team.
+- Do not redesign the navbar.
+- Preserve the existing UI style.
+
+After fixing it, report:
+
+1. Existing Team page location
+2. Existing Team route
+3. Why it wasn't appearing in navbar
+4. Files changed
+5. Exact URL/path to Team
+6. Whether OWNER can see Team
+7. Whether unauthorized roles correctly don't see management controls
+8. Typecheck/lint/tests

@@ -1,0 +1,18 @@
+Implement the attached Projects page for Framebase.
+
+The attached image is the visual source of truth.
+
+Requirements
+
+- Match the design as closely as possible.
+- Use shadcn/ui components wherever possible.
+- Use Tailwind CSS.
+- Reuse the existing application shell.
+- Preserve our current routing and architecture.
+- Do not create duplicate components.
+- Keep the layout responsive.
+- Use our existing Projects API if available.
+- If data is unavailable, mock only the data layer.
+- Do not modify unrelated pages.
+- Keep the implementation production-ready.
+- Explain any custom components you introduce.

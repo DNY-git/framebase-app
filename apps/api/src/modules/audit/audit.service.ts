@@ -126,6 +126,30 @@ export class AuditService {
     };
   }
 
+  /**
+   * Counts audit-log entries per UTC calendar day since `since`.
+   * Powers the dashboard activity heatmap with real recorded work activity.
+   */
+  async countByDay(
+    tenantId: string,
+    since: Date,
+  ): Promise<Array<{ date: string; count: number }>> {
+    const rows = await this.model.aggregate<{
+      _id: string;
+      count: number;
+    }>([
+      { $match: { tenantId, createdAt: { $gte: since } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    return rows.map((r) => ({ date: r._id, count: r.count }));
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private mapToDomain(doc: any): AuditLogDomain {
     return {

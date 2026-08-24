@@ -126,21 +126,45 @@ function SectionCard({
   );
 }
 
-function ProgressBar({ value, color = 'bg-primary' }: { value: number; color?: string }) {
-  return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-muted">
-      <div
-        className={`h-full rounded-full transition-all duration-500 ${color}`}
-        style={{ width: `${Math.min(Math.max(value, 0), 100)}%` }}
-      />
-    </div>
-  );
-}
-
 function progressColor(progress: number): string {
   if (progress >= 70) return 'bg-success';
   if (progress >= 40) return 'bg-warning';
   return 'bg-danger';
+}
+
+/**
+ * Compact horizontal-free bar chart for project progress. Built from divs
+ * (no charting lib exists for bars) so it stays theme-token-driven and
+ * never overflows its grid cell. Each bar links to its project.
+ */
+function ProjectProgressChart({
+  projects,
+}: {
+  projects: DashboardOverview['projectProgress'];
+}) {
+  return (
+    <div className="flex h-48 items-end gap-2">
+      {projects.map((project) => (
+        <Link
+          key={project.id}
+          to={`/projects/${project.id}`}
+          className="group flex min-w-0 flex-1 flex-col items-center justify-end gap-1"
+          title={`${project.name} — ${project.progressPercent}%`}
+        >
+          <span className="text-xs font-semibold tabular-nums text-foreground">
+            {project.progressPercent}%
+          </span>
+          <div
+            className={`w-full rounded-t ${progressColor(project.progressPercent)} transition-all duration-500`}
+            style={{ height: `${Math.min(Math.max(project.progressPercent, 2), 100)}%` }}
+          />
+          <span className="w-full truncate text-center font-mono text-[10px] uppercase text-foreground-muted">
+            {project.code}
+          </span>
+        </Link>
+      ))}
+    </div>
+  );
 }
 
 function DashboardLoading() {
@@ -304,7 +328,7 @@ export function Dashboard(): React.JSX.Element {
         <div className="grid gap-4 lg:grid-cols-3">
           {/* Spending / Budget chart */}
           <SectionCard
-            className="lg:col-span-2"
+            className="lg:col-span-2 min-w-0"
             title="Spending vs Budget"
             description="Last 6 months — budget is allocated across project timelines"
             action={
@@ -371,7 +395,7 @@ export function Dashboard(): React.JSX.Element {
           </SectionCard>
 
           {/* Project progress */}
-          <SectionCard title="Project Progress" description="Active projects by timeline progress">
+          <SectionCard className="min-w-0" title="Project Progress" description="Active projects by timeline progress">
             {data.projectProgress.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center rounded-lg border border-border bg-surface-muted/30 py-12 text-center">
                 <FolderKanban className="mb-2 h-8 w-8 text-foreground-muted/30" />
@@ -379,29 +403,7 @@ export function Dashboard(): React.JSX.Element {
                 <p className="mt-1 text-xs text-foreground-muted">Projects will appear here when started.</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {data.projectProgress.map((project) => (
-                  <Link key={project.id} to={`/projects/${project.id}`} className="group block">
-                    <div className="mb-1.5 flex items-baseline justify-between gap-3">
-                      <span className="truncate text-sm font-medium text-foreground transition-colors group-hover:text-primary">
-                        {project.name}
-                      </span>
-                      <span className="shrink-0 text-xs font-semibold tabular-nums text-foreground">
-                        {project.progressPercent}%
-                      </span>
-                    </div>
-                    <ProgressBar value={project.progressPercent} color={progressColor(project.progressPercent)} />
-                    <div className="mt-1.5 flex items-center justify-between text-xs text-foreground-muted">
-                      <span className="font-mono uppercase">{project.code}</span>
-                      <span>
-                        {project.budgetCents > 0
-                          ? `${project.budgetUtilizationPercent}% of ${formatCompact(project.budgetCents)} used`
-                          : 'No budget set'}
-                      </span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
+              <ProjectProgressChart projects={data.projectProgress} />
             )}
           </SectionCard>
         </div>

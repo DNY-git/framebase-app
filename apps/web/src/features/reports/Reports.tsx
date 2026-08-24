@@ -1,9 +1,19 @@
 import { useState, useCallback, useEffect } from 'react';
+import type { FeatureCollection, Geometry } from 'geojson';
 import type { ReportTemplateDomain, ReportRunDomain } from '@constructtrack/types';
 import { authFetch } from '../../auth-fetch';
 import { useAuthStore } from '../../stores/auth-store';
 import { FilterDropdown } from '@/shared/components/FilterDropdown';
-import { StatCard } from '@/components/ui/stat-card';
+import { Skeleton } from '@/shared/components/Skeleton';
+import { StatusStatRow } from '@/components/ui/status-stat-row';
+import {
+  ChoroplethChart,
+  ChoroplethFeatureComponent,
+  ChoroplethGraticule,
+  ChoroplethTooltip,
+  defaultChoroplethColors,
+  type ChoroplethFeatureProperties,
+} from '@bklitui/ui/charts';
 import {
   FileText,
   Plus,
@@ -11,8 +21,63 @@ import {
   CheckCircle,
   Clock,
   AlertTriangle,
+  MapPin,
   X,
 } from '../../shared/components/icons';
+
+type RegionFeatureCollection = FeatureCollection<
+  Geometry,
+  ChoroplethFeatureProperties & { value?: number }
+>;
+
+/**
+ * Regional spend choropleth. Data-ready: pass a GeoJSON `FeatureCollection`
+ * (real boundaries) with a numeric `value` on each feature's properties to
+ * render the map. Projects currently store only a free-text `location`
+ * string, so no region/coordinates exist to aggregate — until that data is
+ * added, this shows a clear empty state and NO fabricated geometry.
+ */
+function RegionalSpendMap({ features }: { features: RegionFeatureCollection | null }) {
+  if (!features || features.features.length === 0) {
+    return (
+      <div className="flex h-72 flex-col items-center justify-center rounded-lg border border-border bg-surface-muted/30 px-6 text-center">
+        <MapPin className="mb-2 h-8 w-8 text-foreground-muted/30" />
+        <p className="text-sm font-medium text-foreground">No regional data available yet</p>
+        <p className="mt-1 max-w-md text-xs text-foreground-muted">
+          The regional spend map needs structured geographic data. Projects currently store only a free-text{' '}
+          <code className="mx-1 rounded bg-surface-muted px-1 py-0.5">location</code> string — there is no
+          state/region field or coordinates to plot. To enable this map, add a region (e.g. ISO state code) or
+          geo-coordinates to the Project model and aggregate spend per region on the backend. No map geometry is
+          fabricated.
+        </p>
+      </div>
+    );
+  }
+
+  const max = Math.max(1, ...features.features.map((f) => Number(f.properties?.value ?? 0)));
+  return (
+    <div className="h-96 w-full overflow-hidden rounded-lg">
+      <ChoroplethChart data={features} aspectRatio="16 / 9">
+        <ChoroplethFeatureComponent
+          getFeatureColor={(feature) => {
+            const v = Number(feature.properties?.value ?? 0);
+            const ratio = max > 0 ? v / max : 0;
+            const idx = Math.min(
+              defaultChoroplethColors.length - 1,
+              Math.floor(ratio * defaultChoroplethColors.length)
+            );
+            return defaultChoroplethColors[idx];
+          }}
+        />
+        <ChoroplethGraticule />
+        <ChoroplethTooltip
+          getFeatureValue={(f) => Number(f.properties?.value ?? 0)}
+          valueLabel="Spend"
+        />
+      </ChoroplethChart>
+    </div>
+  );
+}
 
 interface PaginatedResponse<T> {
   data: T[];
@@ -115,30 +180,36 @@ export function Reports() {
         </div>
       )}
 
-      {/* Summary stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Report templates" value={templates.length} icon={FileText} />
-        <StatCard label="Report runs" value={runs.length} icon={Clock} accentClassName="bg-info" />
-        <StatCard
-          label="Succeeded"
-          value={runs.filter((r) => r.status === 'succeeded').length}
-          icon={CheckCircle}
-          accentClassName="bg-success"
-        />
-        <StatCard
-          label="Failed"
-          value={runs.filter((r) => r.status === 'failed').length}
-          icon={AlertTriangle}
-          accentClassName="bg-danger"
-        />
-      </div>
+      {/* Summary stats — compact inline status-count row */}
+      <StatusStatRow
+        items={[
+          { label: 'Report templates', count: templates.length },
+          { label: 'Report runs', count: runs.length, tone: 'info' },
+          {
+            label: 'Succeeded',
+            count: runs.filter((r) => r.status === 'succeeded').length,
+            tone: 'success',
+          },
+          {
+            label: 'Failed',
+            count: runs.filter((r) => r.status === 'failed').length,
+            tone: 'danger',
+          },
+        ]}
+      />
 
       {/* Templates */}
       <section className="rounded-xl border border-border bg-surface p-5 shadow-sm">
         <h3 className="mb-4 text-sm font-semibold text-foreground">Report Templates</h3>
         {isLoadingTemplates ? (
-          <div className="flex items-center gap-2 text-sm text-foreground-muted">
-            <Loader2 className="h-4 w-4 animate-spin text-primary" /> Loading templates...
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border bg-surface-muted/40 p-4">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="mt-2 h-3 w-24" />
+                <Skeleton className="mt-4 h-8 w-full" />
+              </div>
+            ))}
           </div>
         ) : templates.length === 0 ? (
           <div className="rounded-lg border border-border p-8 text-center">
@@ -189,8 +260,17 @@ export function Reports() {
         </div>
 
         {isLoadingRuns ? (
-          <div className="flex items-center gap-2 text-sm text-foreground-muted">
-            <Loader2 className="h-4 w-4 animate-spin text-primary" /> Loading reports...
+          <div className="divide-y divide-border rounded-lg border border-border">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between gap-3 p-3">
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+                <Skeleton className="h-5 w-16 rounded-full" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+            ))}
           </div>
         ) : runs.length === 0 ? (
           <div className="rounded-lg border border-border p-8 text-center">
@@ -224,6 +304,17 @@ export function Reports() {
           </div>
         )}
       </section>
+
+      {/* Regional Spend — choropleth (data-ready; no geo data yet) */}
+      <div className="rounded-xl border border-border bg-surface p-5 shadow-sm">
+        <div className="mb-5">
+          <h3 className="text-sm font-semibold text-foreground">Regional Spend</h3>
+          <p className="mt-0.5 text-xs text-foreground-muted">
+            Spend distribution across project regions — powered by the Bklit ChoroplethChart
+          </p>
+        </div>
+        <RegionalSpendMap features={null} />
+      </div>
 
       {/* Create Template Modal */}
       {showCreateTemplate && (

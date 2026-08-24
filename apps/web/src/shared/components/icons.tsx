@@ -351,3 +351,66 @@ export const Building2 = createPathsWithElements([
   <path key="6" d="M10 14h4" />,
   <path key="7" d="M10 18h4" />,
 ]);
+
+export const Crop = createMultiPathIcon([
+  'M6 2v14a2 2 0 0 0 2 2h14',
+  'M18 22V8a2 2 0 0 0-2-2H2',
+]);
+
+export const ZoomIn = createPathsWithElements([
+  <circle key="1" cx="11" cy="11" r="8" />,
+  <path key="2" d="M21 21l-4.35-4.35" />,
+  <line key="3" x1="11" x2="11" y1="8" y2="14" />,
+  <line key="4" x1="8" x2="14" y1="11" y2="11" />,
+]);
+
+export const ZoomOut = createPathsWithElements([
+  <circle key="1" cx="11" cy="11" r="8" />,
+  <path key="2" d="M21 21l-4.35-4.35" />,
+  <line key="3" x1="8" x2="14" y1="11" y2="11" />,
+]);
+
+export const RotateCw = createMultiPathIcon([
+  'M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8',
+  'M21 3v5h-5',
+]);
+
+export const RotateCcw = createMultiPathIcon([
+  'M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8',
+  'M3 3v5h5',
+]);
+
+export const Undo2 = createMultiPathIcon([
+  'M9 14 4 9l5-5',
+  'M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11',
+]);
+
+export const Google = createPathsWithElements(
+  [
+    <path
+      key="1"
+      fill="#4285F4"
+      stroke="none"
+      d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47a5.57 5.57 0 0 1-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"
+    />,
+    <path
+      key="2"
+      fill="#34A853"
+      stroke="none"
+      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09A11.99 11.99 0 0 0 12 24z"
+    />,
+    <path
+      key="3"
+      fill="#FBBC05"
+      stroke="none"
+      d="M5.27 14.29a7.17 7.17 0 0 1 0-4.58V6.62H1.29a12 12 0 0 0 0 10.76l3.98-3.09z"
+    />,
+    <path
+      key="4"
+      fill="#EA4335"
+      stroke="none"
+      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.69 1.29 6.62l3.98 3.09C6.22 6.86 8.87 4.75 12 4.75z"
+    />,
+  ],
+  '0 0 24 24',
+);

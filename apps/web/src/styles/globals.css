@@ -54,7 +54,7 @@
   --sidebar-bg: #ffffff;
   --sidebar-fg: #18181b;
   --sidebar-border: #e4e4e7;
-  --sidebar-active: #2563eb;
+  --sidebar-active: #18181b;
   --sidebar-hover: #f4f4f5;
   --ring: var(--primary);
   --border: var(--border-color);
@@ -72,6 +72,43 @@
   --destructive: var(--danger);
   --destructive-foreground: #fff;
   --radius: 0.5rem;
+  --chart-line-primary: #52525b;
+  --chart-line-secondary: #0ea5e9;
+  --heatmap-0: #f4f4f5;
+  --heatmap-1: #e4e4e7;
+  --heatmap-2: #d4d4d8;
+  --heatmap-3: #a1a1aa;
+  --heatmap-4: #3f3f46;
+
+  /* Bklit chart theming (grey/neutral) */
+  --chart-background: transparent;
+  --chart-foreground: #18181b;
+  --chart-foreground-muted: #71717a;
+  --chart-label: #71717a;
+  --chart-grid: #e4e4e7;
+  --chart-crosshair: #a1a1aa;
+  --chart-brush-border: #d4d4d8;
+  --chart-indicator-color: #52525b;
+  --chart-indicator-secondary-color: #0ea5e9;
+  --chart-tooltip-background: var(--popover);
+  --chart-segment-background: #f4f4f5;
+  --chart-segment-line: #d4d4d8;
+  --chart-marker-background: var(--popover);
+  --chart-marker-foreground: #18181b;
+  --chart-marker-border: #d4d4d8;
+  --chart-marker-badge-background: #e4e4e7;
+  --chart-marker-badge-foreground: #18181b;
+  --chart-scale-01: #f4f4f5;
+  --chart-scale-02: #e4e4e7;
+  --chart-scale-03: #d4d4d8;
+  --chart-scale-04: #a1a1aa;
+  --chart-scale-05: #3f3f46;
+  --chart-scale-pattern-color: #a1a1aa;
+  --chart-1: #52525b;
+  --chart-2: #0ea5e9;
+  --chart-3: #71717a;
+  --chart-4: #a1a1aa;
+  --chart-5: #d4d4d8;
 }
 
 .dark {
@@ -90,7 +127,7 @@
   --sidebar-bg: #09090b;
   --sidebar-fg: #fafafa;
   --sidebar-border: #27272a;
-  --sidebar-active: #3b82f6;
+  --sidebar-active: #fafafa;
   --sidebar-hover: #18181b;
   --ring: var(--primary);
   --border: var(--border-color);
@@ -108,6 +145,43 @@
   --destructive: var(--danger);
   --destructive-foreground: #fff;
   --radius: 0.5rem;
+  --chart-line-primary: #a1a1aa;
+  --chart-line-secondary: #38bdf8;
+  --heatmap-0: #18181b;
+  --heatmap-1: #27272a;
+  --heatmap-2: #3f3f46;
+  --heatmap-3: #52525b;
+  --heatmap-4: #e4e4e7;
+
+  /* Bklit chart theming (grey/neutral) */
+  --chart-background: transparent;
+  --chart-foreground: #fafafa;
+  --chart-foreground-muted: #71717a;
+  --chart-label: #a1a1aa;
+  --chart-grid: #27272a;
+  --chart-crosshair: #52525b;
+  --chart-brush-border: #3f3f46;
+  --chart-indicator-color: #a1a1aa;
+  --chart-indicator-secondary-color: #38bdf8;
+  --chart-tooltip-background: var(--popover);
+  --chart-segment-background: #18181b;
+  --chart-segment-line: #3f3f46;
+  --chart-marker-background: var(--popover);
+  --chart-marker-foreground: #fafafa;
+  --chart-marker-border: #3f3f46;
+  --chart-marker-badge-background: #27272a;
+  --chart-marker-badge-foreground: #fafafa;
+  --chart-scale-01: #18181b;
+  --chart-scale-02: #27272a;
+  --chart-scale-03: #3f3f46;
+  --chart-scale-04: #52525b;
+  --chart-scale-05: #e4e4e7;
+  --chart-scale-pattern-color: #52525b;
+  --chart-1: #a1a1aa;
+  --chart-2: #38bdf8;
+  --chart-3: #71717a;
+  --chart-4: #52525b;
+  --chart-5: #3f3f46;
 }
 
 :root {

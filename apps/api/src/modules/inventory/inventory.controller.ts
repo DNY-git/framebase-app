@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Patch, Param, Body, Query, HttpCode, HttpStatus } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
+import { InventoryCatalogService } from './inventory-catalog.service';
 import { CreateMaterialDto } from './dto/create-material.dto';
 import { UpdateMaterialDto } from './dto/update-material.dto';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
@@ -12,7 +13,10 @@ import { Role } from '@constructtrack/types';
 
 @Controller()
 export class InventoryController {
-  constructor(private readonly inventoryService: InventoryService) {}
+  constructor(
+    private readonly inventoryService: InventoryService,
+    private readonly inventoryCatalogService: InventoryCatalogService,
+  ) {}
 
   // ====== Materials ======
 
@@ -39,6 +43,12 @@ export class InventoryController {
   async getLowStock(@CurrentUser() user: AuthenticatedUser) {
     const materials = await this.inventoryService.getLowStock(user);
     return { data: materials };
+  }
+
+  @Get('materials/catalog')
+  async getMaterialCatalog() {
+    const items = await this.inventoryCatalogService.list();
+    return { data: items };
   }
 
   @Get('materials/:id')

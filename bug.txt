@@ -1,0 +1,9 @@
+[1:25:00 PM] Starting compilation in watch mode...
+[0]
+[0] src/modules/projects/repositories/project.repository.ts:108:44 - error TS2304: Cannot find name 'FilterQuery'.
+[0]
+[0] 108       { $match: { tenantId, ...filter } as FilterQuery<ProjectDocument> },
+[0]                                                ~~~~~~~~~~~
+[0]
+[0] [1:26:05 PM] Found 1 error. Watching for file changes.
+[0]

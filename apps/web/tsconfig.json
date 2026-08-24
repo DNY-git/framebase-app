@@ -11,7 +11,8 @@
     "allowImportingTsExtensions": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@bklitui/ui/charts": ["./src/components/ui/charts/index.ts"]
     },
     "types": ["vite/client"]
   },

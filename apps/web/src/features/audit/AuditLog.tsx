@@ -2,9 +2,9 @@ import { useState, useCallback, useEffect } from 'react';
 import type { AuditLogDomain } from '@constructtrack/types';
 import { authFetch } from '../../auth-fetch';
 import { FilterDropdown } from '../../shared/components/FilterDropdown';
+import { Skeleton } from '../../shared/components/Skeleton';
 import {
   ClipboardList,
-  Loader2,
   ChevronLeft,
   ChevronRight,
 } from '../../shared/components/icons';
@@ -131,14 +131,17 @@ export function AuditLog() {
           </thead>
           <tbody className="divide-y divide-border">
             {isLoading ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-center">
-                  <div className="flex items-center justify-center gap-2 text-foreground-muted">
-                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                    Loading audit logs...
-                  </div>
-                </td>
-              </tr>
+              <>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i}>
+                    <td className="px-4 py-3"><Skeleton className="h-5 w-20 rounded-full" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-24 font-mono" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-24" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
+                  </tr>
+                ))}
+              </>
             ) : logs.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-4 py-12 text-center">

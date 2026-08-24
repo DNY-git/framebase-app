@@ -27,7 +27,7 @@ Observability, Error Classification, API Rate Limiting, Backup & Restore Drill, 
 
 **One-line state:** Phase 3 (equipment, inventory, task linkage) ✅, Phase 4 (reports + dashboard KPIs) ✅, Phase 5 (notifications + AI assistant) ✅, Phase 6 (hardening + job queue) ✅ complete. **React 19 upgrade ✅** (deps bumped, all `JSX` namespace breakage + typecheck blockers + 30 lint warnings fixed; typecheck/build/lint green). **shadcn/ui Phase 1 ✅** (infra installed, Button generated, token bridge, `/ui-lab` smoke page; commit `fd5b4e9`). **Design Foundation (Phase 2) ✅** (13 reusable UI primitives in `apps/web/src/components/ui/` + barrel `@/components/ui`, Design Foundation smoke section on `/ui-lab`; commit `035dc69`). **Figma implementation ✅** (all 7 wireframe screens implemented from `figma/img.json` — see "Completed Work → Phase 3 (Figma screenshot implementation)"). **Multi-tenant organizations (T-207) — implemented, staged for review** (prompt2.txt): OrganizationsModule on the existing Tenant/Membership models, OWNER founder role, Team page, invitation accept flow, org switcher, cross-org project-membership prevention, 37 new tests — work sits in the working tree, commit sequence outlined below.
 
-**Last updated:** 2026-08-11 (multi-tenant organizations/team/invitations per prompt2.txt).
+**Last updated:** 2026-08-14 (Google OAuth sign-in/sign-up; profile photo fixes: crop-only editor, stuck-loading bug fix, 10 MB cap, cache-busted avatar URLs, DB-free avatar serving; @nestjs/mongoose 8.24.2→10.1.0). **2026-08-14 evening:** boot crash fixed (AuthController `GoogleStrategy` union-type DI token → `@Inject`+`@Optional`); `authorizeURLForClient` fixed to use `_oauth2.getAuthorizeUrl`; **Gemini provider added** (`GeminiProvider`, `AI_PROVIDER=gemini`, `GEMINI_API_KEY`); Google OAuth + Gemini keys configured in `apps/api/.env`.
 
 ---
 
@@ -249,12 +249,47 @@ Built directly on the existing MongoDB/Mongoose/NestJS architecture — no Prism
 
 ---
 
+### 2026-08-13 — Image persistence hardening + profile photo editor — complete (uncommitted)
+
+- **Storage root no longer depends on `process.cwd()`** (`apps/api/src/common/utils/storage-root.util.ts`): graphs/files written while the API runs from one directory previously became unreachable after a restart from another directory — uploaded images then vanished on refresh. New `resolveStorageRoot()` walks up from the source file to the API package root (or honors `STORAGE_ROOT`); wired into `DocumentsStorageService` (documents + `.tmp` staging dir in `DocumentsController`) and `AuthService.avatarAbsPath`. Behavior is unchanged when the API is started from `apps/api`; files stay put when started from anywhere else. `STORAGE_ROOT` documented in `.env.example`.
+- **Profile photo editor (frontend-only, no new deps):** `apps/web/src/shared/components/ImageEditor.tsx` — modal editor with drag-to-reposition, zoom (scroll wheel + slider + buttons), 90° rotation (CW/CCW), aspect-locked crop, and canvas export. Selecting a photo in Settings now opens the editor; **Done** applies the cropped/rotated/resized image (square 512 px crop, JPEG/PNG output) and uploads it as the avatar. Object URLs are revoked on close.
+- **Icons:** added `Crop`, `ZoomIn`, `ZoomOut`, `RotateCw`, `RotateCcw`, `Undo2` to `apps/web/src/shared/components/icons.tsx`.
+- **Verification:** web + API typecheck clean; web + API eslint 0 warnings. (API vitest suite not re-run in this pass; storage-root change is additive and covered by existing DI construction.)
+
+---
+
+### 2026-08-14 — Profile photo fixes + dependency sync — complete (uncommitted)
+
+- **Critical editor bug fixed:** `ImageEditor.tsx` was stuck at "Loading…" forever — the stage `<img>` whose `onLoad` set `natural` (the gate for the whole editor UI) was itself rendered only inside the `{natural && imageRect && …}` conditional, so `onLoad` could never fire. The `<img>` now always renders (opacity 0 until loaded) and `onError` shows "Could not load image" instead of hanging.
+- **Editor is now a pure crop tool** (per user request — zoom/rotate removed): image fit-to-stage, draggable aspect-locked square crop box with 4 corner resize handles, dark overlay, Reset (Undo2), canvas export at 512×512.
+- **Re-upload of profile photo works:** `avatarUrl` is now versioned per upload (`avatars/<userId>.<ext>?v=<Date.now()>`) so the browser never serves the stale cached photo (server sends `Cache-Control: private, max-age=86400`); `stripAvatarVersion()` handles old-file cleanup.
+- **Avatar serving is DB-free:** `resolveAvatar()` probes disk (`avatars/<userId>.{jpg,png,webp}` via `fsp.access`) instead of `userRepository.findById` per `<img>` tag — profile photo requests no longer depend on MongoDB.
+- **10 MB upload cap** (was 2 MB): `AVATAR_MAX_BYTES` in `AuthService` + multer `FileInterceptor` limit in `AuthController` + client-side check in `Settings.tsx`. `createPreviewUrl()` downscales previews to 1600 px before the editor loads them.
+- **`@nestjs/mongoose` 8.24.2 → 10.1.0** (installed version vs lockfile were out of sync). In v8 `lazyConnection` is silently ignored, so the API blocked on the MongoDB handshake at bootstrap; v10 honors it — boot no longer hangs on a slow/unreachable Atlas.
+- **Environment note (dev runs on Windows):** the project's dev servers run under native Windows Node (`npm run dev` from the Windows shell), not WSL. The WSL-side drvfs slowness is irrelevant to runtime; attempts to relocate `node_modules` to ext4 were abandoned and fully reverted (546/565 packages moved and moved back; `node_modules.drvfs` removed). The 19 packages that "wouldn't move" were locked by the *running* dev servers (`concurrently`, `nest --watch`, `vite` hold directory handles) — expected behavior, not corruption.
+- **Verification:** web + API typecheck clean, eslint 0 warnings. Dev servers were stopped to free ports 4000/5173 — restart `npm run dev` to pick up all fixes.
+
+### 2026-08-14 — Google OAuth sign-in/sign-up — complete (uncommitted)
+
+- **Strategy** (`apps/api/src/modules/auth/google.strategy.ts`): `passport-google-oauth20`, registered via a factory provider only when `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` are set — otherwise `GoogleStrategy.configured` stays false and the endpoints answer `503 AUTH_GOOGLE_NOT_CONFIGURED` (email/password auth untouched; boot never fails on missing env). `validate` normalizes the Google profile (googleId, email, emailVerified from `_json.email_verified`, name, photo) into `AuthService.googleLogin`.
+- **Flow (3 steps, no tokens in URLs):** `GET /api/v1/auth/google?next=…` → 302 to Google consent (signed `state` = `base64url(payload).HMAC(jwtAccessSecret)` carrying the sanitized `next` — blocks open redirects and login-CSRF state tampering). `GET /api/v1/auth/google/callback` (passport exchange, `GoogleAuthGuard` = `AuthGuard('google')` with a friendly 503 when unconfigured) → verifies state → 302 back to `WEB_URL/auth/google/callback?code=<one-time>&next=…`. `POST /api/v1/auth/google/exchange` (rate-limited, public) → `GoogleCodeService.consume` (single-use, 60s TTL, in-memory) → `AuthService.issueSessionForPrincipal` → standard token pair + profile.
+- **Account resolution** (`AuthService.googleLogin`): (1) `googleId` known → sign in; (2) unknown but a credentials user holds the same email → link (only when Google verified the email; an unverified claim never takes over an existing account); (3) otherwise create user + own tenant + OWNER membership, mirroring register (Google photo becomes the avatar). Google-only accounts have `passwordHash` unset — password login rejects them with a generic 401.
+- **Schema/repo:** `User.passwordHash` optional, `User.googleId` (unique sparse). `UserRepository`: `findByGoogleId`, `linkGoogleId`, `create` accepts optional `passwordHash`/`googleId`/`avatarUrl`.
+- **Config:** `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_CALLBACK_URL` (default `http://localhost:4000/api/v1/auth/google/callback`), `WEB_URL` (default `http://localhost:5173`) — added to `AppConfig`, `.env.example`, `AuthModule` providers.
+- **Frontend:** "Continue with Google" (LoginPage) / "Sign up with Google" (RegisterPage) buttons honoring `?next=`; `GoogleCallbackPage` (`/auth/google/callback` route in `App.tsx`) exchanges the code, signs in, redirects to `next`; new multicolor `Google` icon in `icons.tsx`.
+- **Verification:** API + web typecheck clean, eslint 0 warnings, auth suite 43/43, full API suite 277/277 (18 new tests: googleLogin create/link/unverified-reject/disabled/no-email, issueSessionForPrincipal, signed-state round-trip/tamper/open-redirect, GoogleCodeService single-use + TTL).
+- **Setup required:** Google Cloud Console → OAuth 2.0 Client ID (Web application) → authorized redirect URI `http://localhost:4000/api/v1/auth/google/callback` → fill `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` in `.env`. In production set `WEB_URL` and the HTTPS callback.
+
+---
+
 ## Outstanding Work
 
-1. **T-207 — Multi-tenant organizations/team/invitations (prompt2.txt):** implemented and green, but **not yet committed** — working tree contains the full feature + profile photos. Follow the commit sequence at the end of the "2026-08-11" section below.
+1. **T-207 — Multi-tenant organizations/team/invitations (prompt2.txt):** implemented and green, but **not yet committed** — working tree contains the full feature + profile photos + Google OAuth. Follow the commit sequence at the end of the "2026-08-11" section below.
+2. ~~**Configure Google OAuth:** no credentials are set, so the Google buttons currently answer `503 AUTH_GOOGLE_NOT_CONFIGURED`.~~ **Done 2026-08-14** — `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are set in `apps/api/.env`; `/api/v1/auth/google` now 302s to Google consent. Google Cloud Console redirect URI: `http://localhost:4000/api/v1/auth/google/callback`.
 2. **Production email delivery for invitations:** the dev acceptance link is development-only by design (prompt Phase 9 / Email). Layer a mail provider onto `devAcceptUrl` when ready.
 3. **Phase 5 (Engagement)** ([ROADMAP.md](./ROADMAP.md)): T-401–T-404 complete.
 4. **Phase 6:** Hardening — T-501 ✅, T-502 ✅, T-503 ✅, T-504 ✅, T-303 ✅. All complete.
+5. **AI provider now live:** `AI_PROVIDER=gemini` + `GEMINI_API_KEY` in `apps/api/.env` — `GeminiProvider` (gemini-flash-latest) implemented in `apps/api/src/modules/ai/providers/gemini.provider.ts`, wired in `AiModule` (falls back to `NoneProvider` if the key is missing). OpenAI/Anthropic adapters remain a possible future extension.
 
 ---
 
@@ -262,7 +297,7 @@ Built directly on the existing MongoDB/Mongoose/NestJS architecture — no Prism
 
 - **MongoDB Atlas connection required for DB-dependent features.** The app degrades gracefully (starts successfully, health check returns `database: "disconnected"`) but DB operations will fail until `MONGODB_URI` is configured in `.env`. Set up a free Atlas cluster and whitelist your IP.
 - **Equipment detail/edit UI complete.** Full `EquipmentDetail` component with utilization KPI cards, maintenance timeline, usage timeline, and downtime history is now rendered alongside the fleet list.
-- **Phase 5 (Engagement) complete.** T-401 (notification service), T-402 (subscriptions), T-403 (AI backend), T-404 (AI frontend) all built. AI Assistant uses `NoneProvider` by default — set `AI_PROVIDER` in `.env` and implement an adapter (e.g., `OpenAIProvider`, `AnthropicProvider`) to enable real AI responses.
+- **Phase 5 (Engagement) complete.** T-401 (notification service), T-402 (subscriptions), T-403 (AI backend), T-404 (AI frontend) all built. AI Assistant uses **Gemini** by default (gemini-flash-latest via `GeminiProvider`) when `AI_PROVIDER=gemini` + `GEMINI_API_KEY` are set; falls back to `NoneProvider` otherwise.
 - **T-303 (report generation) complete.** Implemented via lightweight `InMemoryJobQueue` (synchronous, no Redis). The `IJobQueue` interface is the extension point for future BullMQ/Redis swap.
 - **Docs updated.** All PostgreSQL/Prisma/Docker references in active docs have been replaced with MongoDB Atlas / Mongoose equivalents. ADR files retain historical references.
 

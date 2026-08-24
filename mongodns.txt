@@ -1,0 +1,1 @@
+mongodb://gekkotrn_db_user:<db_password>@ac-n02oayx-shard-00-00.uix4zly.mongodb.net:27017,ac-n02oayx-shard-00-01.uix4zly.mongodb.net:27017,ac-n02oayx-shard-00-02.uix4zly.mongodb.net:27017/?ssl=true&replicaSet=atlas-14glzg-shard-0&authSource=admin&appName=Cluster0

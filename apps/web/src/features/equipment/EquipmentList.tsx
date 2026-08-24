@@ -11,18 +11,14 @@ import { ContentCard } from '@/components/ui/content-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SearchInput } from '@/components/ui/search-input';
 import { FilterDropdown } from '@/shared/components/FilterDropdown';
-import { Wrench, Loader2, Plus } from '../../shared/components/icons';
+import { Skeleton } from '@/shared/components/Skeleton';
+import { Wrench, Plus } from '../../shared/components/icons';
 
 interface EquipmentEnvelope {
   data: EquipmentDomain[] | { data: EquipmentDomain[] };
 }
 
-interface UtilizationMetric {
-  equipmentId: string;
-  utilizationPercentage: number;
-}
-
-const TABLE_HEADERS = ['Equipment', 'Type', 'Status', 'Purchase date', 'Purchase cost', 'Utilisation'];
+const TABLE_HEADERS = ['Equipment', 'Type', 'Status', 'Purchase date', 'Purchase cost'];
 
 const STATUS_STYLES: Record<string, string> = {
   [EquipmentStatus.AVAILABLE]: 'bg-success/10 text-success',
@@ -46,27 +42,8 @@ const STATUS_OPTIONS = [
   { value: EquipmentStatus.RETIRED, label: 'Retired' },
 ];
 
-function utilisationTextClass(percent: number): string {
-  if (percent >= 70) return 'text-success';
-  if (percent >= 40) return 'text-warning';
-  return 'text-danger';
-}
-
-function unwrapUtilization(json: unknown): number | null {
-  const root = json as { data?: UtilizationMetric | { data?: UtilizationMetric } };
-  const metric =
-    root.data && typeof root.data === 'object' && 'data' in root.data
-      ? (root.data as { data?: UtilizationMetric }).data
-      : (root.data as UtilizationMetric | undefined);
-  if (metric && typeof metric.utilizationPercentage === 'number') {
-    return Math.min(100, Math.max(0, metric.utilizationPercentage));
-  }
-  return null;
-}
-
 export function EquipmentList({ token }: { token: string }) {
   const [equipment, setEquipment] = useState<EquipmentDomain[]>([]);
-  const [utilization, setUtilization] = useState<Record<string, number | null>>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -86,25 +63,6 @@ export function EquipmentList({ token }: { token: string }) {
       const items = unwrapList<EquipmentDomain>(envelope);
       setEquipment(items);
       setSelectedId((current) => current ?? items[0]?.id ?? null);
-
-      const to = new Date();
-      const from = new Date();
-      from.setDate(to.getDate() - 30);
-      const query = `from=${from.toISOString().slice(0, 10)}&to=${to.toISOString().slice(0, 10)}`;
-      const results = await Promise.all(
-        items.map(async (eq) => {
-          try {
-            const utilRes = await authFetch(`/api/v1/equipment/${eq.id}/utilization?${query}`, {
-              signal: controller.signal,
-            });
-            if (!utilRes.ok) return { id: eq.id, value: null };
-            return { id: eq.id, value: unwrapUtilization(await utilRes.json()) };
-          } catch {
-            return { id: eq.id, value: null };
-          }
-        }),
-      );
-      setUtilization(Object.fromEntries(results.map((r) => [r.id, r.value])));
     } catch (err: unknown) {
       if ((err as Error).name !== 'AbortError') {
         setError((err as Error).message);
@@ -168,9 +126,20 @@ export function EquipmentList({ token }: { token: string }) {
       )}
 
       {isLoading ? (
-        <ContentCard className="flex items-center gap-2 p-6 text-sm text-foreground-muted">
-          <Loader2 className="h-4 w-4 animate-spin text-primary" />
-          Loading equipment...
+        <ContentCard className="overflow-hidden p-0">
+          <div className="h-11 animate-pulse bg-surface-muted/60" />
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex animate-pulse items-center gap-6 border-t border-border px-4 py-4">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <Skeleton className="h-9 w-9 rounded-lg" />
+                <Skeleton className="h-4 w-40" />
+              </div>
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-4 w-24" />
+            </div>
+          ))}
         </ContentCard>
       ) : filteredEquipment.length === 0 ? (
         <EmptyState
@@ -181,7 +150,7 @@ export function EquipmentList({ token }: { token: string }) {
       ) : (
         <ContentCard className="overflow-hidden p-0">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] text-sm">
+            <table className="w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="border-b border-border bg-surface-muted/60 text-left">
                   {TABLE_HEADERS.map((header) => (
@@ -197,7 +166,6 @@ export function EquipmentList({ token }: { token: string }) {
               <tbody className="divide-y divide-border">
                 {filteredEquipment.map((eq) => {
                   const isSelected = eq.id === selectedEquipment?.id;
-                  const utilPercent = utilization[eq.id];
                   return (
                     <tr
                       key={eq.id}
@@ -233,25 +201,6 @@ export function EquipmentList({ token }: { token: string }) {
                       </td>
                       <td className="px-4 py-3 tabular-nums text-foreground">
                         {typeof eq.purchaseCostCents === 'number' ? formatCurrency(eq.purchaseCostCents) : '—'}
-                      </td>
-                      <td className="px-4 py-3">
-                        {utilPercent != null ? (
-                          <div className="flex items-center gap-2">
-                            <div className="h-1.5 w-16 overflow-hidden rounded-full bg-surface-muted">
-                              <div
-                                className={`h-full rounded-full ${
-                                  utilPercent >= 70 ? 'bg-success' : utilPercent >= 40 ? 'bg-warning' : 'bg-danger'
-                                }`}
-                                style={{ width: `${utilPercent}%` }}
-                              />
-                            </div>
-                            <span className={`text-xs font-semibold tabular-nums ${utilisationTextClass(utilPercent)}`}>
-                              {Math.round(utilPercent)}%
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-foreground-muted">—</span>
-                        )}
                       </td>
                     </tr>
                   );

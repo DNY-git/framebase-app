@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { InventoryTransactionDomain, MaterialDomain } from '@constructtrack/types';
-import { unwrapList, formatDate } from '../../utils';
+import type { InventoryTransactionDomain, MaterialCatalogItemDomain, MaterialDomain } from '@constructtrack/types';
+import { unwrapList, unwrapItem, formatDate } from '../../utils';
 import { authFetch } from '../../auth-fetch';
 import { FilterDropdown } from '../../shared/components/FilterDropdown';
+import { Skeleton } from '../../shared/components/Skeleton';
 import { Loader2 } from '../../shared/components/icons';
 
 const TRANSACTION_TYPES = ['receive', 'consume', 'adjust', 'transfer'] as const;
+const ADD_NEW_MATERIAL = '__add_new__';
 
 const TYPE_STYLES: Record<string, string> = {
   receive: 'bg-success/10 text-success',
@@ -17,6 +19,7 @@ const TYPE_STYLES: Record<string, string> = {
 export function TransactionLedger() {
   const [transactions, setTransactions] = useState<InventoryTransactionDomain[]>([]);
   const [materials, setMaterials] = useState<MaterialDomain[]>([]);
+  const [catalogItems, setCatalogItems] = useState<MaterialCatalogItemDomain[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [filterMaterialId, setFilterMaterialId] = useState('');
@@ -24,6 +27,10 @@ export function TransactionLedger() {
   const [formType, setFormType] = useState<string>('receive');
   const [formQuantity, setFormQuantity] = useState('');
   const [formMaterialId, setFormMaterialId] = useState('');
+  const [catalogSelection, setCatalogSelection] = useState<string>('');
+  const [isAddingNew, setIsAddingNew] = useState(false);
+  const [newMaterialName, setNewMaterialName] = useState('');
+  const [newMaterialUnit, setNewMaterialUnit] = useState('');
   const [formProjectId, setFormProjectId] = useState('');
   const [formNote, setFormNote] = useState('');
   const [formCostCents, setFormCostCents] = useState('');
@@ -34,16 +41,20 @@ export function TransactionLedger() {
     setError(null);
     const controller = new AbortController();
     try {
-      const [txRes, matRes] = await Promise.all([
+      const [txRes, matRes, catRes] = await Promise.all([
         authFetch('/api/v1/inventory/transactions', { signal: controller.signal }),
         authFetch('/api/v1/materials', { signal: controller.signal }),
+        authFetch('/api/v1/materials/catalog', { signal: controller.signal }),
       ]);
       if (!txRes.ok) throw new Error('Failed to fetch transactions');
       if (!matRes.ok) throw new Error('Failed to fetch materials');
+      if (!catRes.ok) throw new Error('Failed to fetch material catalog');
       const txJson = await txRes.json();
       const matJson = await matRes.json();
+      const catJson = await catRes.json();
       setTransactions(unwrapList<InventoryTransactionDomain>(txJson));
       setMaterials(unwrapList<MaterialDomain>(matJson));
+      setCatalogItems(unwrapList<MaterialCatalogItemDomain>(catJson));
     } catch (err: unknown) {
       if ((err as Error).name !== 'AbortError') {
         setError((err as Error).message);
@@ -52,6 +63,72 @@ export function TransactionLedger() {
       setIsLoading(false);
     }
   }, []);
+
+  /**
+   * Resolves a selected catalog item to an existing Material by name, or
+   * creates a new Material for it and returns that id.
+   */
+  const ensureMaterial = useCallback(
+    async (item: { name: string; unit?: string; sku?: string }): Promise<string> => {
+      const existing = materials.find((m) => m.name.toLowerCase() === item.name.toLowerCase());
+      if (existing) return existing.id;
+      const res = await authFetch('/api/v1/materials', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: item.name,
+          unit: item.unit ?? 'each',
+          sku: item.sku ?? `MAT-${Date.now().toString(36).toUpperCase()}`,
+          reorderPoint: 0,
+        }),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => null);
+        throw new Error(errBody?.message ?? 'Failed to create material');
+      }
+      const created = unwrapItem<MaterialDomain>(await res.json());
+      setMaterials((prev) => [...prev, created]);
+      return created.id;
+    },
+    [materials],
+  );
+
+  async function handleCatalogSelect(value: string) {
+    setCatalogSelection(value);
+    if (value === ADD_NEW_MATERIAL) {
+      setIsAddingNew(true);
+      return;
+    }
+    if (!value) {
+      setIsAddingNew(false);
+      return;
+    }
+    setIsAddingNew(false);
+    setError(null);
+    try {
+      const item = catalogItems.find((c) => c.id === value);
+      if (!item) return;
+      const materialId = await ensureMaterial({ name: item.name, unit: item.unit, sku: item.sku });
+      setFormMaterialId(materialId);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  async function handleCreateNewMaterial(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newMaterialName.trim()) return;
+    setError(null);
+    try {
+      const materialId = await ensureMaterial({ name: newMaterialName.trim(), unit: newMaterialUnit.trim() || undefined });
+      setFormMaterialId(materialId);
+      setNewMaterialName('');
+      setNewMaterialUnit('');
+      setIsAddingNew(false);
+      setCatalogSelection('');
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
 
   useEffect(() => {
     fetchData();
@@ -153,11 +230,21 @@ export function TransactionLedger() {
 
           <div className="divide-y divide-border rounded-lg border border-border">
             {isLoading ? (
-              <div className="flex items-center gap-2 p-4 text-sm text-foreground-muted">
-                <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                Loading transactions...
+              <div className="space-y-4 p-4">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex animate-pulse items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-4 w-36" />
+                        <Skeleton className="h-5 w-14 rounded-full" />
+                      </div>
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                ))}
               </div>
-            ) : transactions.length === 0 ? (
+            ) : !error && transactions.length === 0 ? (
               <div className="p-4 text-center text-sm text-foreground-muted">No transactions found</div>
             ) : (
               transactions.map((tx) => {
@@ -200,7 +287,40 @@ export function TransactionLedger() {
               />
             </div>
             <div>
-              <label htmlFor="tx-material" className="mb-1.5 block text-sm font-medium text-foreground">Material</label>
+              <label htmlFor="tx-catalog" className="mb-1.5 block text-sm font-medium text-foreground">Material catalog</label>
+              <FilterDropdown
+                value={catalogSelection}
+                onChange={(v) => { void handleCatalogSelect(v); }}
+                placeholder="Pick from catalog"
+                className="w-full"
+                options={[
+                  { value: '', label: 'Pick from catalog' },
+                  ...catalogItems.map((c) => ({ value: c.id, label: `${c.name} (${c.category})` })),
+                  { value: ADD_NEW_MATERIAL, label: '+ Add new material' },
+                ]}
+              />
+            </div>
+            {isAddingNew && (
+              <div className="space-y-3 rounded-lg border border-border bg-surface-muted p-3">
+                <div>
+                  <label htmlFor="tx-new-name" className="mb-1.5 block text-sm font-medium text-foreground">New material name</label>
+                  <input id="tx-new-name" type="text" value={newMaterialName} onChange={(e) => setNewMaterialName(e.target.value)} className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground placeholder:text-foreground-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. Cement Portland 42.5R" required />
+                </div>
+                <div>
+                  <label htmlFor="tx-new-unit" className="mb-1.5 block text-sm font-medium text-foreground">Unit (optional)</label>
+                  <input id="tx-new-unit" type="text" value={newMaterialUnit} onChange={(e) => setNewMaterialUnit(e.target.value)} className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground placeholder:text-foreground-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. bag" />
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => { void handleCreateNewMaterial(e); }}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                >
+                  Create &amp; select
+                </button>
+              </div>
+            )}
+            <div>
+              <label htmlFor="tx-material" className="mb-1.5 block text-sm font-medium text-foreground">Material {catalogSelection ? '(resolved)' : ''}</label>
               <FilterDropdown
                 value={formMaterialId}
                 onChange={setFormMaterialId}

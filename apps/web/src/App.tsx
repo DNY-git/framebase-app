@@ -8,6 +8,7 @@ import { RegisterPage } from './pages/RegisterPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { InvitationAcceptPage } from './pages/InvitationAcceptPage';
+import { GoogleCallbackPage } from './pages/GoogleCallbackPage';
 import { NotFound } from './pages/NotFound';
 import { Unauthorized } from './pages/Unauthorized';
 import { UiLab } from './pages/UiLab';
@@ -90,12 +91,13 @@ export function App(): React.JSX.Element {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/invitations/:token" element={<InvitationAcceptPage />} />
+          <Route path="/auth/google/callback" element={<GoogleCallbackPage />} />
           <Route path="/ui-lab" element={<UiLab />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
 
           <Route element={<ProtectedRoute />}>
             <Route element={<AppShell />}>
-              <Route index element={<TokenAware>{(t) => <Dashboard token={t} />}</TokenAware>} />
+              <Route index element={<Dashboard />} />
               <Route path="projects" element={<ProjectsPageWrapper />} />
               <Route path="team" element={<Team />} />
               <Route path="projects/:id" element={<ProjectDetailPageWrapper />} />

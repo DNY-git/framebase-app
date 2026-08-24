@@ -18,16 +18,19 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { createHmac, timingSafeEqual } from 'crypto';
 import * as path from 'path';
 import * as fsp from 'fs/promises';
 import { ErrorCode, Role } from '@constructtrack/types';
 import { DomainException } from '../../common/exceptions/domain.exception';
+import { resolveStorageRoot } from '../../common/utils/storage-root.util';
 import type { AppConfig } from '../../config/configuration';
 import { AuditService } from '../audit/audit.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import type { GooglePrincipal, GoogleProfile } from './google.strategy';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
 import { TenantRepository } from './repositories/tenant.repository';
@@ -42,7 +45,7 @@ export interface RequestMeta {
   correlationId?: string;
 }
 
-const AVATAR_MAX_BYTES = 2 * 1024 * 1024; // 2 MB
+const AVATAR_MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 
 const AVATAR_EXT_BY_MIME: Record<string, string> = {
   'image/jpeg': 'jpg',
@@ -182,6 +185,176 @@ export class AuthService {
   }
 
   /**
+   * Authenticates a user via Google OAuth profile.
+   *
+   * Resolution order:
+   *  1. googleId already known → existing Google user.
+   *  2. googleId unknown, but a credentials user holds the same (verified)
+   *     email → link the Google account to that user.
+   *  3. otherwise → create a new user + their own tenant (OWNER), mirroring
+   *     register(). Google users have no password; they sign in via Google.
+   *
+   * Returns the session principal; the caller turns it into a one-time code.
+   */
+  async googleLogin(profile: GoogleProfile, meta: RequestMeta): Promise<GooglePrincipal> {
+    if (!profile.email) {
+      throw new DomainException(
+        ErrorCode.AUTH_GOOGLE_EMAIL_REQUIRED,
+        HttpStatus.UNAUTHORIZED,
+        'Google did not return an email address for this account.',
+      );
+    }
+
+    let user = await this.userRepository.findByGoogleId(profile.googleId);
+    let isNewUser = false;
+    let tenantId = '';
+
+    if (user) {
+      if (user.status !== 'active') {
+        throw new DomainException(ErrorCode.AUTH_DISABLED_ACCOUNT, HttpStatus.UNAUTHORIZED, 'Account is disabled.');
+      }
+    } else {
+      // Link to an existing credentials account when Google verified the email.
+      user = await this.userRepository.findByEmail(profile.email);
+      if (user) {
+        if (user.status !== 'active') {
+          throw new DomainException(ErrorCode.AUTH_DISABLED_ACCOUNT, HttpStatus.UNAUTHORIZED, 'Account is disabled.');
+        }
+        if (!profile.emailVerified) {
+          // The Google account claims this email but Google has not verified
+          // it — never hand over an existing account on an unverified claim.
+          throw new DomainException(ErrorCode.AUTH_INVALID_CREDENTIALS, HttpStatus.UNAUTHORIZED, 'Google email is not verified.');
+        }
+        user = await this.userRepository.linkGoogleId(user.id, profile.googleId);
+      } else {
+        // New user — create their own tenant + OWNER membership (like register).
+        isNewUser = true;
+        let tenant;
+        for (let attempt = 0; attempt < 5; attempt++) {
+          const slug = this.slugify(profile.name);
+          try {
+            tenant = await this.tenantRepository.create({
+              name: `${profile.name} Organization`,
+              slug,
+            });
+            break;
+          } catch {
+            if (attempt === 4) throw new Error('Failed to create tenant.');
+          }
+        }
+        if (!tenant) {
+          throw new DomainException(ErrorCode.INTERNAL_ERROR, HttpStatus.INTERNAL_SERVER_ERROR, 'Failed to create tenant.');
+        }
+        tenantId = tenant.id;
+        try {
+          user = await this.userRepository.create({
+            email: profile.email,
+            name: profile.name,
+            googleId: profile.googleId,
+            avatarUrl: profile.avatarUrl,
+          });
+        } catch (err: unknown) {
+          if (typeof err === 'object' && err !== null && (err as { code?: number }).code === 11000) {
+            throw new DomainException(ErrorCode.AUTH_GOOGLE_EMAIL_REQUIRED, HttpStatus.CONFLICT, 'An account with this email already exists. Sign in with email and password instead.');
+          }
+          throw err;
+        }
+        await this.membershipRepository.create({
+          userId: user.id,
+          tenantId: tenant.id,
+          role: Role.OWNER,
+        });
+      }
+    }
+
+    if (!user) {
+      throw new DomainException(ErrorCode.AUTH_USER_NOT_FOUND, HttpStatus.UNAUTHORIZED, 'User not found.');
+    }
+
+    // Resolve the active membership (tenant + role) for the session.
+    const membership = await this.membershipRepository.findByUserId(user.id);
+    if (!membership || membership.length === 0) {
+      throw new DomainException(ErrorCode.AUTH_NO_MEMBERSHIP, HttpStatus.UNAUTHORIZED, 'No tenant membership found.');
+    }
+    const active = membership[0];
+    tenantId = tenantId || active.tenantId;
+
+    await this.userRepository.updateLastLogin(user.id);
+
+    await this.auditService.record({
+      tenantId,
+      actorId: user.id,
+      action: isNewUser ? 'user.registered' : 'user.google_login',
+      entityType: 'User',
+      entityId: user.id,
+      after: { email: user.email, provider: 'google' },
+      correlationId: meta.correlationId,
+    });
+
+    return { userId: user.id, tenantId, role: active.role };
+  }
+
+  /**
+   * Issues a fresh token pair + profile for a principal obtained from a
+   * Google one-time code (the OAuth callback already ran the audit).
+   */
+  async issueSessionForPrincipal(
+    principal: GooglePrincipal,
+    meta: RequestMeta,
+  ): Promise<AuthResult> {
+    const user = await this.userRepository.findById(principal.userId);
+    if (!user || user.status !== 'active') {
+      throw new DomainException(ErrorCode.AUTH_DISABLED_ACCOUNT, HttpStatus.UNAUTHORIZED, 'Account is disabled or not found.');
+    }
+    const result = await this.issueTokens(user.id, principal.tenantId, principal.role, meta);
+    return {
+      ...result,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: principal.role,
+        tenantId: principal.tenantId,
+        avatarUrl: user.avatarUrl ?? null,
+      },
+    };
+  }
+
+  /**
+   * Builds the signed OAuth `state` parameter: base64url(payload).hmac.
+   * The HMAC (keyed with the JWT access secret) prevents tampering, which
+   * would otherwise enable open-redirects through the `next` path.
+   */
+  buildGoogleState(next: string | undefined): string {
+    const payload = Buffer.from(JSON.stringify({ next: this.sanitizeNext(next) }), 'utf8').toString('base64url');
+    const sig = this.signState(payload);
+    return `${payload}.${sig}`;
+  }
+
+  /** Verifies the signed state and returns its payload (or null). */
+  verifyGoogleState(state: string | undefined): { next: string } | null {
+    if (!state) return null;
+    const [payload, sig] = state.split('.');
+    if (!payload || !sig) return null;
+    const expected = this.signState(payload);
+    if (sig.length !== expected.length || !timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as { next?: string };
+      return { next: this.sanitizeNext(parsed.next) };
+    } catch {
+      return null;
+    }
+  }
+
+  /** Redirect target for failed callbacks (access denied, bad state). */
+  googleErrorRedirect(reason: string): string {
+    const webUrl = this.configService.get<string>('webUrl', { infer: true });
+    return `${webUrl.replace(/\/$/, '')}/auth/google/callback?error=${encodeURIComponent(reason)}`;
+  }
+
+  /**
    * Authenticates a user with email/password and issues a token pair.
    * Returns a generic 401 on any failure (no enumeration).
    */
@@ -189,6 +362,12 @@ export class AuthService {
     const user = await this.userRepository.findByEmail(dto.email);
     if (!user) {
       throw new DomainException(ErrorCode.AUTH_INVALID_CREDENTIALS, HttpStatus.UNAUTHORIZED, 'Invalid credentials.');
+    }
+
+    // Google-only accounts have no password — reject with the generic 401
+    // (no enumeration) and point the user at Google sign-in.
+    if (!user.passwordHash) {
+      throw new DomainException(ErrorCode.AUTH_INVALID_CREDENTIALS, HttpStatus.UNAUTHORIZED, 'This account uses Google sign-in.');
     }
 
     const valid = await this.passwordService.compare(
@@ -440,19 +619,23 @@ export class AuthService {
       throw new DomainException(ErrorCode.AUTH_INVALID_AVATAR, HttpStatus.INTERNAL_SERVER_ERROR, 'Failed to persist avatar image.');
     }
 
+    // Version the URL so browsers bust their 24h cache when the photo is
+    // replaced — otherwise a re-upload with the same extension keeps the
+    // old cached image forever (same URL, same `?v=`).
+    const avatarUrl = `${storageKey}?v=${Date.now()}`;
     const updated = await this.userRepository.updateProfile(userId, {
-      avatarUrl: storageKey,
+      avatarUrl,
     });
     if (!updated) {
       throw new DomainException(ErrorCode.AUTH_USER_NOT_FOUND, HttpStatus.UNAUTHORIZED, 'User not found.');
     }
 
     // Remove the previous avatar file (different extension ⇒ different file).
-    if (current.avatarUrl && current.avatarUrl !== storageKey) {
-      await fsp.unlink(this.avatarAbsPath(current.avatarUrl)).catch(() => {});
+    if (current.avatarUrl && this.stripAvatarVersion(current.avatarUrl) !== storageKey) {
+      await fsp.unlink(this.avatarAbsPath(this.stripAvatarVersion(current.avatarUrl))).catch(() => {});
     }
 
-    return storageKey;
+    return avatarUrl;
   }
 
   /** Removes the user's avatar (file + DB record). */
@@ -460,32 +643,41 @@ export class AuthService {
     const user = await this.userRepository.findById(userId);
     if (!user || !user.avatarUrl) return;
     await this.userRepository.updateProfile(userId, { avatarUrl: null });
-    await fsp.unlink(this.avatarAbsPath(user.avatarUrl)).catch(() => {});
+    await fsp.unlink(this.avatarAbsPath(this.stripAvatarVersion(user.avatarUrl))).catch(() => {});
   }
 
   /**
    * Resolves an avatar's absolute path + MIME type for serving.
    * Returns null when the user has no avatar.
+   *
+   * Deliberately DB-free: the storage key is deterministic
+   * (`avatars/<userId>.<ext>`), so this only probes the three supported
+   * extensions on disk. Avoids a database round trip on every `<img>` tag.
    */
   async resolveAvatar(userId: string): Promise<{ absPath: string; mimeType: string } | null> {
-    const user = await this.userRepository.findById(userId);
-    if (!user || !user.avatarUrl) return null;
-    const absPath = this.avatarAbsPath(user.avatarUrl);
-    try {
-      await fsp.access(absPath);
-    } catch {
-      return null;
+    for (const ext of ['jpg', 'png', 'webp']) {
+      const absPath = this.avatarAbsPath(`avatars/${userId}.${ext}`);
+      try {
+        await fsp.access(absPath);
+        return { absPath, mimeType: AVATAR_MIME_BY_EXT[ext] };
+      } catch {
+        // Try the next extension.
+      }
     }
-    const ext = path.extname(user.avatarUrl).replace('.', '').toLowerCase();
-    return { absPath, mimeType: AVATAR_MIME_BY_EXT[ext] ?? 'application/octet-stream' };
+    return null;
   }
 
   private avatarAbsPath(storageKey: string): string {
     return path.join(
-      process.cwd(),
+      resolveStorageRoot(),
       'storage',
       ...storageKey.split('/'),
     );
+  }
+
+  /** Strips the cache-busting version query from a stored avatar URL. */
+  private stripAvatarVersion(key: string): string {
+    return key.split('?')[0];
   }
 
   /**
@@ -555,6 +747,19 @@ export class AuthService {
       .slice(0, 40) || 'org';
     const suffix = Math.random().toString(36).slice(2, 8);
     return `${base}-${suffix}`;
+  }
+
+  /** HMAC-SHA256 signature for the OAuth state payload. */
+  private signState(payload: string): string {
+    const secret = this.configService.get<string>('jwtAccessSecret', { infer: true });
+    return createHmac('sha256', secret).update(payload).digest('base64url');
+  }
+
+  /** Only allow same-app paths — blocks open redirects (e.g. `//evil.com`). */
+  private sanitizeNext(next: string | undefined): string {
+    if (!next) return '/';
+    if (!next.startsWith('/') || next.startsWith('//')) return '/';
+    return next;
   }
 
   /**

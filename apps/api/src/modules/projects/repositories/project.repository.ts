@@ -11,7 +11,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, FilterQuery } from 'mongoose';
 import { BaseRepository } from '../../../database/base.repository';
 import { Project, ProjectDocument } from '../../../schemas/project.schema';
 import {
@@ -97,6 +97,18 @@ export class ProjectRepository extends BaseRepository<
       filter._id = { $in: options.accessibleProjectIds };
     }
     return this.find(tenantId, filter, options);
+  }
+
+  /** Sums budgetCents across projects matching the filter (used by dashboard KPIs). */
+  async sumBudgetCents(
+    tenantId: TenantId,
+    filter: Record<string, unknown> = {},
+  ): Promise<number> {
+    const rows = await this.model.aggregate<{ total: number }>([
+      { $match: { tenantId, ...filter } as FilterQuery<ProjectDocument> },
+      { $group: { _id: null, total: { $sum: { $ifNull: ['$budgetCents', 0] } } } },
+    ]);
+    return rows.length > 0 ? rows[0].total : 0;
   }
 
   protected toDomain(doc: ProjectDocument): ProjectDomain {

@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useEffect } from 'react';
 import { useAuthStore, type User } from '../../stores/auth-store';
 import { useThemeStore } from '../../stores/theme-store';
 import { authFetch } from '../../auth-fetch';
 import { storeTokens } from '../../auth';
+import { ImageEditor } from '../../shared/components/ImageEditor';
 import {
   User as UserIcon,
   Loader2,
@@ -18,6 +18,58 @@ import {
   Camera,
   Trash,
 } from '../../shared/components/icons';
+
+const PREVIEW_MAX_DIMENSION = 1600;
+
+/**
+ * Downscales a selected photo to a small preview before the editor opens.
+ * The editor decodes this preview instead of the full-resolution original,
+ * so large photos (up to 10 MB) load and export quickly.
+ */
+function createPreviewUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const rawUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, PREVIEW_MAX_DIMENSION / Math.max(img.naturalWidth, img.naturalHeight));
+      if (scale === 1) {
+        resolve(rawUrl);
+        return;
+      }
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(rawUrl);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const mime = file.type === 'image/png' ? 'image/png' : file.type === 'image/webp' ? 'image/webp' : 'image/jpeg';
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              URL.revokeObjectURL(rawUrl);
+              resolve(URL.createObjectURL(blob));
+            } else {
+              resolve(rawUrl);
+            }
+          },
+          mime,
+          0.92,
+        );
+      } catch {
+        resolve(rawUrl);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(rawUrl);
+      reject(new Error('Could not load image'));
+    };
+    img.src = rawUrl;
+  });
+}
 
 export function SettingsPage() {
   const { user, setUser } = useAuthStore();
@@ -62,22 +114,20 @@ function ProfileTab({ user, setUser }: { user: User | null; setUser: (u: User) =
   const [isAvatarUploading, setIsAvatarUploading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editorSrc, setEditorSrc] = useState<string | null>(null);
+  const editorUrlRef = useRef<string | null>(null);
 
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      setError('Photo must be a JPEG, PNG, or WebP image');
-      setSuccess(false);
-      return;
+  const closeEditor = useCallback(() => {
+    setEditorSrc(null);
+    if (editorUrlRef.current) {
+      URL.revokeObjectURL(editorUrlRef.current);
+      editorUrlRef.current = null;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      setError('Photo must be 2 MB or smaller');
-      setSuccess(false);
-      return;
-    }
+  }, []);
 
+  useEffect(() => closeEditor, [closeEditor]);
+
+  const uploadAvatar = async (file: File) => {
     setIsAvatarUploading(true);
     setError(null);
     setSuccess(false);
@@ -102,6 +152,30 @@ function ProfileTab({ user, setUser }: { user: User | null; setUser: (u: User) =
       setError((err as Error).message);
     } finally {
       setIsAvatarUploading(false);
+    }
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setError('Photo must be a JPEG, PNG, or WebP image');
+      setSuccess(false);
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Photo must be 10 MB or smaller');
+      setSuccess(false);
+      return;
+    }
+    setError(null);
+    setSuccess(false);
+    try {
+      editorUrlRef.current = await createPreviewUrl(file);
+      setEditorSrc(editorUrlRef.current);
+    } catch {
+      setError('Could not load this image');
     }
   };
 
@@ -194,7 +268,7 @@ function ProfileTab({ user, setUser }: { user: User | null; setUser: (u: User) =
               </button>
             )}
           </div>
-          <p className="text-xs text-foreground-muted">JPEG, PNG or WebP up to 2 MB</p>
+          <p className="text-xs text-foreground-muted">JPEG, PNG or WebP up to 10 MB — crop and resize before uploading</p>
         </div>
       </div>
 
@@ -236,6 +310,21 @@ function ProfileTab({ user, setUser }: { user: User | null; setUser: (u: User) =
           Save Changes
         </button>
       </form>
+
+      {editorSrc && (
+        <ImageEditor
+          src={editorSrc}
+          title="Edit profile photo"
+          aspect={1}
+          outputSize={512}
+          onCancel={closeEditor}
+          onApply={(blob, mimeType) => {
+            const edited = new File([blob], mimeType === 'image/png' ? 'avatar.png' : 'avatar.jpg', { type: mimeType });
+            closeEditor();
+            void uploadAvatar(edited);
+          }}
+        />
+      )}
     </div>
   );
 }

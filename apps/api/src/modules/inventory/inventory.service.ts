@@ -266,6 +266,14 @@ export class InventoryService {
     return this.transactionRepository.findByFilter(auth.tenantId, filter, options);
   }
 
+  /** Aggregated purchase spend by project and month (dashboard spending trend). */
+  async sumCostCentsByProjectAndMonth(
+    auth: AuthContext,
+    options: { since: Date },
+  ): Promise<Array<{ projectId: string | null; monthKey: string; total: number }>> {
+    return this.transactionRepository.sumCostCentsByProjectAndMonth(auth.tenantId, options);
+  }
+
   async getTransactionsByTask(
     auth: AuthContext,
     taskId: string,

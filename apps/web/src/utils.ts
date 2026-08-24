@@ -18,6 +18,18 @@ export function unwrapList<T>(json: PaginatedEnvelope<T>): T[] {
   return [];
 }
 
+export interface DetailEnvelope<T> {
+  data?: T | { data?: T };
+}
+
+/** Unwraps the `{ data: item }` / `{ data: { data: item } }` envelope shapes. */
+export function unwrapItem<T>(json: DetailEnvelope<T>): T {
+  if (json.data && typeof json.data === 'object' && 'data' in json.data) {
+    return json.data.data as T;
+  }
+  return json.data as T;
+}
+
 export function formatDate(date: string | Date): string {
   return new Date(date).toLocaleDateString('en-US', {
     year: 'numeric',

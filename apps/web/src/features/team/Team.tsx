@@ -12,6 +12,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../../stores/auth-store';
 import { authFetch } from '../../auth-fetch';
 import { PageLayout } from '../../shared/components/PageLayout';
+import { Skeleton } from '../../shared/components/Skeleton';
 import {
   Users,
   UserPlus,
@@ -270,8 +271,41 @@ export function Team() {
       )}
 
       {isLoading ? (
-        <div className="flex items-center justify-center rounded-xl border border-border bg-surface p-16 text-foreground-muted">
-          <Loader2 className="h-5 w-5 animate-spin" />
+        <div className="space-y-6">
+          <section className="rounded-xl border border-border bg-surface shadow-sm">
+            <div className="flex items-center gap-2 border-b border-border px-5 py-4">
+              <Skeleton className="h-4 w-4 rounded-full" />
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-5 w-8 rounded-full" />
+            </div>
+            <div className="px-5 py-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-6 border-b border-border py-4 last:border-0">
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <Skeleton className="h-9 w-9 rounded-full" />
+                    <div className="space-y-1.5">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-4 w-12" />
+                </div>
+              ))}
+            </div>
+          </section>
+          <section className="rounded-xl border border-border bg-surface shadow-sm">
+            <div className="flex items-center gap-2 border-b border-border px-5 py-4">
+              <Skeleton className="h-4 w-4 rounded-full" />
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-5 w-8 rounded-full" />
+            </div>
+            <div className="px-5 py-4">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="mt-3 h-4 w-3/4" />
+            </div>
+          </section>
         </div>
       ) : (
         <div className="space-y-6">

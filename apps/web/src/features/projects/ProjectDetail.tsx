@@ -4,6 +4,7 @@ import type { ProjectDomain, ProjectMemberDomain, AuditLogDomain } from '@constr
 import { ProjectStatus, ProjectRole } from '@constructtrack/types';
 import { authFetch } from '../../auth-fetch';
 import { useAuthStore } from '../../stores/auth-store';
+import { Skeleton } from '../../shared/components/Skeleton';
 import { ProjectForm } from './ProjectForm';
 import {
   ArrowLeft,
@@ -258,11 +259,40 @@ export function ProjectDetail() {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <Loader2 className="h-5 w-5 animate-spin text-primary" />
-          <span className="text-sm text-foreground-muted">Loading project...</span>
+        <div className="flex flex-col gap-3 border-b border-border pb-4 md:flex-row md:items-start md:justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-7 w-72" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-9 w-20" />
+            <Skeleton className="h-9 w-20" />
+          </div>
         </div>
-        <div className="h-64 animate-pulse rounded-xl border border-border bg-surface" />
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="space-y-3 rounded-xl border border-border bg-surface p-5">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+          </div>
+          <div className="space-y-3 rounded-xl border border-border bg-surface p-5">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-2/3" />
+          </div>
+          <div className="space-y-3 rounded-xl border border-border bg-surface p-5">
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-1/3" />
+          </div>
+        </div>
+        <div className="flex gap-2 border-b border-border pb-4">
+          <Skeleton className="h-8 w-28 rounded-full" />
+          <Skeleton className="h-8 w-24 rounded-full" />
+          <Skeleton className="h-8 w-28 rounded-full" />
+        </div>
+        <Skeleton className="h-48 w-full rounded-xl border border-border" />
       </div>
     );
   }

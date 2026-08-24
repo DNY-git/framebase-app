@@ -5,6 +5,7 @@ import * as path from 'path';
 import { createHash } from 'crypto';
 import { DomainException } from '../../common/exceptions/domain.exception';
 import { ErrorCode } from '@constructtrack/types';
+import { resolveStorageRoot } from '../../common/utils/storage-root.util';
 
 export interface StoredFileInfo {
   storageKey: string;
@@ -14,10 +15,14 @@ export interface StoredFileInfo {
 /**
  * Local disk-backed document storage.
  *
- * Files live under `<cwd>/storage/uploads/<tenantId>/<sha256>`. Keys are
+ * Files live under `<storageRoot>/uploads/<tenantId>/<sha256>`. Keys are
  * content-addressed (sha256 of the file) so identical uploads are
  * deduplicated. The `storage/` directory is git-ignored by design (ADR-002:
  * object storage arrives later; this is the local driver).
+ *
+ * The storage root is anchored to the API package directory (or STORAGE_ROOT)
+ * rather than the process cwd so files remain reachable no matter which
+ * directory the API is started from.
  */
 @Injectable()
 export class DocumentsStorageService {
@@ -25,7 +30,7 @@ export class DocumentsStorageService {
   private readonly rootDir: string;
 
   constructor(@Optional() rootDir?: string) {
-    this.rootDir = rootDir ?? path.resolve(process.cwd(), 'storage', 'uploads');
+    this.rootDir = rootDir ?? path.join(resolveStorageRoot(), 'storage', 'uploads');
   }
 
   private tenantDir(tenantId: string): string {

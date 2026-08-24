@@ -69,6 +69,8 @@ function mockRepositories() {
       }),
       findByEmail: vi.fn(),
       findById: vi.fn(),
+      findByGoogleId: vi.fn(),
+      linkGoogleId: vi.fn(),
       updateLastLogin: vi.fn().mockResolvedValue(undefined),
     },
     membership: {
@@ -226,6 +228,209 @@ describe('AuthService', () => {
           {},
         ),
       ).rejects.toThrow(DomainException);
+    });
+
+    it('rejects Google-only accounts with a generic 401 (no password set)', async () => {
+      repos.user.findByEmail.mockResolvedValue({
+        id: 'user-1',
+        email: 'test@example.com',
+        passwordHash: null,
+        name: 'Test',
+        status: 'active',
+      });
+      await expect(
+        service.login({ email: 'test@example.com', password: 'Password1' }, {}),
+      ).rejects.toThrow(DomainException);
+      expect(passwordService.compare).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('googleLogin', () => {
+    const profile = {
+      googleId: 'google-sub-123',
+      email: 'google@example.com',
+      emailVerified: true,
+      name: 'Google User',
+      avatarUrl: 'https://example.com/photo.jpg',
+    };
+
+    it('creates a new user + tenant + OWNER membership and audits registration', async () => {
+      repos.user.findByGoogleId.mockResolvedValue(null);
+      repos.user.findByEmail.mockResolvedValue(null);
+      repos.membership.findByUserId.mockResolvedValue([
+        { userId: 'user-1', tenantId: 'tenant-1', role: Role.OWNER },
+      ]);
+
+      const principal = await service.googleLogin(profile, {});
+
+      expect(repos.tenant.create).toHaveBeenCalledOnce();
+      expect(repos.user.create).toHaveBeenCalledWith({
+        email: 'google@example.com',
+        name: 'Google User',
+        googleId: 'google-sub-123',
+        avatarUrl: 'https://example.com/photo.jpg',
+      });
+      expect(repos.membership.create).toHaveBeenCalledWith({
+        userId: 'user-1',
+        tenantId: 'tenant-1',
+        role: Role.OWNER,
+      });
+      expect(repos.audit.record).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'user.registered' }),
+      );
+      expect(principal).toEqual({ userId: 'user-1', tenantId: 'tenant-1', role: Role.OWNER });
+    });
+
+    it('returns the principal for an existing Google user without creating anything', async () => {
+      repos.user.findByGoogleId.mockResolvedValue({
+        id: 'user-1',
+        email: 'google@example.com',
+        passwordHash: null,
+        googleId: 'google-sub-123',
+        name: 'Google User',
+        status: 'active',
+      });
+      repos.membership.findByUserId.mockResolvedValue([
+        { userId: 'user-1', tenantId: 'tenant-1', role: Role.ADMIN },
+      ]);
+
+      const principal = await service.googleLogin(profile, {});
+
+      expect(repos.user.create).not.toHaveBeenCalled();
+      expect(repos.tenant.create).not.toHaveBeenCalled();
+      expect(repos.audit.record).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'user.google_login' }),
+      );
+      expect(principal).toEqual({ userId: 'user-1', tenantId: 'tenant-1', role: Role.ADMIN });
+    });
+
+    it('links Google to an existing credentials user with the same verified email', async () => {
+      repos.user.findByGoogleId.mockResolvedValue(null);
+      repos.user.findByEmail.mockResolvedValue({
+        id: 'user-1',
+        email: 'google@example.com',
+        passwordHash: 'hashed',
+        googleId: null,
+        name: 'Google User',
+        status: 'active',
+      });
+      repos.user.linkGoogleId.mockResolvedValue({
+        id: 'user-1',
+        email: 'google@example.com',
+        passwordHash: 'hashed',
+        googleId: 'google-sub-123',
+        name: 'Google User',
+        status: 'active',
+      });
+      repos.membership.findByUserId.mockResolvedValue([
+        { userId: 'user-1', tenantId: 'tenant-1', role: Role.ADMIN },
+      ]);
+
+      const principal = await service.googleLogin(profile, {});
+
+      expect(repos.user.linkGoogleId).toHaveBeenCalledWith('user-1', 'google-sub-123');
+      expect(repos.user.create).not.toHaveBeenCalled();
+      expect(principal.userId).toBe('user-1');
+    });
+
+    it('rejects an unverified email that matches an existing account', async () => {
+      repos.user.findByGoogleId.mockResolvedValue(null);
+      repos.user.findByEmail.mockResolvedValue({
+        id: 'user-1',
+        email: 'google@example.com',
+        passwordHash: 'hashed',
+        googleId: null,
+        name: 'Google User',
+        status: 'active',
+      });
+
+      await expect(
+        service.googleLogin({ ...profile, emailVerified: false }, {}),
+      ).rejects.toThrow(DomainException);
+      expect(repos.user.linkGoogleId).not.toHaveBeenCalled();
+    });
+
+    it('throws for a disabled Google account', async () => {
+      repos.user.findByGoogleId.mockResolvedValue({
+        id: 'user-1',
+        email: 'google@example.com',
+        passwordHash: null,
+        googleId: 'google-sub-123',
+        name: 'Google User',
+        status: 'disabled',
+      });
+
+      await expect(service.googleLogin(profile, {})).rejects.toThrow(DomainException);
+    });
+
+    it('throws when Google returns no email', async () => {
+      await expect(
+        service.googleLogin({ ...profile, email: '' }, {}),
+      ).rejects.toThrow(DomainException);
+    });
+  });
+
+  describe('issueSessionForPrincipal', () => {
+    it('issues a token pair + profile for a Google principal', async () => {
+      repos.user.findById.mockResolvedValue({
+        id: 'user-1',
+        email: 'google@example.com',
+        passwordHash: null,
+        googleId: 'google-sub-123',
+        name: 'Google User',
+        status: 'active',
+        avatarUrl: null,
+      });
+
+      const result = await service.issueSessionForPrincipal(
+        { userId: 'user-1', tenantId: 'tenant-1', role: Role.OWNER },
+        {},
+      );
+
+      expect(result.accessToken).toBe('at');
+      expect(result.refreshToken).toBe('rt');
+      expect(result.user).toMatchObject({
+        id: 'user-1',
+        email: 'google@example.com',
+        role: Role.OWNER,
+        tenantId: 'tenant-1',
+      });
+    });
+
+    it('throws when the principal user is missing or disabled', async () => {
+      repos.user.findById.mockResolvedValue(null);
+      await expect(
+        service.issueSessionForPrincipal(
+          { userId: 'ghost', tenantId: 'tenant-1', role: Role.OWNER },
+          {},
+        ),
+      ).rejects.toThrow(DomainException);
+    });
+  });
+
+  describe('OAuth state', () => {
+    it('round-trips the signed state with the sanitized next path', () => {
+      const state = service.buildGoogleState('/team');
+      expect(service.verifyGoogleState(state)).toEqual({ next: '/team' });
+    });
+
+    it('defaults an absent next path to /', () => {
+      const state = service.buildGoogleState(undefined);
+      expect(service.verifyGoogleState(state)).toEqual({ next: '/' });
+    });
+
+    it('blocks open redirects (protocol-relative next)', () => {
+      const state = service.buildGoogleState('//evil.example.com');
+      expect(service.verifyGoogleState(state)).toEqual({ next: '/' });
+    });
+
+    it('rejects tampered or malformed state', () => {
+      const state = service.buildGoogleState('/team');
+      const [payload, sig] = state.split('.');
+      const tampered = `${payload}.${sig}xxxx`;
+      expect(service.verifyGoogleState(tampered)).toBeNull();
+      expect(service.verifyGoogleState('garbage')).toBeNull();
+      expect(service.verifyGoogleState(undefined)).toBeNull();
     });
   });
 

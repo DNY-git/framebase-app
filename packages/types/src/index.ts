@@ -94,6 +94,7 @@ export enum ErrorCode {
   // Inventory
   MATERIAL_NOT_FOUND = 'MATERIAL_NOT_FOUND',
   MATERIAL_DUPLICATE_SKU = 'MATERIAL_DUPLICATE_SKU',
+  MATERIAL_CATALOG_NOT_FOUND = 'MATERIAL_CATALOG_NOT_FOUND',
   STOCK_LEVEL_NOT_FOUND = 'STOCK_LEVEL_NOT_FOUND',
   INSUFFICIENT_STOCK = 'INSUFFICIENT_STOCK',
   DELIVERY_NOT_FOUND = 'DELIVERY_NOT_FOUND',
@@ -560,6 +561,26 @@ export interface MaterialDomain {
   archivedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export enum MaterialCategory {
+  CONCRETE = 'concrete',
+  STEEL = 'steel',
+  TIMBER = 'timber',
+  ELECTRICAL = 'electrical',
+  PLUMBING = 'plumbing',
+  FINISHES = 'finishes',
+  EARTHWORKS = 'earthworks',
+  SAFETY = 'safety',
+  GENERAL = 'general',
+}
+
+export interface MaterialCatalogItemDomain {
+  id: string;
+  name: string;
+  category: MaterialCategory;
+  unit?: string;
+  sku?: string;
 }
 
 export interface StockLevelDomain {

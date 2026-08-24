@@ -9,7 +9,8 @@ import { ContentCard } from '@/components/ui/content-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SearchInput } from '@/components/ui/search-input';
 import { FilterDropdown } from '@/shared/components/FilterDropdown';
-import { Package, Loader2, Plus } from '../../shared/components/icons';
+import { Skeleton } from '@/shared/components/Skeleton';
+import { Package, Plus } from '../../shared/components/icons';
 
 const TABLE_HEADERS = ['Item', 'Quantity on hand', 'Unit', 'Reorder threshold', 'Status'];
 
@@ -112,9 +113,20 @@ export function MaterialList() {
       )}
 
       {isLoading ? (
-        <ContentCard className="flex items-center gap-2 p-6 text-sm text-foreground-muted">
-          <Loader2 className="h-4 w-4 animate-spin text-primary" />
-          Loading materials...
+        <ContentCard className="overflow-hidden p-0">
+          <div className="h-11 animate-pulse bg-surface-muted/60" />
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex animate-pulse items-center gap-6 border-t border-border px-4 py-4">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <Skeleton className="h-9 w-9 rounded-lg" />
+                <Skeleton className="h-4 w-40" />
+              </div>
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-4 w-24" />
+            </div>
+          ))}
         </ContentCard>
       ) : displayed.length === 0 ? (
         <EmptyState

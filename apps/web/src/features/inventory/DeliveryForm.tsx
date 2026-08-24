@@ -3,6 +3,7 @@ import type { DeliveryReceiptDomain, MaterialDomain } from '@constructtrack/type
 import { unwrapList, formatDate, formatCurrency } from '../../utils';
 import { authFetch } from '../../auth-fetch';
 import { FilterDropdown } from '../../shared/components/FilterDropdown';
+import { Skeleton } from '../../shared/components/Skeleton';
 import { Loader2, CheckCircle } from '../../shared/components/icons';
 
 export function DeliveryForm() {
@@ -150,9 +151,19 @@ export function DeliveryForm() {
           <p className="mb-4 text-xs text-foreground-muted">{deliveries.length} recorded</p>
           <div className="divide-y divide-border rounded-lg border border-border">
             {isLoading ? (
-              <div className="flex items-center gap-2 p-4 text-sm text-foreground-muted">
-                <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                Loading materials...
+              <div className="space-y-4 p-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex animate-pulse items-center justify-between gap-3">
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                    <div className="space-y-2 text-right">
+                      <Skeleton className="h-4 w-12" />
+                      <Skeleton className="h-3 w-16" />
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : deliveries.length === 0 ? (
               <div className="p-4 text-center text-sm text-foreground-muted">No deliveries recorded yet</div>

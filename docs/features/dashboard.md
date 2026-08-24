@@ -47,6 +47,7 @@ A minimal stub (project/task counts) ships in Phase 2 to validate the plumbing; 
 | **Inventory health** | low-stock material count, total value | inventory | low-stock board |
 | **Open safety items** | count of unresolved safety observations | tasks/reports | safety report list |
 | **Recent activity** | latest audit events (creates/updates) | audit | activity timeline |
+| **Project activity heatmap** | daily audit-event counts (last 16 weeks) | audit | activity timeline |
 
 Widgets are composable; the layout adapts by role (an exec sees roll-ups; a crew member sees "my tasks today" prominently).
 
@@ -81,6 +82,7 @@ Responses follow the [standard envelope](../api/standards.md); widgets are indep
 ## UI / UX
 
 - **Responsive grid** of `StatCard`s and small charts; reflows to a single column on mobile.
+- **Charts use the Bklit UI chart components** (`@bklitui/ui/charts`): the "Spending vs Budget" area chart is `AreaChart` (grey `Budget` / blue `Spent`), and the "Project Activity" calendar is `HeatmapChart` (5-step grey scale). Both are rendered in a neutral grey/blue palette to match the rest of the UI.
 - **Role-aware default layout** — crew lands on "my tasks today"; managers on the org overview.
 - **Drill-down** — every KPI is a link to the filtered list/board in its domain.
 - **Time-range selectors** where relevant (utilization, activity) defaulting to a sensible window.

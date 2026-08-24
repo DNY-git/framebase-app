@@ -23,8 +23,11 @@ import { CreateDocumentDto } from './dto/create-document.dto';
 import { CurrentUser } from '../../common/decorators/auth.decorator';
 import { AuthenticatedUser } from '../../common/decorators/authenticated-user.interface';
 import { parsePagination, formatPaginatedResponse } from '../../common/utils/pagination.util';
+import { resolveStorageRoot } from '../../common/utils/storage-root.util';
 
 const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB
+
+const TMP_UPLOAD_DIR = path.join(resolveStorageRoot(), 'storage', 'uploads', '.tmp');
 
 @Controller('documents')
 export class DocumentsController {
@@ -35,7 +38,7 @@ export class DocumentsController {
     FileInterceptor('file', {
       storage: diskStorage({
         destination: (_req, _file, cb) => {
-          const dir = path.resolve(process.cwd(), 'storage', 'uploads', '.tmp');
+          const dir = TMP_UPLOAD_DIR;
           fsp
             .mkdir(dir, { recursive: true })
             .then(() => cb(null, dir))

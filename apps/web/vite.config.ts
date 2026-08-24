@@ -8,7 +8,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@bklitui/ui/charts': path.resolve(__dirname, './src/components/ui/charts/index.ts'),
     },
+    dedupe: ['react', 'react-dom'],
   },
   server: {
     port: 5173,

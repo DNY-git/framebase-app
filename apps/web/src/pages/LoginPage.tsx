@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { HardHat, Loader2 } from '../shared/components/icons';
+import { Google, HardHat, Loader2 } from '../shared/components/icons';
 import { useAuthStore } from '../stores/auth-store';
 import type { User } from '../stores/auth-store';
 
@@ -50,6 +50,11 @@ export function LoginPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const startGoogle = () => {
+    const base = '/api/v1/auth/google';
+    window.location.href = next !== '/' ? `${base}?next=${encodeURIComponent(next)}` : base;
   };
 
   return (
@@ -117,6 +122,21 @@ export function LoginPage() {
               {isLoading ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
+
+          <div className="my-4 flex items-center gap-3">
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-xs uppercase tracking-wide text-foreground-muted">or</span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+
+          <button
+            type="button"
+            onClick={startGoogle}
+            className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted"
+          >
+            <Google className="h-4 w-4" />
+            Continue with Google
+          </button>
 
           <div className="mt-4 text-center text-sm text-foreground-muted">
             Don&apos;t have an account?{' '}

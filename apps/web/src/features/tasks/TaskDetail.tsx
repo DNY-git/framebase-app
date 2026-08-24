@@ -4,6 +4,7 @@ import type { TaskDomain, TaskDependencyDomain, AuditLogDomain } from '@construc
 import { TaskStatus, TaskPriority } from '@constructtrack/types';
 import { authFetch } from '../../auth-fetch';
 import { useAuthStore } from '../../stores/auth-store';
+import { Skeleton } from '../../shared/components/Skeleton';
 import { TaskForm } from './TaskForm';
 import {
   ArrowLeft,
@@ -13,7 +14,6 @@ import {
   AlertTriangle,
   CheckSquare,
   ExternalLink,
-  Loader2,
   AlertCircle,
 } from '../../shared/components/icons';
 
@@ -133,11 +133,32 @@ export function TaskDetail() {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <Loader2 className="h-5 w-5 animate-spin text-primary" />
-          <span className="text-sm text-foreground-muted">Loading task...</span>
+        <div className="flex flex-col gap-3 border-b border-border pb-4 md:flex-row md:items-start md:justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-64" />
+            <Skeleton className="h-4 w-40" />
+          </div>
+          <Skeleton className="h-9 w-24" />
         </div>
-        <div className="h-64 animate-pulse rounded-xl border border-border bg-surface" />
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="space-y-3 rounded-xl border border-border bg-surface p-5">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+          </div>
+          <div className="space-y-3 rounded-xl border border-border bg-surface p-5">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-2/3" />
+          </div>
+          <div className="space-y-3 rounded-xl border border-border bg-surface p-5">
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-1/3" />
+          </div>
+        </div>
+        <Skeleton className="h-40 w-full rounded-xl border border-border" />
       </div>
     );
   }
