@@ -41,8 +41,8 @@ const INERT_URI = 'mongodb://127.0.0.1:9/constructtrack';
           // When no real URI is configured, fail the connection attempt
           // almost instantly (1ms) so startup isn't delayed. When a real
           // URI is present, allow up to 5s for server selection.
-          serverSelectionTimeoutMS: isConfigured ? 5000 : 1,
-          connectTimeoutMS: isConfigured ? 5000 : 1,
+          serverSelectionTimeoutMS: isConfigured ? 10000 : 1,
+          connectTimeoutMS: isConfigured ? 10000 : 1,
         };
       },
     }),
