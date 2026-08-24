@@ -1,5 +1,5 @@
 import { IsOptional, IsEnum, IsString, IsDateString, IsInt } from 'class-validator';
-import { EquipmentStatus } from '@constructtrack/types';
+import { EquipmentStatus, EquipmentCategory } from '@constructtrack/types';
 
 export class UpdateEquipmentDto {
   @IsOptional()
@@ -11,12 +11,13 @@ export class UpdateEquipmentDto {
   serialNumber?: string;
 
   @IsOptional()
-  @IsString()
-  category?: string;
+  @IsEnum(EquipmentCategory)
+  category?: EquipmentCategory;
 
+  /** Typed as string — see CreateEquipmentDto for why `Date` breaks validation. */
   @IsOptional()
   @IsDateString()
-  purchaseDate?: Date;
+  purchaseDate?: string;
 
   @IsOptional()
   @IsInt()

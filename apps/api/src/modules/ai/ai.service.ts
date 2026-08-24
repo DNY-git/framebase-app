@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable, Inject } from '@nestjs/common';
+import { HttpStatus, Injectable, Inject, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ErrorCode } from '@constructtrack/types';
 import { DomainException } from '../../common/exceptions/domain.exception';
@@ -14,11 +14,22 @@ import {
   PaginationOptions,
   PaginatedResponse,
   AiCompletionRequest,
+  ProjectStatus,
 } from '@constructtrack/types';
 import { QueryDto } from './dto/query.dto';
 import { SubmitJobDto } from './dto/submit-job.dto';
 import { FeedbackDto } from './dto/feedback.dto';
+import { InventoryService } from '../inventory/inventory.service';
+import { ProjectRepository } from '../projects/repositories/project.repository';
 import type { AppConfig } from '../../config/configuration';
+
+const GROUNDING_MONTHS = 6;
+const MAX_PROJECTS_IN_CONTEXT = 12;
+
+/** Zero-padded YYYY-MM key matching the Mongo $dateToString aggregation format. */
+function monthKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
 
 @Injectable()
 export class AiService {
@@ -27,6 +38,9 @@ export class AiService {
     @Inject(AiFeedbackRepository) private readonly feedbackRepo: AiFeedbackRepository,
     @Inject('AI_PROVIDER') private readonly aiProvider: IAIProvider,
     @Inject(ConfigService) private readonly config: ConfigService<AppConfig>,
+    // Optional so existing unit tests without inventory/projects providers still compile.
+    @Optional() @Inject(InventoryService) private readonly inventoryService?: InventoryService,
+    @Optional() @Inject(ProjectRepository) private readonly projectRepo?: ProjectRepository,
   ) {}
 
   // ====== Query ======
@@ -42,10 +56,15 @@ export class AiService {
     const maxTokens = this.config.get('aiMaxTokens', { infer: true }) ?? 1000;
     const timeout = this.config.get('aiRequestTimeoutMs', { infer: true }) ?? 15000;
 
+    const groundingContext = await this.buildGroundingContext(auth);
+
     const request: AiCompletionRequest = {
-      systemPrompt: 'You are a helpful construction project assistant. Answer questions based only on the provided context.',
+      systemPrompt:
+        'You are a helpful construction project assistant. Answer questions based only on the provided context. ' +
+        'The context contains real financial data from the user\'s organization (amounts are in cents). ' +
+        'When asked to summarize or analyze expenses, use exactly these numbers and present them in a readable form.',
       userPrompt: dto.question,
-      groundingContext: '',
+      groundingContext,
       maxTokens,
       timeoutMs: timeout,
     };
@@ -76,6 +95,64 @@ export class AiService {
     }
   }
 
+  // ====== Grounding ======
+
+  /**
+   * Build a compact grounding snapshot from REAL application data:
+   * project budgets plus actual material-purchase spend for the last
+   * months. No fabricated numbers — when the database is empty the
+   * context says so explicitly.
+   */
+  private async buildGroundingContext(auth: AuthContext): Promise<string> {
+    if (!this.inventoryService || !this.projectRepo) return '';
+
+    try {
+      const now = new Date();
+      const trendStart = new Date(now.getFullYear(), now.getMonth() - (GROUNDING_MONTHS - 1), 1);
+      const [spendRows, projectsResult] = await Promise.all([
+        this.inventoryService.sumCostCentsByProjectAndMonth(auth, { since: trendStart }),
+        this.projectRepo.find(auth.tenantId, {}, { page: 1, perPage: 200 }),
+      ]);
+      const projects = projectsResult.items;
+
+      const totalSpent = spendRows.reduce((sum, r) => sum + r.total, 0);
+      const spentByMonth = new Map<string, number>();
+      for (const r of spendRows) {
+        spentByMonth.set(r.monthKey, (spentByMonth.get(r.monthKey) ?? 0) + r.total);
+      }
+
+      const monthLines: string[] = [];
+      for (let i = GROUNDING_MONTHS - 1; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        monthLines.push(`${monthKey(d)}=${spentByMonth.get(monthKey(d)) ?? 0}`);
+      }
+
+      const budgetedProjects = projects.filter((p) => (p.budgetCents ?? 0) > 0);
+      const totalBudget = budgetedProjects.reduce((sum, p) => sum + (p.budgetCents ?? 0), 0);
+      const activeBudgeted = budgetedProjects
+        .filter((p) => p.status === ProjectStatus.ACTIVE || p.status === ProjectStatus.ON_HOLD)
+        .slice(0, MAX_PROJECTS_IN_CONTEXT)
+        .map((p) => `- ${p.name} (${p.status}): budget ${p.budgetCents} cents`)
+        .join('\n');
+
+      const lines = [
+        '=== ORGANIZATION FINANCIAL SNAPSHOT (real application data; all amounts in cents) ===',
+        `Total project budget: ${totalBudget} cents`,
+        `Total material-purchase spend over last ${GROUNDING_MONTHS} months: ${totalSpent} cents`,
+        `Monthly spend: ${monthLines.join(', ')}`,
+        budgetedProjects.length > 0
+          ? `Projects with budgets:\n${activeBudgeted}`
+          : 'Projects with budgets: none recorded yet',
+        totalSpent === 0 ? 'Note: no purchase transactions were recorded in this period.' : '',
+      ];
+
+      return lines.filter(Boolean).join('\n');
+    } catch {
+      // Grounding is best-effort; never fail the whole query because of it.
+      return '';
+    }
+  }
+
   // ====== Async Jobs ======
 
   async submitJob(auth: AuthContext, dto: SubmitJobDto): Promise<AiJobDomain> {
@@ -89,10 +166,18 @@ export class AiService {
     const maxTokens = this.config.get('aiMaxTokens', { infer: true }) ?? 2000;
     const timeout = this.config.get('aiRequestTimeoutMs', { infer: true }) ?? 30000;
 
+    const groundingContext = await this.buildGroundingContext(auth);
+
     const request: AiCompletionRequest = {
-      systemPrompt: 'You are a construction project assistant. Generate a well-structured output based on the provided context.',
-      userPrompt: dto.type === 'summarize' ? 'Please summarize the project status.' : 'Please draft a report based on the provided parameters.',
-      groundingContext: '',
+      systemPrompt:
+        dto.type === 'summarize'
+          ? 'You are a construction project assistant. Summarize the provided real financial data clearly and concisely.'
+          : 'You are a construction project assistant. Generate a well-structured output based on the provided context.',
+      userPrompt:
+        dto.type === 'summarize'
+          ? 'Summarize our current expenses and how they compare to the project budgets, using the data provided.'
+          : 'Please draft a report based on the provided parameters.',
+      groundingContext,
       maxTokens,
       timeoutMs: timeout,
     };

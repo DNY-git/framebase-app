@@ -8,15 +8,22 @@ import { AiFeedback, AiFeedbackSchema } from '../../schemas/ai-feedback.schema';
 import { AiJobRepository } from './repositories/ai-job.repository';
 import { AiFeedbackRepository } from './repositories/ai-feedback.repository';
 import { NoneProvider } from './providers/none.provider';
+import { GeminiProvider } from './providers/gemini.provider';
 import { IAIProvider } from './providers/ai-provider.interface';
+import { InventoryModule } from '../inventory/inventory.module';
+import { ProjectsModule } from '../projects/projects.module';
 import type { AppConfig } from '../../config/configuration';
 
 const AiProviderFactory: Provider = {
   provide: 'AI_PROVIDER',
   useFactory: (config: ConfigService<AppConfig>): IAIProvider => {
     const provider = config.get<string>('aiProvider', { infer: true }) ?? 'none';
-    if (provider === 'none') {
-      return new NoneProvider();
+    if (provider === 'gemini') {
+      const apiKey = config.get<string>('geminiApiKey', { infer: true }) ?? '';
+      if (apiKey) {
+        const preferredModel = config.get<string>('geminiModel', { infer: true });
+        return new GeminiProvider(apiKey, preferredModel);
+      }
     }
     return new NoneProvider();
   },
@@ -30,6 +37,9 @@ const AiProviderFactory: Provider = {
       { name: AiFeedback.name, schema: AiFeedbackSchema },
     ]),
     ConfigModule,
+    // Provide real application data for AI grounding context.
+    InventoryModule,
+    ProjectsModule,
   ],
   controllers: [AiController],
   providers: [

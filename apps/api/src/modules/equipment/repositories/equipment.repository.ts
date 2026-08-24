@@ -45,7 +45,8 @@ export class EquipmentRepository extends BaseRepository<
       name: data.name,
       serialNumber: data.serialNumber,
       category: data.category,
-      purchaseDate: data.purchaseDate,
+      // DTO carries an ISO string; Mongoose persists a real Date.
+      purchaseDate: data.purchaseDate ? new Date(data.purchaseDate) : undefined,
       purchaseCostCents: data.purchaseCostCents,
       // status defaults to AVAILABLE in schema
     };
@@ -57,7 +58,7 @@ export class EquipmentRepository extends BaseRepository<
     if (data.serialNumber !== undefined) doc.serialNumber = data.serialNumber;
     if (data.category !== undefined) doc.category = data.category;
     if (data.status !== undefined) doc.status = data.status;
-    if (data.purchaseDate !== undefined) doc.purchaseDate = data.purchaseDate;
+    if (data.purchaseDate !== undefined) doc.purchaseDate = new Date(data.purchaseDate);
     if (data.purchaseCostCents !== undefined) doc.purchaseCostCents = data.purchaseCostCents;
     return doc;
   }

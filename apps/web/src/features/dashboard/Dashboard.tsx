@@ -1,20 +1,27 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  Area,
+  AreaChart,
+  ChartTooltip,
+  Grid,
+  XAxis,
+} from '@bklitui/ui/charts';
 import type { ApiResponse, DashboardOverview } from '@constructtrack/types';
 import { authFetch } from '../../auth-fetch';
+import { PageLayout } from '../../shared/components/PageLayout';
+import { Skeleton } from '../../shared/components/Skeleton';
+import { ActivityHeatmap } from './ActivityHeatmap';
 import {
   FolderKanban,
-  CheckSquare,
-  Wrench,
   Package,
-  AlertTriangle,
   Clock,
   ArrowRight,
-  Bot,
-  FileText,
+  HardHat,
+  RotateCw,
 } from '../../shared/components/icons';
 
-function useDashboard(_token: string) {
+function useDashboard() {
   const [data, setData] = useState<DashboardOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,70 +48,77 @@ function useDashboard(_token: string) {
   return { data, error, isLoading, refetch: fetchData };
 }
 
+const centsCompact = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  notation: 'compact',
+  maximumFractionDigits: 1,
+});
+
+const centsFull = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  maximumFractionDigits: 0,
+});
+
+function formatCents(cents: number): string {
+  return centsFull.format(cents / 100);
+}
+
+function formatCompact(cents: number): string {
+  return centsCompact.format(cents / 100);
+}
+
+function formatDate(d?: Date | string | null): string {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+/** Minimal KPI card — typography and spacing carry the hierarchy. */
 function KpiCard({
-  icon: Icon,
   label,
   value,
   subtext,
-  color,
   href,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
   label: string;
-  value: string | number;
+  value: string;
   subtext?: string;
-  color: string;
   href?: string;
 }) {
-  const inner = (
-    <div className="group rounded-xl border border-border bg-surface p-5 shadow-sm transition-all hover:shadow-md">
-      <div className="flex items-start justify-between">
-        <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${color}`}>
-          <Icon className="h-5 w-5 text-white" />
-        </div>
-        {href && (
-          <ArrowRight className="h-4 w-4 text-foreground-muted opacity-0 transition-opacity group-hover:opacity-100" />
-        )}
-      </div>
-      <div className="mt-4">
-        <p className="text-2xl font-bold text-foreground">{value}</p>
-        <p className="mt-0.5 text-sm text-foreground-muted">{label}</p>
-      </div>
-      {subtext && (
-        <p className="mt-1 text-xs text-foreground-muted">{subtext}</p>
+  const body = (
+    <div className="group rounded-xl border border-border bg-surface p-5 shadow-sm transition-colors hover:bg-surface-muted/30">
+      <p className="text-xs font-medium uppercase tracking-wide text-foreground-muted">{label}</p>
+      <p className="mt-3 text-3xl font-bold tracking-tight text-foreground">{value}</p>
+      {subtext && <p className="mt-1.5 text-xs text-foreground-muted">{subtext}</p>}
+      {href && (
+        <ArrowRight className="mt-2 h-3.5 w-3.5 text-foreground-muted opacity-0 transition-opacity group-hover:opacity-100" />
       )}
     </div>
   );
-
-  return href ? <Link to={href} className="block">{inner}</Link> : inner;
+  return href ? <Link to={href} className="block">{body}</Link> : body;
 }
 
-function ProgressBar({ value, max, color = 'bg-primary' }: { value: number; max: number; color?: string }) {
-  const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
+function SectionCard({
+  title,
+  description,
+  action,
+  children,
+  className,
+}: {
+  title: string;
+  description?: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="h-2 w-full overflow-hidden rounded-full bg-surface-muted">
-      <div
-        className={`h-full rounded-full transition-all duration-500 ${color}`}
-        style={{ width: `${pct}%` }}
-      />
-    </div>
-  );
-}
-
-function Stat({ label, value, color }: { label: string; value: number; color?: string }) {
-  return (
-    <div className="flex items-center justify-between py-2">
-      <span className="text-sm text-foreground-muted">{label}</span>
-      <span className={`text-sm font-semibold ${color ?? 'text-foreground'}`}>{value}</span>
-    </div>
-  );
-}
-
-function SectionCard({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <div className="rounded-xl border border-border bg-surface p-5 shadow-sm">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+    <div className={`rounded-xl border border-border bg-surface p-5 shadow-sm ${className ?? ''}`}>
+      <div className="mb-5 flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          {description && <p className="mt-0.5 text-xs text-foreground-muted">{description}</p>}
+        </div>
         {action}
       </div>
       {children}
@@ -112,14 +126,91 @@ function SectionCard({ title, action, children }: { title: string; action?: Reac
   );
 }
 
-export function Dashboard({ token }: { token: string }): React.JSX.Element {
-  const { data, error, isLoading, refetch } = useDashboard(token);
+function ProgressBar({ value, color = 'bg-primary' }: { value: number; color?: string }) {
+  return (
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-muted">
+      <div
+        className={`h-full rounded-full transition-all duration-500 ${color}`}
+        style={{ width: `${Math.min(Math.max(value, 0), 100)}%` }}
+      />
+    </div>
+  );
+}
+
+function progressColor(progress: number): string {
+  if (progress >= 70) return 'bg-success';
+  if (progress >= 40) return 'bg-warning';
+  return 'bg-danger';
+}
+
+function DashboardLoading() {
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="rounded-xl border border-border bg-surface p-5">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="mt-4 h-8 w-24" />
+            <Skeleton className="mt-3 h-3 w-32" />
+          </div>
+        ))}
+      </div>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="rounded-xl border border-border bg-surface p-5 lg:col-span-2">
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="mt-5 h-64 w-full" />
+        </div>
+        <div className="rounded-xl border border-border bg-surface p-5">
+          <Skeleton className="h-4 w-32" />
+          <div className="mt-5 space-y-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i}>
+                <Skeleton className="h-3 w-3/4" />
+                <Skeleton className="mt-2 h-1.5 w-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="rounded-xl border border-border bg-surface p-5 lg:col-span-2">
+          <Skeleton className="h-4 w-32" />
+          <div className="mt-5 space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-8 w-full" />
+            ))}
+          </div>
+        </div>
+        <div className="rounded-xl border border-border bg-surface p-5">
+          <Skeleton className="h-4 w-32" />
+          <div className="mt-5 space-y-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-6 w-full" />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function Dashboard(): React.JSX.Element {
+  const { data, error, isLoading, refetch } = useDashboard();
+
+  const areaData = useMemo(
+    () =>
+      (data?.spendingTrend ?? []).map((m) => {
+        const [year, month] = m.monthKey.split('-').map(Number);
+        return { ...m, date: new Date(year, month - 1, 1) };
+      }),
+    [data?.spendingTrend]
+  );
 
   if (error) {
     return (
       <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
         <p className="mb-3 text-sm text-danger">{error}</p>
-        <button onClick={refetch} className="text-sm font-medium text-primary hover:underline">
+        <button onClick={() => refetch()} className="text-sm font-medium text-primary hover:underline">
           Retry
         </button>
       </div>
@@ -128,261 +219,313 @@ export function Dashboard({ token }: { token: string }): React.JSX.Element {
 
   if (isLoading || !data) {
     return (
-      <div className="space-y-6">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-36 animate-pulse rounded-xl border border-border bg-surface" />
-          ))}
-        </div>
-        <div className="grid gap-4 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-48 animate-pulse rounded-xl border border-border bg-surface" />
-          ))}
-        </div>
-      </div>
+      <PageLayout title="Dashboard" subtitle="Overview of your construction projects">
+        <DashboardLoading />
+      </PageLayout>
     );
   }
 
+  const f = data.financial;
   const p = data.projects;
   const t = data.tasks;
   const e = data.equipment;
   const inv = data.inventory;
+  const hasTrendData = data.spendingTrend.some((m) => m.budget > 0 || m.spent > 0);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-        <p className="mt-1 text-sm text-foreground-muted">Overview of your construction projects</p>
-      </div>
+    <PageLayout
+      title="Dashboard"
+      subtitle="Overview of your construction projects"
+      actions={
+        <button
+          onClick={() => refetch()}
+          className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted"
+        >
+          <RotateCw className="h-3.5 w-3.5 text-foreground-muted" />
+          Refresh
+        </button>
+      }
+    >
+      <div className="space-y-6">
+        {/* KPI row */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCard
+            label="Total Budget"
+            value={formatCompact(f.totalBudgetCents)}
+            subtext={`${p.active + p.onHold} projects with budgets`}
+            href="/projects"
+          />
+          <KpiCard
+            label="Total Spent"
+            value={formatCompact(f.totalSpentCents)}
+            subtext="Material purchases to date"
+            href="/inventory/transactions"
+          />
+          <KpiCard
+            label="Remaining Budget"
+            value={formatCompact(Math.max(f.remainingBudgetCents, 0))}
+            subtext={
+              f.totalBudgetCents > 0
+                ? `${Math.round(Math.min((f.totalSpentCents / f.totalBudgetCents) * 100, 100))}% of budget used`
+                : 'No budget set yet'
+            }
+          />
+          <KpiCard
+            label="Active Projects"
+            value={String(p.active)}
+            subtext={`${p.onHold} on hold · ${p.completingSoon} completing soon`}
+            href="/projects"
+          />
+        </div>
 
-      {/* KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          icon={FolderKanban}
-          label="Active Projects"
-          value={p.active}
-          subtext={`${p.onHold} on hold · ${p.completingSoon} completing soon`}
-          color="bg-primary"
-          href="/projects"
-        />
-        <KpiCard
-          icon={AlertTriangle}
-          label="Tasks at Risk"
-          value={t.atRisk}
-          subtext={`${t.mineToday} assigned to you today`}
-          color={t.atRisk > 0 ? 'bg-danger' : 'bg-success'}
-          href="/tasks"
-        />
-        <KpiCard
-          icon={Wrench}
-          label="Equipment Utilization"
-          value={`${e.utilizationRate}%`}
-          subtext={`${e.assigned}/${e.total} assigned`}
-          color="bg-info"
-          href="/equipment"
-        />
-        <KpiCard
-          icon={Package}
-          label="Low Stock Items"
-          value={inv.lowStockItems}
-          subtext={`${inv.totalMaterials} materials · ${inv.totalStockQuantity.toLocaleString()} units`}
-          color={inv.lowStockItems > 0 ? 'bg-warning' : 'bg-success'}
-          href="/inventory"
-        />
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        {/* Equipment Fleet Status */}
-        <SectionCard title="Equipment Fleet">
-          <div className="space-y-1">
-            <Stat label="Total fleet" value={e.total} />
-            <Stat label="Available" value={e.available} color="text-success" />
-            <Stat label="Assigned" value={e.assigned} color="text-primary" />
-            <Stat label="In maintenance" value={e.inMaintenance} color="text-warning" />
-          </div>
-          <div className="mt-4">
-            <div className="mb-1 flex items-center justify-between text-xs text-foreground-muted">
-              <span>Utilization</span>
-              <span className="font-medium text-foreground">{e.utilizationRate}%</span>
-            </div>
-            <ProgressBar value={e.utilizationRate} max={100} color="bg-primary" />
-          </div>
-          {e.upcomingMaintenance > 0 && (
-            <div className="mt-3 flex items-center gap-2 rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
-              <Clock className="h-3.5 w-3.5" />
-              {e.upcomingMaintenance} maintenance{e.upcomingMaintenance !== 1 ? 's' : ''} due in 30 days
-            </div>
-          )}
-        </SectionCard>
-
-        {/* Project Status */}
-        <SectionCard title="Project Status">
-          <div className="space-y-3">
-            <div>
-              <div className="mb-1 flex items-center justify-between text-sm">
-                <span className="text-foreground-muted">Active</span>
-                <span className="font-semibold text-foreground">{p.active}</span>
-              </div>
-              <ProgressBar value={p.active} max={Math.max(p.active + p.onHold + p.completingSoon, 1)} color="bg-primary" />
-            </div>
-            <div>
-              <div className="mb-1 flex items-center justify-between text-sm">
-                <span className="text-foreground-muted">On Hold</span>
-                <span className="font-semibold text-foreground">{p.onHold}</span>
-              </div>
-              <ProgressBar value={p.onHold} max={Math.max(p.active + p.onHold + p.completingSoon, 1)} color="bg-warning" />
-            </div>
-            <div>
-              <div className="mb-1 flex items-center justify-between text-sm">
-                <span className="text-foreground-muted">Completing Soon</span>
-                <span className="font-semibold text-foreground">{p.completingSoon}</span>
-              </div>
-              <ProgressBar value={p.completingSoon} max={Math.max(p.active + p.onHold + p.completingSoon, 1)} color="bg-success" />
-            </div>
-          </div>
-          <div className="mt-4 text-center">
-            <span className="text-3xl font-bold text-foreground">{p.active + p.onHold + p.completingSoon}</span>
-            <p className="text-xs text-foreground-muted">Total projects</p>
-          </div>
-        </SectionCard>
-
-        {/* Task Overview */}
-        <SectionCard title="Task Overview">
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="flex-1">
-                <div className="mb-2 text-center">
-                  <span className="text-3xl font-bold text-foreground">{t.mineToday}</span>
-                  <p className="text-xs text-foreground-muted">My tasks today</p>
-                </div>
-              </div>
-              <div className="h-16 w-px bg-border" />
-              <div className="flex-1">
-                <div className="mb-2 text-center">
-                  <span className={`text-3xl font-bold ${t.atRisk > 0 ? 'text-danger' : 'text-foreground'}`}>{t.atRisk}</span>
-                  <p className="text-xs text-foreground-muted">At risk</p>
-                </div>
-              </div>
-            </div>
-            {t.atRisk > 0 && (
-              <div className="flex items-center gap-2 rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger">
-                <AlertTriangle className="h-3.5 w-3.5" />
-                {t.atRisk} task{t.atRisk !== 1 ? 's' : ''} need attention
-              </div>
-            )}
-          </div>
-        </SectionCard>
-      </div>
-
-      {/* Bottom Row: Inventory Health + Quick Actions */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        {/* Inventory Health */}
-        <SectionCard title="Inventory Health" action={<Link to="/inventory" className="text-xs font-medium text-primary hover:underline">View all</Link>}>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-foreground">{inv.totalMaterials}</p>
-              <p className="text-xs text-foreground-muted">Materials</p>
-            </div>
-            <div className="text-center">
-              <p className={`text-2xl font-bold ${inv.lowStockItems > 0 ? 'text-danger' : 'text-foreground'}`}>{inv.lowStockItems}</p>
-              <p className="text-xs text-foreground-muted">Low Stock</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-foreground">{inv.totalStockQuantity.toLocaleString()}</p>
-              <p className="text-xs text-foreground-muted">Total Units</p>
-            </div>
-          </div>
-          {inv.lowStockItems > 0 && (
-            <div className="mt-4 flex items-center gap-2 rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger">
-              <Package className="h-3.5 w-3.5" />
-              {inv.lowStockItems} item{inv.lowStockItems !== 1 ? 's' : ''} below reorder point
-            </div>
-          )}
-          <div className="mt-4">
-            <div className="mb-1 flex items-center justify-between text-xs text-foreground-muted">
-              <span>Stock health</span>
-              <span className="font-medium text-foreground">
-                {inv.totalMaterials > 0 ? Math.round(((inv.totalMaterials - inv.lowStockItems) / inv.totalMaterials) * 100) : 100}%
-              </span>
-            </div>
-            <ProgressBar
-              value={inv.totalMaterials - inv.lowStockItems}
-              max={Math.max(inv.totalMaterials, 1)}
-              color={inv.lowStockItems > 0 ? 'bg-warning' : 'bg-success'}
-            />
-          </div>
-        </SectionCard>
-
-        {/* Quick Actions */}
-        <SectionCard title="Quick Actions">
-          <div className="grid grid-cols-2 gap-3">
-            <Link
-              to="/projects"
-              className="flex items-center gap-3 rounded-lg border border-border p-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted"
-            >
-              <FolderKanban className="h-5 w-5 text-primary" />
-              New Project
-            </Link>
-            <Link
-              to="/tasks"
-              className="flex items-center gap-3 rounded-lg border border-border p-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted"
-            >
-              <CheckSquare className="h-5 w-5 text-success" />
-              View Tasks
-            </Link>
-            <Link
-              to="/equipment"
-              className="flex items-center gap-3 rounded-lg border border-border p-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted"
-            >
-              <Wrench className="h-5 w-5 text-info" />
-              Equipment
-            </Link>
-            <Link
-              to="/inventory"
-              className="flex items-center gap-3 rounded-lg border border-border p-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted"
-            >
-              <Package className="h-5 w-5 text-warning" />
-              Inventory
-            </Link>
-            <Link
-              to="/reports"
-              className="flex items-center gap-3 rounded-lg border border-border p-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted"
-            >
-              <FileText className="h-5 w-5 text-info" />
-              Reports
-            </Link>
-            <Link
-              to="/ai"
-              className="flex items-center gap-3 rounded-lg border border-border p-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted"
-            >
-              <Bot className="h-5 w-5 text-primary" />
-              AI Assistant
-            </Link>
-          </div>
-        </SectionCard>
-      </div>
-
-      {/* Upcoming Maintenance Banner */}
-      {e.upcomingMaintenance > 0 && (
-        <div className="flex items-center gap-4 rounded-xl border border-warning/30 bg-warning/5 p-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/20">
-            <Clock className="h-5 w-5 text-warning" />
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-medium text-foreground">Upcoming Maintenance</p>
+        {/* Operations strip — preserves the existing equipment/inventory/task stats */}
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="rounded-xl border border-border bg-surface px-4 py-3 shadow-sm">
+            <p className="text-lg font-bold leading-tight text-foreground">{t.atRisk}</p>
             <p className="text-xs text-foreground-muted">
-              {e.upcomingMaintenance} piece{e.upcomingMaintenance !== 1 ? 's' : ''} of equipment have maintenance scheduled within 30 days.
+              Tasks at risk{t.mineToday > 0 ? ` · ${t.mineToday} due today` : ''}
             </p>
           </div>
-          <Link
-            to="/equipment"
-            className="shrink-0 rounded-lg bg-warning px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-warning/90"
-          >
-            View
-          </Link>
+          <div className="rounded-xl border border-border bg-surface px-4 py-3 shadow-sm">
+            <p className="text-lg font-bold leading-tight text-foreground">{e.utilizationRate}%</p>
+            <p className="text-xs text-foreground-muted">
+              Equipment utilization · {e.assigned}/{e.total} assigned
+            </p>
+          </div>
+          <div className="rounded-xl border border-border bg-surface px-4 py-3 shadow-sm">
+            <p className="text-lg font-bold leading-tight text-foreground">{inv.lowStockItems}</p>
+            <p className="text-xs text-foreground-muted">
+              Low stock items · {inv.totalMaterials} materials tracked
+            </p>
+          </div>
         </div>
-      )}
-    </div>
+
+        {/* Main analytics */}
+        <div className="grid gap-4 lg:grid-cols-3">
+          {/* Spending / Budget chart */}
+          <SectionCard
+            className="lg:col-span-2"
+            title="Spending vs Budget"
+            description="Last 6 months — budget is allocated across project timelines"
+            action={
+              <div className="flex items-center gap-4 text-xs text-foreground-muted">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: 'var(--chart-line-primary)' }} />
+                  Budget
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: 'var(--chart-line-secondary)' }} />
+                  Spent
+                </span>
+              </div>
+            }
+          >
+            {hasTrendData ? (
+              <div className="h-72 w-full overflow-hidden">
+                <AreaChart
+                  data={areaData}
+                  xDataKey="date"
+                  margin={{ top: 8, right: 8, left: 8, bottom: 0 }}
+                >
+                  <Grid horizontal />
+                  <Area
+                    dataKey="budget"
+                    fill="var(--chart-line-primary)"
+                    stroke="var(--chart-line-primary)"
+                    fillOpacity={0.15}
+                    strokeWidth={2}
+                  />
+                  <Area
+                    dataKey="spent"
+                    fill="var(--chart-line-secondary)"
+                    stroke="var(--chart-line-secondary)"
+                    fillOpacity={0.2}
+                    strokeWidth={2}
+                  />
+                  <XAxis />
+                  <ChartTooltip
+                    rows={(p) => [
+                      {
+                        color: 'var(--chart-line-primary)',
+                        label: 'Budget',
+                        value: formatCents((p.budget as number) ?? 0),
+                      },
+                      {
+                        color: 'var(--chart-line-secondary)',
+                        label: 'Spent',
+                        value: formatCents((p.spent as number) ?? 0),
+                      },
+                    ]}
+                  />
+                </AreaChart>
+              </div>
+            ) : (
+              <div className="flex h-72 flex-col items-center justify-center rounded-lg border border-border bg-surface-muted/30 text-center">
+                <HardHat className="mb-2 h-8 w-8 text-foreground-muted/30" />
+                <p className="text-sm font-medium text-foreground">No spending data yet</p>
+                <p className="mt-1 text-xs text-foreground-muted">
+                  Record material deliveries or set project budgets to see the trend.
+                </p>
+              </div>
+            )}
+          </SectionCard>
+
+          {/* Project progress */}
+          <SectionCard title="Project Progress" description="Active projects by timeline progress">
+            {data.projectProgress.length === 0 ? (
+              <div className="flex h-full flex-col items-center justify-center rounded-lg border border-border bg-surface-muted/30 py-12 text-center">
+                <FolderKanban className="mb-2 h-8 w-8 text-foreground-muted/30" />
+                <p className="text-sm font-medium text-foreground">No active projects</p>
+                <p className="mt-1 text-xs text-foreground-muted">Projects will appear here when started.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {data.projectProgress.map((project) => (
+                  <Link key={project.id} to={`/projects/${project.id}`} className="group block">
+                    <div className="mb-1.5 flex items-baseline justify-between gap-3">
+                      <span className="truncate text-sm font-medium text-foreground transition-colors group-hover:text-primary">
+                        {project.name}
+                      </span>
+                      <span className="shrink-0 text-xs font-semibold tabular-nums text-foreground">
+                        {project.progressPercent}%
+                      </span>
+                    </div>
+                    <ProgressBar value={project.progressPercent} color={progressColor(project.progressPercent)} />
+                    <div className="mt-1.5 flex items-center justify-between text-xs text-foreground-muted">
+                      <span className="font-mono uppercase">{project.code}</span>
+                      <span>
+                        {project.budgetCents > 0
+                          ? `${project.budgetUtilizationPercent}% of ${formatCompact(project.budgetCents)} used`
+                          : 'No budget set'}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </SectionCard>
+        </div>
+
+        {/* Project activity heatmap */}
+        <SectionCard
+          title="Project Activity"
+          description="Daily project work activity — recorded changes over the last 16 weeks"
+        >
+          {data.activityHeatmap.length === 0 ||
+          data.activityHeatmap.every((d) => d.count === 0) ? (
+            <div className="flex h-40 flex-col items-center justify-center rounded-lg border border-border bg-surface-muted/30 text-center">
+              <Clock className="mb-2 h-8 w-8 text-foreground-muted/30" />
+              <p className="text-sm font-medium text-foreground">No activity recorded yet</p>
+              <p className="mt-1 text-xs text-foreground-muted">
+                Project work will appear here once the team starts making changes.
+              </p>
+            </div>
+          ) : (
+            <ActivityHeatmap data={data.activityHeatmap} />
+          )}
+        </SectionCard>
+
+        {/* Recent expenses + activity */}
+        <div className="grid gap-4 lg:grid-cols-3">
+          <SectionCard
+            className="lg:col-span-2"
+            title="Recent Expenses"
+            description="Latest material purchases"
+            action={
+              <Link to="/inventory/transactions" className="text-xs font-medium text-primary hover:underline">
+                View all
+              </Link>
+            }
+          >
+            {data.recentExpenses.length === 0 ? (
+              <div className="flex h-40 flex-col items-center justify-center rounded-lg border border-border bg-surface-muted/30 text-center">
+                <Package className="mb-2 h-8 w-8 text-foreground-muted/30" />
+                <p className="text-sm font-medium text-foreground">No purchases recorded</p>
+                <p className="mt-1 text-xs text-foreground-muted">Record a material delivery to see it here.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[560px] text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-foreground-muted">
+                      <th className="pb-2 pr-4 font-medium">Description</th>
+                      <th className="pb-2 pr-4 font-medium">Project</th>
+                      <th className="pb-2 pr-4 font-medium">Date</th>
+                      <th className="pb-2 text-right font-medium">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {data.recentExpenses.map((expense) => (
+                      <tr key={expense.id}>
+                        <td className="py-3 pr-4">
+                          <p className="font-medium text-foreground">{expense.description}</p>
+                          <p className="text-xs text-foreground-muted">{expense.materialName}</p>
+                        </td>
+                        <td className="py-3 pr-4">
+                          {expense.projectId ? (
+                            <Link
+                              to={`/projects/${expense.projectId}`}
+                              className="text-foreground-muted transition-colors hover:text-primary"
+                            >
+                              {expense.projectName ?? 'Project'}
+                            </Link>
+                          ) : (
+                            <span className="text-foreground-muted">—</span>
+                          )}
+                        </td>
+                        <td className="py-3 pr-4 whitespace-nowrap text-foreground-muted">
+                          {formatDate(expense.createdAt)}
+                        </td>
+                        <td className="py-3 text-right font-semibold tabular-nums text-foreground">
+                          {formatCents(expense.amountCents)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </SectionCard>
+
+          {/* Recent activity */}
+          <SectionCard
+            title="Recent Activity"
+            description="Latest changes across the organization"
+            action={
+              <Link to="/audit" className="text-xs font-medium text-primary hover:underline">
+                Audit log
+              </Link>
+            }
+          >
+            {data.recentActivity.length === 0 ? (
+              <div className="flex h-40 flex-col items-center justify-center rounded-lg border border-border bg-surface-muted/30 text-center">
+                <Clock className="mb-2 h-8 w-8 text-foreground-muted/30" />
+                <p className="text-sm font-medium text-foreground">No recent activity</p>
+              </div>
+            ) : (
+              <div className="space-y-0">
+                {data.recentActivity.map((activity) => (
+                  <div key={activity.id} className="relative flex gap-3 pb-4 last:pb-0">
+                    <div className="flex flex-col items-center">
+                      <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary/40" />
+                      <span className="mt-1 w-px flex-1 bg-border" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm text-foreground">
+                        <span className="capitalize">{activity.action.replace(/_/g, ' ')}</span>{' '}
+                        <span className="text-foreground-muted">
+                          {activity.entityType.replace(/_/g, ' ')}
+                        </span>
+                      </p>
+                      <p className="text-xs text-foreground-muted">{formatDate(activity.createdAt)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </SectionCard>
+        </div>
+      </div>
+    </PageLayout>
   );
 }

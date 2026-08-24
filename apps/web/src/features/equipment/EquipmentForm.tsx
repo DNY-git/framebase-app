@@ -1,21 +1,65 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { authFetch } from '../../auth-fetch';
 import { X, Loader2 } from '../../shared/components/icons';
+import { EquipmentCategory } from '@constructtrack/types';
 
 interface EquipmentFormProps {
   onClose: () => void;
   onSaved: () => void;
 }
 
+interface CatalogItem {
+  id: string;
+  name: string;
+  category: EquipmentCategory;
+}
+
+interface FieldError {
+  field: string;
+  message: string;
+}
+
+const CATEGORY_LABELS: Record<EquipmentCategory, string> = {
+  [EquipmentCategory.EARTHMOVING]: 'Earthmoving',
+  [EquipmentCategory.LIFTING]: 'Lifting & Access',
+  [EquipmentCategory.TRANSPORT]: 'Transport & Haulage',
+  [EquipmentCategory.CONCRETE]: 'Concrete',
+  [EquipmentCategory.POWER]: 'Power & Tools',
+};
+
+const CATEGORY_OPTIONS = Object.values(EquipmentCategory);
+
+/** API validation errors arrive as an envelope: { message, errors: [{ field, message }] }. */
+function parseErrorResponse(body: unknown): { message: string; fieldErrors: FieldError[] } {
+  if (body && typeof body === 'object') {
+    const b = body as { message?: unknown; errors?: unknown };
+    const message =
+      typeof b.message === 'string' ? b.message : 'Failed to add equipment';
+    const fieldErrors = Array.isArray(b.errors)
+      ? (b.errors as FieldError[]).filter(
+          (e) => e && typeof e.field === 'string' && typeof e.message === 'string',
+        )
+      : [];
+    return { message, fieldErrors };
+  }
+  return { message: 'Failed to add equipment', fieldErrors: [] };
+}
+
 export function EquipmentForm({ onClose, onSaved }: EquipmentFormProps) {
+  const [source, setSource] = useState<'catalog' | 'custom'>('catalog');
+  const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [selectedCatalogId, setSelectedCatalogId] = useState('');
+
   const [name, setName] = useState('');
   const [serialNumber, setSerialNumber] = useState('');
-  const [category, setCategory] = useState('');
+  const [category, setCategory] = useState<EquipmentCategory | ''>('');
   const [purchaseDate, setPurchaseDate] = useState('');
-  const [purchaseCostCents, setPurchaseCostCents] = useState('');
+  const [purchaseCost, setPurchaseCost] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldError[]>([]);
 
   useEffect(() => {
     function handleEsc(e: KeyboardEvent) {
@@ -25,17 +69,73 @@ export function EquipmentForm({ onClose, onSaved }: EquipmentFormProps) {
     return () => document.removeEventListener('keydown', handleEsc);
   }, [onClose]);
 
+  useEffect(() => {
+    let cancelled = false;
+    setCatalogLoading(true);
+    authFetch('/api/v1/equipment/catalog')
+      .then((res) => (res.ok ? res.json() : { data: [] }))
+      .then((json) => {
+        if (!cancelled) setCatalogItems(json.data ?? []);
+      })
+      .catch(() => {
+        // Catalog is optional — custom entry still works.
+      })
+      .finally(() => {
+        if (!cancelled) setCatalogLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const selectedCatalogItem = useMemo(
+    () => catalogItems.find((item) => item.id === selectedCatalogId),
+    [catalogItems, selectedCatalogId],
+  );
+
+  /** Live preview of the amount as it will be stored (cents). */
+  const costPreview = useMemo(() => {
+    const major = parseFloat(purchaseCost);
+    if (!Number.isFinite(major) || major < 0) return null;
+    return Math.round(major * 100).toLocaleString('en-US');
+  }, [purchaseCost]);
+
+  function switchSource(next: 'catalog' | 'custom') {
+    setSource(next);
+    setError(null);
+    setFieldErrors([]);
+    if (next === 'catalog') {
+      setName(selectedCatalogItem?.name ?? '');
+      setCategory(selectedCatalogItem?.category ?? '');
+    } else {
+      setSelectedCatalogId('');
+    }
+  }
+
+  function selectCatalogItem(id: string) {
+    setSelectedCatalogId(id);
+    const item = catalogItems.find((i) => i.id === id);
+    if (item) {
+      setName(item.name);
+      setCategory(item.category);
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    setFieldErrors([]);
 
+    const majorCost = parseFloat(purchaseCost);
     const payload: Record<string, unknown> = {
       name,
       serialNumber,
       category,
       purchaseDate: purchaseDate || undefined,
-      purchaseCostCents: purchaseCostCents ? parseInt(purchaseCostCents, 10) : undefined,
+      // Backend stores integer minor units (cents); the form collects major units.
+      purchaseCostCents:
+        Number.isFinite(majorCost) && majorCost >= 0 ? Math.round(majorCost * 100) : undefined,
     };
 
     try {
@@ -45,7 +145,10 @@ export function EquipmentForm({ onClose, onSaved }: EquipmentFormProps) {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        throw new Error(body?.message ?? 'Failed to add equipment');
+        const parsed = parseErrorResponse(body);
+        setError(parsed.message);
+        setFieldErrors(parsed.fieldErrors);
+        return;
       }
       onSaved();
     } catch (err) {
@@ -70,8 +173,70 @@ export function EquipmentForm({ onClose, onSaved }: EquipmentFormProps) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 px-6 py-4">
+          {/* Source selector — pick a known type or add a new one */}
+          <div className="grid grid-cols-2 gap-2 rounded-lg border border-border bg-surface-muted/40 p-1">
+            <button
+              type="button"
+              onClick={() => switchSource('catalog')}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                source === 'catalog'
+                  ? 'bg-surface text-foreground shadow-sm'
+                  : 'text-foreground-muted hover:text-foreground'
+              }`}
+            >
+              Select existing item
+            </button>
+            <button
+              type="button"
+              onClick={() => switchSource('custom')}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                source === 'custom'
+                  ? 'bg-surface text-foreground shadow-sm'
+                  : 'text-foreground-muted hover:text-foreground'
+              }`}
+            >
+              + Add new equipment
+            </button>
+          </div>
+
           {error && (
-            <div className="rounded-lg border border-danger/20 bg-danger/5 p-3 text-sm text-danger">{error}</div>
+            <div className="rounded-lg border border-danger/20 bg-danger/5 p-3 text-sm text-danger">
+              <p>{error}</p>
+              {fieldErrors.length > 0 && (
+                <ul className="mt-1.5 list-inside list-disc space-y-0.5 text-xs">
+                  {fieldErrors.map((fe, i) => (
+                    <li key={i}>
+                      <span className="font-medium">{fe.field}</span>: {fe.message}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {source === 'catalog' && (
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Equipment type *</label>
+              <select
+                value={selectedCatalogId}
+                onChange={(e) => selectCatalogItem(e.target.value)}
+                required
+                disabled={catalogLoading}
+                className={inputClass}
+              >
+                <option value="" disabled>
+                  {catalogLoading ? 'Loading catalog…' : 'Choose from predefined items'}
+                </option>
+                {catalogItems.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {CATEGORY_LABELS[item.category]} — {item.name}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-foreground-muted">
+                The serial number and purchase details below make this unit unique.
+              </p>
+            </div>
           )}
 
           <div>
@@ -80,7 +245,7 @@ export function EquipmentForm({ onClose, onSaved }: EquipmentFormProps) {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Excavator 320"
+              placeholder={source === 'catalog' ? 'CAT Excavator #001' : 'Excavator 320'}
               required
               className={inputClass}
             />
@@ -100,14 +265,22 @@ export function EquipmentForm({ onClose, onSaved }: EquipmentFormProps) {
 
           <div>
             <label className="mb-1.5 block text-sm font-medium text-foreground">Category *</label>
-            <input
-              type="text"
+            <select
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="Heavy Machinery"
+              onChange={(e) => setCategory(e.target.value as EquipmentCategory)}
               required
+              disabled={source === 'catalog' && !!selectedCatalogItem}
               className={inputClass}
-            />
+            >
+              <option value="" disabled>
+                Select a category
+              </option>
+              {CATEGORY_OPTIONS.map((c) => (
+                <option key={c} value={c}>
+                  {CATEGORY_LABELS[c]}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -121,15 +294,21 @@ export function EquipmentForm({ onClose, onSaved }: EquipmentFormProps) {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">Purchase cost (cents)</label>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Purchase cost</label>
               <input
                 type="number"
                 min={0}
-                value={purchaseCostCents}
-                onChange={(e) => setPurchaseCostCents(e.target.value)}
-                placeholder="12000000"
+                step="0.01"
+                value={purchaseCost}
+                onChange={(e) => setPurchaseCost(e.target.value)}
+                placeholder="12000.00"
                 className={inputClass}
               />
+              {costPreview !== null && (
+                <p className="mt-1 text-xs text-foreground-muted">
+                  Stored as {costPreview} cents
+                </p>
+              )}
             </div>
           </div>
 

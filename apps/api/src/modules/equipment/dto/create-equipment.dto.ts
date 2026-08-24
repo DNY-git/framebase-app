@@ -1,5 +1,14 @@
-import { IsString, IsOptional, IsDateString, IsInt, Min } from 'class-validator';
+import { IsString, IsOptional, IsDateString, IsInt, Min, IsEnum } from 'class-validator';
+import { EquipmentCategory } from '@constructtrack/types';
 
+/**
+ * Note: purchaseDate must be typed as `string`, not `Date`.
+ * The global ValidationPipe uses `enableImplicitConversion`, which converts
+ * an incoming ISO string into a Date instance before validation when the DTO
+ * property is declared as `Date` — and `@IsDateString()` then rejects the
+ * Date object because it expects a string. Declaring `string` keeps the
+ * validated value a string; Mongoose casts it to a Date in the schema.
+ */
 export class CreateEquipmentDto {
   @IsString()
   name!: string;
@@ -7,12 +16,12 @@ export class CreateEquipmentDto {
   @IsString()
   serialNumber!: string;
 
-  @IsString()
-  category!: string;
+  @IsEnum(EquipmentCategory)
+  category!: EquipmentCategory;
 
   @IsOptional()
   @IsDateString()
-  purchaseDate?: Date;
+  purchaseDate?: string;
 
   @IsOptional()
   @IsInt()

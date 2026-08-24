@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, Query, HttpCode, HttpStatus } from '@nestjs/common';
 import { EquipmentService } from './equipment.service';
 import { EquipmentReportService } from './equipment-report.service';
+import { EquipmentCatalogService } from './equipment-catalog.service';
 import { CreateEquipmentDto } from './dto/create-equipment.dto';
 import { UpdateEquipmentDto } from './dto/update-equipment.dto';
 import { AssignEquipmentDto } from './dto/assign-equipment.dto';
@@ -20,7 +21,18 @@ export class EquipmentController {
   constructor(
     private readonly equipmentService: EquipmentService,
     private readonly reportService: EquipmentReportService,
+    private readonly catalogService: EquipmentCatalogService,
   ) {}
+
+  /**
+   * GET /v1/equipment/catalog — pre-built construction equipment types.
+   * Declared before the `:id` routes so "catalog" is not captured as an id.
+   */
+  @Get('catalog')
+  async getCatalog(@CurrentUser() _user: AuthenticatedUser) {
+    const items = await this.catalogService.list();
+    return { data: items };
+  }
 
   @Post()
   @Roles(Role.ADMIN, Role.FLEET_MANAGER)

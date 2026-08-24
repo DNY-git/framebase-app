@@ -20,6 +20,17 @@ const JOB_STATUS_STYLES: Record<string, string> = {
   processing: 'text-info',
 };
 
+/** Extract a readable message from the standard API error envelope. */
+async function readApiError(res: Response): Promise<string> {
+  const body = await res.json().catch(() => null);
+  if (body && typeof body === 'object' && typeof body.message === 'string') {
+    return body.errors?.length
+      ? `${body.message} (${body.errors.map((e: { field: string }) => e.field).join(', ')})`
+      : body.message;
+  }
+  return `Request failed (${res.status})`;
+}
+
 export function AiAssistant({ token }: AiAssistantProps): React.JSX.Element {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -64,7 +75,7 @@ export function AiAssistant({ token }: AiAssistantProps): React.JSX.Element {
       });
 
       if (!res.ok) {
-        throw new Error(await res.text());
+        throw new Error(await readApiError(res));
       }
 
       const json = await res.json();
@@ -107,7 +118,7 @@ export function AiAssistant({ token }: AiAssistantProps): React.JSX.Element {
         },
         body: JSON.stringify({ type: 'summarize' }),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(await readApiError(res));
       const json = await res.json();
       const job = json.data;
       setMessages((prev) => [
@@ -146,7 +157,7 @@ export function AiAssistant({ token }: AiAssistantProps): React.JSX.Element {
         },
         body: JSON.stringify({ type: 'draft_report' }),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(await readApiError(res));
       const json = await res.json();
       const job = json.data;
       setMessages((prev) => [

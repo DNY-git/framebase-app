@@ -58,6 +58,10 @@ export enum ErrorCode {
   AUTH_WEAK_PASSWORD = 'AUTH_WEAK_PASSWORD',
   AUTH_USER_NOT_FOUND = 'AUTH_USER_NOT_FOUND',
   AUTH_INVALID_AVATAR = 'AUTH_INVALID_AVATAR',
+  AUTH_GOOGLE_NOT_CONFIGURED = 'AUTH_GOOGLE_NOT_CONFIGURED',
+  AUTH_GOOGLE_EMAIL_REQUIRED = 'AUTH_GOOGLE_EMAIL_REQUIRED',
+  AUTH_GOOGLE_CODE_INVALID = 'AUTH_GOOGLE_CODE_INVALID',
+  AUTH_GOOGLE_CODE_EXPIRED = 'AUTH_GOOGLE_CODE_EXPIRED',
 
   // Projects
   PROJECT_NOT_FOUND = 'PROJECT_NOT_FOUND',
@@ -362,6 +366,59 @@ export interface DashboardOverview {
     lowStockItems: number;
     totalStockQuantity: number;
   };
+  /**
+   * Financial aggregates derived from existing records:
+   * budget = Σ project.budgetCents, spent = Σ material purchase transactions.
+   */
+  financial: {
+    totalBudgetCents: number;
+    totalSpentCents: number;
+    remainingBudgetCents: number;
+  };
+  /**
+   * Monthly spending vs allocated budget for the last 6 months.
+   * `budget` is the project budget allocated across each project's
+   * active months (startDate→endDate); `spent` is real transaction spend.
+   */
+  spendingTrend: Array<{
+    month: string;
+    monthKey: string;
+    budget: number;
+    spent: number;
+  }>;
+  /** Active projects with time-based progress and budget utilization. */
+  projectProgress: Array<{
+    id: string;
+    name: string;
+    code: string;
+    status: string;
+    progressPercent: number;
+    budgetCents: number;
+    spentCents: number;
+    budgetUtilizationPercent: number;
+  }>;
+  /** Latest material purchase transactions (receive type). */
+  recentExpenses: Array<{
+    id: string;
+    description: string;
+    projectId: string | null;
+    projectName: string | null;
+    materialName: string;
+    amountCents: number;
+    createdAt: Date;
+  }>;
+  /** Latest audit-log entries. */
+  recentActivity: Array<{
+    id: string;
+    action: string;
+    entityType: string;
+    createdAt: Date;
+  }>;
+  /** Daily work-activity counts (audit-log entries per UTC day) — last 16 weeks. */
+  activityHeatmap: Array<{
+    date: string;
+    count: number;
+  }>;
 }
 
 // ============================================================================
@@ -392,6 +449,15 @@ export enum EquipmentStatus {
   RETIRED = 'retired',
 }
 
+/** Shared equipment categories — used by DTO validation, catalog seed data, and UI selects. */
+export enum EquipmentCategory {
+  EARTHMOVING = 'earthmoving',
+  LIFTING = 'lifting',
+  TRANSPORT = 'transport',
+  CONCRETE = 'concrete',
+  POWER = 'power',
+}
+
 export interface EquipmentDomain {
   id: string;
   tenantId: string;
@@ -403,6 +469,13 @@ export interface EquipmentDomain {
   purchaseCostCents?: number;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/** Pre-built construction catalog entry — a TYPE of equipment, not a physical asset. */
+export interface EquipmentCatalogItemDomain {
+  id: string;
+  name: string;
+  category: EquipmentCategory;
 }
 
 export interface EquipmentAssignmentDomain {

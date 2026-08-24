@@ -20,9 +20,15 @@ export interface AppConfig {
   cookieSecret: string;
   cookieSecure: boolean;
   corsAllowedOrigins: string[];
+  googleClientId: string;
+  googleClientSecret: string;
+  googleCallbackUrl: string;
+  webUrl: string;
   aiProvider: string;
   aiMaxTokens: number;
   aiRequestTimeoutMs: number;
+  geminiApiKey: string;
+  geminiModel?: string;
   rateLimitAuthLimit: number;
   rateLimitAuthTtl: number;
   rateLimitPublicLimit: number;
@@ -53,9 +59,17 @@ export const configuration = (): AppConfig => ({
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean),
+  googleClientId: process.env.GOOGLE_CLIENT_ID ?? '',
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
+  googleCallbackUrl:
+    process.env.GOOGLE_CALLBACK_URL ??
+    'http://localhost:4000/api/v1/auth/google/callback',
+  webUrl: process.env.WEB_URL ?? 'http://localhost:5173',
   aiProvider: process.env.AI_PROVIDER ?? 'none',
   aiMaxTokens: parseInt(process.env.AI_MAX_TOKENS ?? '1000', 10),
   aiRequestTimeoutMs: parseInt(process.env.AI_REQUEST_TIMEOUT_MS ?? '15000', 10),
+  geminiApiKey: process.env.GEMINI_API_KEY ?? '',
+  geminiModel: process.env.GEMINI_MODEL || undefined,
   rateLimitAuthLimit: parseInt(process.env.RATE_LIMIT_AUTH_LIMIT ?? '30', 10),
   rateLimitAuthTtl: parseInt(process.env.RATE_LIMIT_AUTH_TTL ?? '60000', 10),
   rateLimitPublicLimit: parseInt(process.env.RATE_LIMIT_PUBLIC_LIMIT ?? '20', 10),

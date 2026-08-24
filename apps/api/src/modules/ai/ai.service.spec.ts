@@ -4,6 +4,8 @@ import { ConfigService } from '@nestjs/config';
 import { AiService } from './ai.service';
 import { AiJobRepository } from './repositories/ai-job.repository';
 import { AiFeedbackRepository } from './repositories/ai-feedback.repository';
+import { InventoryService } from '../inventory/inventory.service';
+import { ProjectRepository } from '../projects/repositories/project.repository';
 import { AuthContext } from '../../common/authorization/authorization.types';
 import { Role, AiJobStatus, AiJobType, AiCompletionResponse } from '@constructtrack/types';
 
@@ -36,6 +38,21 @@ describe('AiService', () => {
     create: vi.fn(),
   };
 
+  const mockInventoryService = {
+    sumCostCentsByProjectAndMonth: vi.fn().mockResolvedValue([
+      { projectId: 'p1', monthKey: '2026-08', total: 500000 },
+      { projectId: null, monthKey: '2026-07', total: 250000 },
+    ]),
+  };
+
+  const mockProjectRepo = {
+    find: vi.fn().mockResolvedValue({
+      items: [
+        { id: 'p1', name: 'Tower A', status: 'active', budgetCents: 10000000 },
+      ],
+    }),
+  };
+
   const mockProvider = {
     complete: vi.fn().mockResolvedValue(mockResponse),
   };
@@ -59,6 +76,8 @@ describe('AiService', () => {
         { provide: AiFeedbackRepository, useValue: mockFeedbackRepo },
         { provide: 'AI_PROVIDER', useValue: mockProvider },
         { provide: ConfigService, useFactory: mockConfigService },
+        { provide: InventoryService, useValue: mockInventoryService },
+        { provide: ProjectRepository, useValue: mockProjectRepo },
       ],
     }).compile();
 
@@ -79,6 +98,33 @@ describe('AiService', () => {
         type: 'query',
       }));
       expect(mockProvider.complete).toHaveBeenCalled();
+      expect(mockJobRepo.update).toHaveBeenCalledWith('tenant-1', 'job-1', expect.objectContaining({
+        status: AiJobStatus.SUCCEEDED,
+      }));
+    });
+
+    it('grounds the query in real expense data (zero-padded month keys)', async () => {
+      mockJobRepo.create.mockResolvedValue({ id: 'job-1' });
+      mockJobRepo.update.mockResolvedValue(undefined);
+
+      await service.query(auth, { question: 'can you summarize the expenses' });
+
+      const request = mockProvider.complete.mock.calls[0][0];
+      expect(request.groundingContext).toContain('ORGANIZATION FINANCIAL SNAPSHOT');
+      expect(request.groundingContext).toContain('2026-08=500000');
+      expect(request.groundingContext).toContain('Total material-purchase spend');
+      expect(request.groundingContext).toContain('Tower A');
+    });
+
+    it('still answers when grounding data cannot be loaded', async () => {
+      mockJobRepo.create.mockResolvedValue({ id: 'job-1' });
+      mockJobRepo.update.mockResolvedValue(undefined);
+      mockInventoryService.sumCostCentsByProjectAndMonth.mockRejectedValue(new Error('db down'));
+
+      await service.query(auth, { question: 'test' });
+
+      const request = mockProvider.complete.mock.calls[0][0];
+      expect(request.groundingContext).toBe('');
       expect(mockJobRepo.update).toHaveBeenCalledWith('tenant-1', 'job-1', expect.objectContaining({
         status: AiJobStatus.SUCCEEDED,
       }));

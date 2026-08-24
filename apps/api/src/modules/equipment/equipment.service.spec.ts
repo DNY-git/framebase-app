@@ -1,5 +1,5 @@
 import { EquipmentService } from './equipment.service';
-import { Role, EquipmentStatus, MaintenanceStatus } from '@constructtrack/types';
+import { Role, EquipmentStatus, MaintenanceStatus, EquipmentCategory } from '@constructtrack/types';
 import { DomainException } from '../../common/exceptions/domain.exception';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
@@ -99,7 +99,7 @@ describe('EquipmentService', () => {
       equipmentRepo.exists.mockResolvedValue(false);
       equipmentRepo.create.mockResolvedValue(mockEquipment);
 
-      const dto = { name: 'Excavator', serialNumber: 'SN123', category: 'Heavy' };
+      const dto = { name: 'Excavator', serialNumber: 'SN123', category: EquipmentCategory.EARTHMOVING };
       const result = await service.create(mockAuthContext, dto);
 
       expect(result).toEqual(mockEquipment);
