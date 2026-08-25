@@ -6,11 +6,14 @@ import { BaseRepository } from '../../../database/base.repository';
 import { InventoryTransactionDomain, TransactionType, TenantId, PaginationOptions, PaginatedResponse } from '@constructtrack/types';
 import { CreateTransactionDto } from '../dto/create-transaction.dto';
 
+/** Create shape — callers must attribute the movement to the acting user. */
+export type CreateInventoryTransactionData = CreateTransactionDto & { actorId: string };
+
 @Injectable()
 export class InventoryTransactionRepository extends BaseRepository<
   InventoryTransactionDomain,
   InventoryTransactionDocument,
-  CreateTransactionDto,
+  CreateInventoryTransactionData,
   Record<string, unknown>
 > {
   constructor(
@@ -38,7 +41,7 @@ export class InventoryTransactionRepository extends BaseRepository<
 
   protected toCreateDoc(
     tenantId: TenantId,
-    data: CreateTransactionDto,
+    data: CreateInventoryTransactionData,
   ): Partial<InventoryTransactionDocument> {
     return {
       tenantId,
@@ -49,7 +52,7 @@ export class InventoryTransactionRepository extends BaseRepository<
       taskId: data.taskId,
       costCents: data.costCents,
       note: data.note,
-      actorId: '',
+      actorId: data.actorId,
     };
   }
 

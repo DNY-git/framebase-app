@@ -14,6 +14,7 @@ import { Unauthorized } from './pages/Unauthorized';
 import { UiLab } from './pages/UiLab';
 import { Dashboard } from './features/dashboard/Dashboard';
 import { EquipmentList } from './features/equipment/EquipmentList';
+import { EquipmentDetailPage } from './features/equipment/EquipmentDetailPage';
 import { MaterialList } from './features/inventory/MaterialList';
 import { TransactionLedger } from './features/inventory/TransactionLedger';
 import { DeliveryForm } from './features/inventory/DeliveryForm';
@@ -104,7 +105,8 @@ export function App(): React.JSX.Element {
               <Route path="tasks" element={<TaskBoard />} />
               <Route path="tasks/:taskId" element={<TaskDetail />} />
               <Route path="tasks/consumption" element={<TokenAware>{(t) => <TaskConsumption token={t} />}</TokenAware>} />
-              <Route path="equipment" element={<TokenAware>{(t) => <EquipmentList token={t} />}</TokenAware>} />
+              <Route path="equipment" element={<EquipmentList />} />
+              <Route path="equipment/:id" element={<TokenAware>{(t) => <EquipmentDetailPage token={t} />}</TokenAware>} />
               <Route path="inventory" element={<MaterialList />} />
               <Route path="inventory/transactions" element={<TransactionLedger />} />
               <Route path="inventory/deliveries" element={<DeliveryForm />} />

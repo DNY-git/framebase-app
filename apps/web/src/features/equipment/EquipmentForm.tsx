@@ -344,12 +344,12 @@ export function EquipmentForm({ onClose, onSaved, equipment, inline = false }: E
 
   if (inline) {
     return (
-      <div className="mt-4 rounded-lg border border-gray-200 bg-surface-muted/30 p-1">
-        <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3">
-          <h3 className="text-sm font-semibold text-gray-900">Edit Equipment</h3>
+      <div className="mt-4 rounded-lg border border-border bg-surface-muted/30 p-1">
+        <div className="flex items-center justify-between border-b border-border px-5 py-3">
+          <h3 className="text-sm font-semibold text-foreground">Edit Equipment</h3>
           <button
             onClick={onClose}
-            className="rounded-lg p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+            className="rounded-lg p-1 text-foreground-muted hover:bg-surface-muted hover:text-foreground"
             aria-label="Close"
           >
             <X className="h-5 w-5" />

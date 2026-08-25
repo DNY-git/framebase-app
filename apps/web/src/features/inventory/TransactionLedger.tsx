@@ -46,15 +46,21 @@ export function TransactionLedger() {
         authFetch('/api/v1/materials', { signal: controller.signal }),
         authFetch('/api/v1/materials/catalog', { signal: controller.signal }),
       ]);
-      if (!txRes.ok) throw new Error('Failed to fetch transactions');
-      if (!matRes.ok) throw new Error('Failed to fetch materials');
-      if (!catRes.ok) throw new Error('Failed to fetch material catalog');
-      const txJson = await txRes.json();
-      const matJson = await matRes.json();
-      const catJson = await catRes.json();
-      setTransactions(unwrapList<InventoryTransactionDomain>(txJson));
-      setMaterials(unwrapList<MaterialDomain>(matJson));
-      setCatalogItems(unwrapList<MaterialCatalogItemDomain>(catJson));
+      const [txJson, matJson, catJson] = await Promise.all([
+        txRes.json().catch(() => null),
+        matRes.json().catch(() => null),
+        catRes.json().catch(() => null),
+      ]);
+      const serverMessage = (body: unknown): string | null =>
+        (body && typeof body === 'object' && 'message' in body
+          ? String((body as { message: unknown }).message)
+          : null);
+      if (!txRes.ok) throw new Error(serverMessage(txJson) ?? 'Failed to fetch transactions');
+      if (!matRes.ok) throw new Error(serverMessage(matJson) ?? 'Failed to fetch materials');
+      if (!catRes.ok) throw new Error(serverMessage(catJson) ?? 'Failed to fetch material catalog');
+      setTransactions(unwrapList<InventoryTransactionDomain>(txJson ?? { data: [] }));
+      setMaterials(unwrapList<MaterialDomain>(matJson ?? { data: [] }));
+      setCatalogItems(unwrapList<MaterialCatalogItemDomain>(catJson ?? { data: [] }));
     } catch (err: unknown) {
       if ((err as Error).name !== 'AbortError') {
         setError((err as Error).message);

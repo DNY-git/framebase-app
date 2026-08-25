@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { EquipmentDomain } from '@constructtrack/types';
 import { EquipmentStatus } from '@constructtrack/types';
-import { EquipmentDetail } from './EquipmentDetail';
 import { EquipmentForm } from './EquipmentForm';
 import { authFetch } from '../../auth-fetch';
 import { unwrapList, formatCurrency, formatDate } from '../../utils';
@@ -42,9 +42,9 @@ const STATUS_OPTIONS = [
   { value: EquipmentStatus.RETIRED, label: 'Retired' },
 ];
 
-export function EquipmentList({ token }: { token: string }) {
+export function EquipmentList() {
+  const navigate = useNavigate();
   const [equipment, setEquipment] = useState<EquipmentDomain[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchInput, setSearchInput] = useState('');
@@ -58,11 +58,10 @@ export function EquipmentList({ token }: { token: string }) {
     try {
       const res = await authFetch('/api/v1/equipment', { signal: controller.signal });
       if (!res.ok) throw new Error('Failed to fetch equipment');
-      const json = (await res.json()) as EquipmentEnvelope;
+       const json = (await res.json()) as EquipmentEnvelope;
       const envelope = json as unknown as import('../../utils').PaginatedEnvelope<EquipmentDomain>;
       const items = unwrapList<EquipmentDomain>(envelope);
       setEquipment(items);
-      setSelectedId((current) => current ?? items[0]?.id ?? null);
     } catch (err: unknown) {
       if ((err as Error).name !== 'AbortError') {
         setError((err as Error).message);
@@ -86,8 +85,6 @@ export function EquipmentList({ token }: { token: string }) {
       eq.category?.toLowerCase().includes(q)
     );
   });
-
-  const selectedEquipment = filteredEquipment.find((item) => item.id === selectedId) ?? filteredEquipment[0];
 
   return (
     <div className="space-y-6">
@@ -164,15 +161,11 @@ export function EquipmentList({ token }: { token: string }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredEquipment.map((eq) => {
-                  const isSelected = eq.id === selectedEquipment?.id;
-                  return (
+                {filteredEquipment.map((eq) => (
                     <tr
                       key={eq.id}
-                      onClick={() => setSelectedId(eq.id)}
-                      className={`cursor-pointer transition-colors hover:bg-surface-muted/50 ${
-                        isSelected ? 'bg-primary/5' : ''
-                      }`}
+                      onClick={() => navigate(`/equipment/${eq.id}`)}
+                      className="cursor-pointer transition-colors hover:bg-surface-muted/50"
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
@@ -203,15 +196,12 @@ export function EquipmentList({ token }: { token: string }) {
                         {typeof eq.purchaseCostCents === 'number' ? formatCurrency(eq.purchaseCostCents) : '—'}
                       </td>
                     </tr>
-                  );
-                })}
+                  ))}
               </tbody>
             </table>
           </div>
         </ContentCard>
       )}
-
-      {selectedEquipment && <EquipmentDetail token={token} equipment={selectedEquipment} />}
 
       {showForm && (
         <EquipmentForm

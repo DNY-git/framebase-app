@@ -169,23 +169,23 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
   const utilizationPercent = Math.min(100, Math.max(0, utilization?.utilizationPercentage ?? 0));
 
   return (
-    <section className="bg-white p-5 rounded shadow border border-gray-200">
-      <div className="flex flex-col gap-3 border-b border-gray-200 pb-4 md:flex-row md:items-start md:justify-between">
+    <section className="bg-surface p-5 rounded-xl shadow-sm border border-border">
+      <div className="flex flex-col gap-3 border-b border-border pb-4 md:flex-row md:items-start md:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{current.category}</p>
-          <h2 className="text-xl font-bold text-gray-900">{current.name}</h2>
-          <p className="text-sm text-gray-500">Serial {current.serialNumber}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-foreground-muted">{current.category}</p>
+          <h2 className="text-xl font-bold text-foreground">{current.name}</h2>
+          <p className="text-sm text-foreground-muted">Serial {current.serialNumber}</p>
         </div>
-        <div className="flex items-start gap-3 text-sm text-gray-600">
+        <div className="flex items-start gap-3 text-sm text-foreground-muted">
           <div>
-            <div className="font-medium text-gray-900">{formatCurrency(current.purchaseCostCents)}</div>
+            <div className="font-medium text-foreground">{formatCurrency(current.purchaseCostCents)}</div>
             <div>Acquired {formatDate(current.purchaseDate)}</div>
           </div>
           {!isEditing && (
             <button
               type="button"
               onClick={() => setIsEditing(true)}
-              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100"
+              className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted"
             >
               Edit
             </button>
@@ -193,7 +193,7 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
         </div>
       </div>
 
-      {error ? <div className="mt-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
+      {error ? <div className="mt-4 rounded-lg border border-danger/20 bg-danger/5 p-3 text-sm text-danger">{error}</div> : null}
 
       {isEditing && (
         <EquipmentForm
@@ -212,7 +212,7 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
         <div className="mt-5 space-y-5">
           <div className="grid gap-4 md:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="rounded border border-gray-200 p-4">
+              <div key={i} className="rounded-lg border border-border p-4">
                 <Skeleton className="h-3 w-16" />
                 <Skeleton className="mt-2 h-6 w-10" />
               </div>
@@ -230,33 +230,33 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
       {!isEditing && (
         <>
           <div className="mt-5 grid gap-4 md:grid-cols-4">
-            <div className="rounded border border-gray-200 p-4">
-              <div className="text-xs font-medium uppercase text-gray-500">Utilization</div>
-              <div className="mt-2 text-2xl font-bold text-gray-900">{utilizationPercent.toFixed(1)}%</div>
+            <div className="rounded-lg border border-border p-4">
+              <div className="text-xs font-medium uppercase text-foreground-muted">Utilization</div>
+              <div className="mt-2 text-2xl font-bold text-foreground">{utilizationPercent.toFixed(1)}%</div>
             </div>
-            <div className="rounded border border-gray-200 p-4">
-              <div className="text-xs font-medium uppercase text-gray-500">Hours Used</div>
-              <div className="mt-2 text-2xl font-bold text-gray-900">{utilization?.utilizationHours ?? 0}</div>
+            <div className="rounded-lg border border-border p-4">
+              <div className="text-xs font-medium uppercase text-foreground-muted">Hours Used</div>
+              <div className="mt-2 text-2xl font-bold text-foreground">{utilization?.utilizationHours ?? 0}</div>
             </div>
-            <div className="rounded border border-gray-200 p-4">
-              <div className="text-xs font-medium uppercase text-gray-500">Available Hours</div>
-              <div className="mt-2 text-2xl font-bold text-gray-900">{utilization?.totalHours ?? 0}</div>
+            <div className="rounded-lg border border-border p-4">
+              <div className="text-xs font-medium uppercase text-foreground-muted">Available Hours</div>
+              <div className="mt-2 text-2xl font-bold text-foreground">{utilization?.totalHours ?? 0}</div>
             </div>
-            <div className="rounded border border-gray-200 p-4">
-              <div className="text-xs font-medium uppercase text-gray-500">Downtime</div>
-              <div className="mt-2 text-2xl font-bold text-gray-900">{utilization?.downTimeHours ?? 0}</div>
+            <div className="rounded-lg border border-border p-4">
+              <div className="text-xs font-medium uppercase text-foreground-muted">Downtime</div>
+              <div className="mt-2 text-2xl font-bold text-foreground">{utilization?.downTimeHours ?? 0}</div>
             </div>
           </div>
 
           <div className="mt-5">
-            <div className="h-3 overflow-hidden rounded bg-gray-100">
+            <div className="h-3 overflow-hidden rounded bg-surface-muted">
               <div
-                className="h-full rounded bg-emerald-600"
+                className="h-full rounded bg-success"
                 style={{ width: `${utilizationPercent}%` }}
                 aria-label={`Utilization ${utilizationPercent.toFixed(1)} percent`}
               />
             </div>
-            <div className="mt-2 flex justify-between text-xs text-gray-500">
+            <div className="mt-2 flex justify-between text-xs text-foreground-muted">
               <span>{dateRange.from}</span>
               <span>{dateRange.to}</span>
             </div>
@@ -264,30 +264,30 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
 
           <div className="mt-6 grid gap-5 lg:grid-cols-2">
             <section>
-              <h3 className="text-sm font-bold text-gray-900">Maintenance Timeline</h3>
-              <div className="mt-3 divide-y divide-gray-200 rounded border border-gray-200">
+              <h3 className="text-sm font-bold text-foreground">Maintenance Timeline</h3>
+              <div className="mt-3 divide-y divide-border rounded-lg border border-border">
                 {[...maintenanceAlerts, ...maintenanceHistory].length === 0 ? (
-                  <div className="p-3 text-sm text-gray-500">No maintenance records for this equipment.</div>
+                  <div className="p-3 text-sm text-foreground-muted">No maintenance records for this equipment.</div>
                 ) : (
                   <>
                     {maintenanceAlerts.map((alert) => (
                       <div key={`alert-${alert.id}`} className="p-3 text-sm">
                         <div className="flex items-center justify-between gap-3">
-                          <span className="font-medium text-gray-900">{alert.type}</span>
-                          <span className={alert.isOverdue ? 'text-red-700' : 'text-amber-700'}>
+                          <span className="font-medium text-foreground">{alert.type}</span>
+                          <span className={alert.isOverdue ? 'text-danger' : 'text-warning'}>
                             {alert.isOverdue ? 'Overdue' : `${alert.daysUntilDue} days`}
                           </span>
                         </div>
-                        <div className="text-gray-500">Due {formatDate(alert.nextDueAt)}</div>
+                        <div className="text-foreground-muted">Due {formatDate(alert.nextDueAt)}</div>
                       </div>
                     ))}
                     {maintenanceHistory.map((record) => (
                       <div key={`history-${record.id}`} className="p-3 text-sm">
                         <div className="flex items-center justify-between gap-3">
-                          <span className="font-medium text-gray-900">{record.type}</span>
-                          <span className="text-gray-500">{record.status}</span>
+                          <span className="font-medium text-foreground">{record.type}</span>
+                          <span className="text-foreground-muted">{record.status}</span>
                         </div>
-                        <div className="text-gray-500">{formatDate(record.date ?? record.nextDueAt)}</div>
+                        <div className="text-foreground-muted">{formatDate(record.date ?? record.nextDueAt)}</div>
                       </div>
                     ))}
                   </>
@@ -296,18 +296,18 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
             </section>
 
             <section>
-              <h3 className="text-sm font-bold text-gray-900">Usage Timeline</h3>
-              <div className="mt-3 divide-y divide-gray-200 rounded border border-gray-200">
+              <h3 className="text-sm font-bold text-foreground">Usage Timeline</h3>
+              <div className="mt-3 divide-y divide-border rounded-lg border border-border">
                 {usageTimeline.length === 0 ? (
-                  <div className="p-3 text-sm text-gray-500">No usage logged in this range.</div>
+                  <div className="p-3 text-sm text-foreground-muted">No usage logged in this range.</div>
                 ) : (
                   usageTimeline.map((log) => (
                     <div key={log.id} className="flex items-center justify-between gap-3 p-3 text-sm">
                       <div>
-                        <div className="font-medium text-gray-900">{formatDate(log.date)}</div>
-                        <div className="text-gray-500">{log.notes ?? 'Usage log'}</div>
+                        <div className="font-medium text-foreground">{formatDate(log.date)}</div>
+                        <div className="text-foreground-muted">{log.notes ?? 'Usage log'}</div>
                       </div>
-                      <div className="font-semibold text-gray-900">{log.hoursUsed}h</div>
+                      <div className="font-semibold text-foreground">{log.hoursUsed}h</div>
                     </div>
                   ))
                 )}
@@ -316,15 +316,15 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
           </div>
 
           <section className="mt-5">
-            <h3 className="text-sm font-bold text-gray-900">Downtime</h3>
-            <div className="mt-3 divide-y divide-gray-200 rounded border border-gray-200">
+            <h3 className="text-sm font-bold text-foreground">Downtime</h3>
+            <div className="mt-3 divide-y divide-border rounded-lg border border-border">
               {downtimeHistory.length === 0 ? (
-                <div className="p-3 text-sm text-gray-500">No downtime recorded.</div>
+                <div className="p-3 text-sm text-foreground-muted">No downtime recorded.</div>
               ) : (
                 downtimeHistory.map((log) => (
                   <div key={log.id} className="flex flex-col gap-1 p-3 text-sm md:flex-row md:items-center md:justify-between">
-                    <div className="font-medium text-gray-900">{log.reason}</div>
-                    <div className="text-gray-500">
+                    <div className="font-medium text-foreground">{log.reason}</div>
+                    <div className="text-foreground-muted">
                       {formatDate(log.startDate)} to {formatDate(log.endDate)}
                     </div>
                   </div>

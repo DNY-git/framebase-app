@@ -244,6 +244,7 @@ export class InventoryService {
     const transaction = await this.transactionRepository.create(auth.tenantId, {
       ...dto,
       type: dto.type,
+      actorId: auth.userId,
     });
 
     this.auditService.record({
@@ -316,7 +317,8 @@ export class InventoryService {
       materialId: dto.materialId,
       costCents: dto.costCents,
       note: `Delivery from ${dto.supplier}`,
-    } as CreateTransactionDto);
+      actorId: auth.userId,
+    });
 
     // Atomic increment — no read-then-write race condition.
     await this.stockLevelRepository.atomicIncrement(
