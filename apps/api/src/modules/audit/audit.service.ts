@@ -11,7 +11,7 @@
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { AuditLog, AuditLogDocument } from '../../schemas/audit-log.schema';
 import { PaginatedResponse, PaginationOptions, AuditLogDomain } from '@constructtrack/types';
 
@@ -129,6 +129,8 @@ export class AuditService {
   /**
    * Counts audit-log entries per UTC calendar day since `since`.
    * Powers the dashboard activity heatmap with real recorded work activity.
+   * Mongoose does NOT cast aggregation stages — tenantId is stored as an
+   * ObjectId, so the JWT's string value must be cast explicitly.
    */
   async countByDay(
     tenantId: string,
@@ -138,7 +140,7 @@ export class AuditService {
       _id: string;
       count: number;
     }>([
-      { $match: { tenantId, createdAt: { $gte: since } } },
+      { $match: { tenantId: new Types.ObjectId(tenantId), createdAt: { $gte: since } } },
       {
         $group: {
           _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },

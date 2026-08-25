@@ -109,11 +109,11 @@ export function EquipmentForm({ onClose, onSaved, equipment, inline = false }: E
     [catalogItems, selectedCatalogId],
   );
 
-  /** Live preview of the amount as it will be stored (cents). */
+  /** Live preview of the entered amount, formatted as currency. */
   const costPreview = useMemo(() => {
     const major = parseFloat(purchaseCost);
     if (!Number.isFinite(major) || major < 0) return null;
-    return Math.round(major * 100).toLocaleString('en-US');
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(major);
   }, [purchaseCost]);
 
   function switchSource(next: 'catalog' | 'custom') {
@@ -316,7 +316,7 @@ export function EquipmentForm({ onClose, onSaved, equipment, inline = false }: E
           />
           {costPreview !== null && (
             <p className="mt-1 text-xs text-foreground-muted">
-              Stored as {costPreview} cents
+              You entered {costPreview}
             </p>
           )}
         </div>

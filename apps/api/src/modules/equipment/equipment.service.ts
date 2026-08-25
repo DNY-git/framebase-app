@@ -15,6 +15,7 @@ import { EquipmentUsageLogRepository } from './repositories/equipment-usage-log.
 import { MaintenanceRecordRepository } from './repositories/maintenance-record.repository';
 import { DowntimeLogRepository } from './repositories/downtime-log.repository';
 import { CreateUsageLogDto } from './dto/create-usage-log.dto';
+import { UpdateUsageLogDto } from './dto/update-usage-log.dto';
 import { CreateMaintenanceRecordDto } from './dto/create-maintenance-record.dto';
 import { UpdateMaintenanceRecordDto } from './dto/update-maintenance-record.dto';
 import { CreateDowntimeLogDto } from './dto/create-downtime-log.dto';
@@ -190,6 +191,42 @@ export class EquipmentService {
     const usagePayload = { ...(dto as CreateUsageLogDto), equipmentId: id } as CreateUsageLogDto & { equipmentId: string };
     const log = await this.usageLogRepository.create(auth.tenantId, usagePayload);
     return log;
+  }
+
+  /**
+   * Correct a recorded usage entry (Hours Used is derived from these logs —
+   * editing them is the supported way to change reported hours/utilization).
+   */
+  async updateUsageLog(
+    auth: AuthContext,
+    id: string,
+    logId: string,
+    dto: UpdateUsageLogDto,
+  ): Promise<EquipmentUsageLogDomain> {
+    this.assertFleetManager(auth);
+    await this.findById(auth, id); // Ensure equipment exists
+
+    const before = await this.usageLogRepository.findById(auth.tenantId, logId);
+    if (!before || before.equipmentId !== id) {
+      throw new DomainException(ErrorCode.EQUIPMENT_NOT_FOUND, HttpStatus.NOT_FOUND, 'Usage log not found');
+    }
+
+    const updated = await this.usageLogRepository.update(auth.tenantId, logId, dto);
+    if (!updated) {
+      throw new DomainException(ErrorCode.EQUIPMENT_NOT_FOUND, HttpStatus.NOT_FOUND, 'Usage log not found');
+    }
+
+    this.auditService.record({
+      tenantId: auth.tenantId,
+      actorId: auth.userId,
+      action: 'equipment.usage_log.update',
+      entityType: 'equipment_usage_log',
+      entityId: logId,
+      before: before as unknown as Record<string, unknown>,
+      after: updated as unknown as Record<string, unknown>,
+    });
+
+    return updated;
   }
 
   async getUsageLogs(auth: AuthContext, id: string, options: PaginationOptions): Promise<PaginatedResponse<EquipmentUsageLogDomain>> {

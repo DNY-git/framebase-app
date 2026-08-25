@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type {
   DowntimeLogDomain,
   EquipmentDomain,
@@ -97,6 +97,16 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
   const [downtimeHistory, setDowntimeHistory] = useState<DowntimeLogDomain[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [usageError, setUsageError] = useState<string | null>(null);
+  const [usageSaving, setUsageSaving] = useState(false);
+  const [editingUsageId, setEditingUsageId] = useState<string | null>(null);
+  const [editingDraft, setEditingDraft] = useState<{ date: string; hoursUsed: string }>({ date: '', hoursUsed: '' });
+  const [showAddUsage, setShowAddUsage] = useState(false);
+  const [addDraft, setAddDraft] = useState<{ date: string; hoursUsed: string }>(() => ({
+    date: new Date().toISOString().slice(0, 10),
+    hoursUsed: '',
+  }));
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Keep local state in sync when the selected equipment changes.
   useEffect(() => {
@@ -164,7 +174,71 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
     return () => {
       isActive = false;
     };
-  }, [dateRange.from, dateRange.to, current.id, token]);
+  }, [dateRange.from, dateRange.to, current.id, token, refreshKey]);
+
+  // Hours Used / Utilization are derived from usage logs, so saving one
+  // must re-run the detail queries to refresh every derived figure.
+  const refreshDerivedData = useCallback(() => {
+    setRefreshKey((k) => k + 1);
+  }, []);
+
+  async function saveUsageEntry(url: string, method: 'POST' | 'PATCH', body: Record<string, unknown>) {
+    setUsageSaving(true);
+    setUsageError(null);
+    try {
+      const res = await authFetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => null);
+        throw new Error(errBody?.message ?? 'Failed to save usage entry');
+      }
+      setShowAddUsage(false);
+      setEditingUsageId(null);
+      setAddDraft({ date: new Date().toISOString().slice(0, 10), hoursUsed: '' });
+      refreshDerivedData();
+    } catch (err) {
+      setUsageError((err as Error).message);
+    } finally {
+      setUsageSaving(false);
+    }
+  }
+
+  function startEditingUsage(log: EquipmentUsageLogDomain) {
+    setShowAddUsage(false);
+    setUsageError(null);
+    setEditingUsageId(log.id);
+    setEditingDraft({
+      date: new Date(log.date).toISOString().slice(0, 10),
+      hoursUsed: String(log.hoursUsed),
+    });
+  }
+
+  function submitEditedUsage(id: string) {
+    const hours = parseFloat(editingDraft.hoursUsed);
+    if (!Number.isFinite(hours) || hours < 0) {
+      setUsageError('Hours used must be zero or a positive number');
+      return;
+    }
+    void saveUsageEntry(`/api/v1/equipment/${current.id}/usage/${id}`, 'PATCH', {
+      date: editingDraft.date,
+      hoursUsed: hours,
+    });
+  }
+
+  function submitNewUsage() {
+    const hours = parseFloat(addDraft.hoursUsed);
+    if (!Number.isFinite(hours) || hours <= 0) {
+      setUsageError('Hours used must be a positive number');
+      return;
+    }
+    void saveUsageEntry(`/api/v1/equipment/${current.id}/usage`, 'POST', {
+      date: addDraft.date,
+      hoursUsed: hours,
+    });
+  }
 
   const utilizationPercent = Math.min(100, Math.max(0, utilization?.utilizationPercentage ?? 0));
 
@@ -296,20 +370,135 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
             </section>
 
             <section>
-              <h3 className="text-sm font-bold text-foreground">Usage Timeline</h3>
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-bold text-foreground">Usage Timeline</h3>
+                {!showAddUsage && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingUsageId(null);
+                      setUsageError(null);
+                      setShowAddUsage(true);
+                    }}
+                    className="rounded-lg border border-border px-3 py-1 text-xs font-medium text-foreground transition-colors hover:bg-surface-muted"
+                  >
+                    + Log usage
+                  </button>
+                )}
+              </div>
+              {usageError && (
+                <div className="mt-3 rounded-lg border border-danger/20 bg-danger/5 p-2.5 text-sm text-danger">{usageError}</div>
+              )}
+              {showAddUsage && (
+                <div className="mt-3 space-y-2 rounded-lg border border-border bg-surface-muted/40 p-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="block text-xs font-medium text-foreground-muted">
+                      Date
+                      <input
+                        type="date"
+                        value={addDraft.date}
+                        onChange={(e) => setAddDraft((d) => ({ ...d, date: e.target.value }))}
+                        className="mt-1 h-9 w-full rounded-lg border border-border bg-surface px-2 text-sm font-normal text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                    </label>
+                    <label className="block text-xs font-medium text-foreground-muted">
+                      Hours used
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.5"
+                        value={addDraft.hoursUsed}
+                        onChange={(e) => setAddDraft((d) => ({ ...d, hoursUsed: e.target.value }))}
+                        placeholder="e.g. 7.5"
+                        className="mt-1 h-9 w-full rounded-lg border border-border bg-surface px-2 text-sm font-normal text-foreground placeholder:text-foreground-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                    </label>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { setShowAddUsage(false); setUsageError(null); }}
+                      className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-muted"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={usageSaving}
+                      onClick={() => submitNewUsage()}
+                      className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                    >
+                      {usageSaving ? 'Saving...' : 'Save entry'}
+                    </button>
+                  </div>
+                </div>
+              )}
               <div className="mt-3 divide-y divide-border rounded-lg border border-border">
-                {usageTimeline.length === 0 ? (
+                {usageTimeline.length === 0 && !showAddUsage ? (
                   <div className="p-3 text-sm text-foreground-muted">No usage logged in this range.</div>
                 ) : (
-                  usageTimeline.map((log) => (
-                    <div key={log.id} className="flex items-center justify-between gap-3 p-3 text-sm">
-                      <div>
-                        <div className="font-medium text-foreground">{formatDate(log.date)}</div>
-                        <div className="text-foreground-muted">{log.notes ?? 'Usage log'}</div>
+                  usageTimeline.map((log) =>
+                    editingUsageId === log.id ? (
+                      <div key={log.id} className="space-y-2 p-3">
+                        <div className="grid grid-cols-2 gap-2">
+                          <label className="block text-xs font-medium text-foreground-muted">
+                            Date
+                            <input
+                              type="date"
+                              value={editingDraft.date}
+                              onChange={(e) => setEditingDraft((d) => ({ ...d, date: e.target.value }))}
+                              className="mt-1 h-9 w-full rounded-lg border border-border bg-surface px-2 text-sm font-normal text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                            />
+                          </label>
+                          <label className="block text-xs font-medium text-foreground-muted">
+                            Hours used
+                            <input
+                              type="number"
+                              min={0}
+                              step="0.5"
+                              value={editingDraft.hoursUsed}
+                              onChange={(e) => setEditingDraft((d) => ({ ...d, hoursUsed: e.target.value }))}
+                              className="mt-1 h-9 w-full rounded-lg border border-border bg-surface px-2 text-sm font-normal text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                            />
+                          </label>
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => { setEditingUsageId(null); setUsageError(null); }}
+                            className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-muted"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            disabled={usageSaving}
+                            onClick={() => submitEditedUsage(log.id)}
+                            className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                          >
+                            {usageSaving ? 'Saving...' : 'Save'}
+                          </button>
+                        </div>
                       </div>
-                      <div className="font-semibold text-foreground">{log.hoursUsed}h</div>
-                    </div>
-                  ))
+                    ) : (
+                      <div key={log.id} className="flex items-center justify-between gap-3 p-3 text-sm">
+                        <div>
+                          <div className="font-medium text-foreground">{formatDate(log.date)}</div>
+                          <div className="text-foreground-muted">{log.notes ?? 'Usage log'}</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="font-semibold text-foreground">{log.hoursUsed}h</div>
+                          <button
+                            type="button"
+                            onClick={() => startEditingUsage(log)}
+                            className="rounded-lg border border-border px-2 py-1 text-xs font-medium text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground"
+                          >
+                            Edit
+                          </button>
+                        </div>
+                      </div>
+                    ),
+                  )
                 )}
               </div>
             </section>

@@ -47,13 +47,18 @@ export function ProjectForm({ project, onClose, onSaved }: ProjectFormProps) {
     setIsLoading(true);
     setError(null);
 
+    // Form collects major currency units; backend stores integer cents.
+    const budgetMajorNum = parseFloat(budgetCents);
     const payload: Record<string, unknown> = {
       name,
       description: description || undefined,
       phase: phase || undefined,
       startDate: startDate || undefined,
       endDate: endDate || undefined,
-      budgetCents: budgetCents ? parseInt(budgetCents, 10) : undefined,
+      budgetCents:
+        Number.isFinite(budgetMajorNum) && budgetMajorNum >= 0
+          ? Math.round(budgetMajorNum * 100)
+          : undefined,
       location: location || undefined,
     };
 
@@ -193,15 +198,16 @@ export function ProjectForm({ project, onClose, onSaved }: ProjectFormProps) {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="p-budget" className="mb-1.5 block text-sm font-medium text-foreground">Budget (cents)</label>
+              <label htmlFor="p-budget" className="mb-1.5 block text-sm font-medium text-foreground">Budget</label>
               <input
                 id="p-budget"
                 type="number"
                 value={budgetCents}
                 onChange={(e) => setBudgetCents(e.target.value)}
                 min={0}
+                step="0.01"
                 className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground placeholder:text-foreground-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                placeholder="e.g. 12500000"
+                placeholder="e.g. 125000.00"
               />
             </div>
             <div>

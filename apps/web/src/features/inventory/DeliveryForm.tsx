@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { DeliveryReceiptDomain, MaterialDomain } from '@constructtrack/types';
 import { unwrapList, formatDate, formatCurrency } from '../../utils';
 import { authFetch } from '../../auth-fetch';
 import { FilterDropdown } from '../../shared/components/FilterDropdown';
 import { Skeleton } from '../../shared/components/Skeleton';
-import { Loader2, CheckCircle } from '../../shared/components/icons';
+import { Loader2, CheckCircle, ArrowLeft } from '../../shared/components/icons';
 
 export function DeliveryForm() {
   const [deliveries, setDeliveries] = useState<DeliveryReceiptDomain[]>([]);
@@ -15,7 +16,7 @@ export function DeliveryForm() {
   const [supplier, setSupplier] = useState('');
   const [materialId, setMaterialId] = useState('');
   const [quantity, setQuantity] = useState('');
-  const [costCents, setCostCents] = useState('');
+  const [costMajor, setCostMajor] = useState('');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -24,10 +25,16 @@ export function DeliveryForm() {
     setError(null);
     const controller = new AbortController();
     try {
-      const res = await authFetch('/api/v1/materials', { signal: controller.signal });
-      if (!res.ok) throw new Error('Failed to fetch materials');
-      const json = await res.json();
-      setMaterials(unwrapList<MaterialDomain>(json));
+      // Recent deliveries come from the server so history persists across visits.
+      const [matRes, delRes] = await Promise.all([
+        authFetch('/api/v1/materials', { signal: controller.signal }),
+        authFetch('/api/v1/deliveries?perPage=20', { signal: controller.signal }),
+      ]);
+      if (!matRes.ok) throw new Error('Failed to fetch materials');
+      if (!delRes.ok) throw new Error('Failed to fetch deliveries');
+      const [matJson, delJson] = await Promise.all([matRes.json(), delRes.json()]);
+      setMaterials(unwrapList<MaterialDomain>(matJson));
+      setDeliveries(unwrapList<DeliveryReceiptDomain>(delJson));
     } catch (err: unknown) {
       if ((err as Error).name !== 'AbortError') {
         setError((err as Error).message);
@@ -56,7 +63,11 @@ export function DeliveryForm() {
       const quantityNum = parseInt(quantity, 10);
       if (isNaN(quantityNum) || quantityNum <= 0) throw new Error('Quantity must be a positive number');
       const body: Record<string, unknown> = { supplier, materialId, quantity: quantityNum };
-      if (costCents) body.costCents = parseInt(costCents, 10);
+      // Form collects major currency units (e.g. dollars); backend stores cents.
+      const costMajorNum = parseFloat(costMajor);
+      if (Number.isFinite(costMajorNum) && costMajorNum > 0) {
+        body.costCents = Math.round(costMajorNum * 100);
+      }
       if (notes) body.notes = notes;
 
       const res = await authFetch('/api/v1/deliveries', {
@@ -77,7 +88,7 @@ export function DeliveryForm() {
       setSupplier('');
       setMaterialId('');
       setQuantity('');
-      setCostCents('');
+      setCostMajor('');
       setNotes('');
     } catch (err) {
       setError((err as Error).message);
@@ -91,7 +102,13 @@ export function DeliveryForm() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Deliveries</h1>
+        <Link
+          to="/inventory"
+          className="inline-flex items-center gap-2 text-sm font-medium text-foreground-muted transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" /> Back to inventory
+        </Link>
+        <h1 className="mt-3 text-2xl font-bold text-foreground">Deliveries</h1>
         <p className="mt-1 text-sm text-foreground-muted">Record and track material deliveries</p>
       </div>
 
@@ -121,8 +138,8 @@ export function DeliveryForm() {
               <input id="del-quantity" type="number" min={1} value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground placeholder:text-foreground-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" required />
             </div>
             <div>
-              <label htmlFor="del-cost" className="mb-1.5 block text-sm font-medium text-foreground">Cost (cents, optional)</label>
-              <input id="del-cost" type="number" min={0} value={costCents} onChange={(e) => setCostCents(e.target.value)} className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground placeholder:text-foreground-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
+              <label htmlFor="del-cost" className="mb-1.5 block text-sm font-medium text-foreground">Cost (optional)</label>
+              <input id="del-cost" type="number" min={0} step="0.01" value={costMajor} onChange={(e) => setCostMajor(e.target.value)} className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground placeholder:text-foreground-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" placeholder="0.00" />
             </div>
             <div>
               <label htmlFor="del-notes" className="mb-1.5 block text-sm font-medium text-foreground">Notes (optional)</label>

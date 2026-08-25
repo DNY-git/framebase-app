@@ -22,8 +22,6 @@ export function TransactionLedger() {
   const [catalogItems, setCatalogItems] = useState<MaterialCatalogItemDomain[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [filterMaterialId, setFilterMaterialId] = useState('');
-  const [filterType, setFilterType] = useState('');
   const [formType, setFormType] = useState<string>('receive');
   const [formQuantity, setFormQuantity] = useState('');
   const [formMaterialId, setFormMaterialId] = useState('');
@@ -142,10 +140,8 @@ export function TransactionLedger() {
 
   async function applyFilters() {
     try {
-      const params = new URLSearchParams();
-      if (filterMaterialId) params.set('materialId', filterMaterialId);
-      if (filterType) params.set('type', filterType);
-      const res = await authFetch(`/api/v1/inventory/transactions?${params}`);
+      // Filters were removed — always load the full default list.
+      const res = await authFetch('/api/v1/inventory/transactions');
       if (!res.ok) throw new Error('Failed to fetch transactions');
       const json = await res.json();
       setTransactions(unwrapList<InventoryTransactionDomain>(json));
@@ -164,7 +160,11 @@ export function TransactionLedger() {
       const body: Record<string, unknown> = { type: formType, quantity, materialId: formMaterialId };
       if (formProjectId) body.projectId = formProjectId;
       if (formNote) body.note = formNote;
-      if (formCostCents) body.costCents = parseInt(formCostCents, 10);
+      // Form collects major currency units; backend stores cents.
+      const costMajorNum = parseFloat(formCostCents);
+      if (Number.isFinite(costMajorNum) && costMajorNum > 0) {
+        body.costCents = Math.round(costMajorNum * 100);
+      }
 
       const res = await authFetch('/api/v1/inventory/transactions', {
         method: 'POST',
@@ -197,36 +197,6 @@ export function TransactionLedger() {
 
       <div className="grid gap-5 lg:grid-cols-[1fr_380px]">
         <section className="rounded-xl border border-border bg-surface p-5 shadow-sm">
-          <div className="mb-4 flex flex-wrap items-center gap-3">
-            <FilterDropdown
-              value={filterMaterialId}
-              onChange={setFilterMaterialId}
-              placeholder="All materials"
-              className="w-full sm:w-52"
-              options={[
-                { value: '', label: 'All materials' },
-                ...materials.map((m) => ({ value: m.id, label: `${m.name} (${m.sku})` })),
-              ]}
-            />
-            <FilterDropdown
-              value={filterType}
-              onChange={setFilterType}
-              placeholder="All types"
-              className="w-full sm:w-40"
-              options={[
-                { value: '', label: 'All types' },
-                ...TRANSACTION_TYPES.map((t) => ({ value: t, label: t })),
-              ]}
-            />
-            <button
-              type="button"
-              onClick={() => { void applyFilters(); }}
-              className="h-10 rounded-lg border border-border bg-surface px-4 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted"
-            >
-              Filter
-            </button>
-          </div>
-
           {error && (
             <div className="mb-4 rounded-lg border border-danger/20 bg-danger/5 p-3 text-sm text-danger">
               {error}
@@ -347,8 +317,8 @@ export function TransactionLedger() {
               <input id="tx-project" type="text" value={formProjectId} onChange={(e) => setFormProjectId(e.target.value)} className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground placeholder:text-foreground-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
             </div>
             <div>
-              <label htmlFor="tx-cost" className="mb-1.5 block text-sm font-medium text-foreground">Cost (cents, optional)</label>
-              <input id="tx-cost" type="number" min={0} value={formCostCents} onChange={(e) => setFormCostCents(e.target.value)} className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground placeholder:text-foreground-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
+              <label htmlFor="tx-cost" className="mb-1.5 block text-sm font-medium text-foreground">Cost (optional)</label>
+              <input id="tx-cost" type="number" min={0} step="0.01" value={formCostCents} onChange={(e) => setFormCostCents(e.target.value)} className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground placeholder:text-foreground-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" placeholder="0.00" />
             </div>
             <div>
               <label htmlFor="tx-note" className="mb-1.5 block text-sm font-medium text-foreground">Note (optional)</label>

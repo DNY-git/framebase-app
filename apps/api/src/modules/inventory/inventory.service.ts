@@ -270,7 +270,7 @@ export class InventoryService {
   /** Aggregated purchase spend by project and month (dashboard spending trend). */
   async sumCostCentsByProjectAndMonth(
     auth: AuthContext,
-    options: { since: Date },
+    options: { since?: Date } = {},
   ): Promise<Array<{ projectId: string | null; monthKey: string; total: number }>> {
     return this.transactionRepository.sumCostCentsByProjectAndMonth(auth.tenantId, options);
   }
@@ -346,5 +346,13 @@ export class InventoryService {
     }
 
     return delivery;
+  }
+
+  /** Recent deliveries across the tenant, newest first (Inventory UI history). */
+  async findDeliveries(
+    auth: AuthContext,
+    options: PaginationOptions,
+  ): Promise<PaginatedResponse<DeliveryReceiptDomain>> {
+    return this.deliveryRepository.find(auth.tenantId, {}, options);
   }
 }

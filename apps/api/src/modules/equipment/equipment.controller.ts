@@ -6,6 +6,7 @@ import { CreateEquipmentDto } from './dto/create-equipment.dto';
 import { UpdateEquipmentDto } from './dto/update-equipment.dto';
 import { AssignEquipmentDto } from './dto/assign-equipment.dto';
 import { CreateUsageLogDto } from './dto/create-usage-log.dto';
+import { UpdateUsageLogDto } from './dto/update-usage-log.dto';
 import { CreateMaintenanceRecordDto } from './dto/create-maintenance-record.dto';
 import { UpdateMaintenanceRecordDto } from './dto/update-maintenance-record.dto';
 import { CreateDowntimeLogDto } from './dto/create-downtime-log.dto';
@@ -91,6 +92,18 @@ export class EquipmentController {
   @HttpCode(HttpStatus.CREATED)
   async logUsage(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: CreateUsageLogDto) {
     const log = await this.equipmentService.logUsage(user, id, dto);
+    return { data: log };
+  }
+
+  /** Correct a usage entry — Hours Used/Utilization derive from these logs. */
+  @Patch(':id/usage/:logId')
+  async updateUsageLog(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('logId') logId: string,
+    @Body() dto: UpdateUsageLogDto,
+  ) {
+    const log = await this.equipmentService.updateUsageLog(user, id, logId, dto);
     return { data: log };
   }
 

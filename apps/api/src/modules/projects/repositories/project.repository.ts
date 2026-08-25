@@ -11,7 +11,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, FilterQuery } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { BaseRepository } from '../../../database/base.repository';
 import { Project, ProjectDocument } from '../../../schemas/project.schema';
 import {
@@ -99,13 +99,31 @@ export class ProjectRepository extends BaseRepository<
     return this.find(tenantId, filter, options);
   }
 
-  /** Sums budgetCents across projects matching the filter (used by dashboard KPIs). */
+  /**
+   * Sums budgetCents across projects matching the filter (used by dashboard KPIs).
+   * Mongoose does NOT cast values inside aggregation stages — tenantId and
+   * _id members must be ObjectIds here, unlike find()/countDocuments().
+   */
   async sumBudgetCents(
     tenantId: TenantId,
     filter: Record<string, unknown> = {},
   ): Promise<number> {
+    const { _id, ...rest } = filter;
+    const match: Record<string, unknown> = {
+      tenantId: new Types.ObjectId(tenantId),
+      ...rest,
+    };
+    if (_id && typeof _id === 'object' && Array.isArray((_id as { $in?: unknown[] }).$in)) {
+      match._id = {
+        $in: ((_id as { $in: unknown[] }).$in).map(
+          (id) => new Types.ObjectId(id as string),
+        ),
+      };
+    } else if (_id !== undefined) {
+      match._id = _id;
+    }
     const rows = await this.model.aggregate<{ total: number }>([
-      { $match: { tenantId, ...filter } as FilterQuery<ProjectDocument> },
+      { $match: match },
       { $group: { _id: null, total: { $sum: { $ifNull: ['$budgetCents', 0] } } } },
     ]);
     return rows.length > 0 ? rows[0].total : 0;

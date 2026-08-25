@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, FilterQuery } from 'mongoose';
+import { Model, FilterQuery, Types } from 'mongoose';
 import { InventoryTransaction, InventoryTransactionDocument } from '../../../schemas/inventory-transaction.schema';
 import { BaseRepository } from '../../../database/base.repository';
 import { InventoryTransactionDomain, TransactionType, TenantId, PaginationOptions, PaginatedResponse } from '@constructtrack/types';
@@ -135,21 +135,27 @@ export class InventoryTransactionRepository extends BaseRepository<
   /**
    * Aggregates purchase cost (receive transactions with costCents) by
    * project and by calendar month. Used by the dashboard spending trend.
+   * When `since` is omitted, aggregates over all history.
+   *
+   * Mongoose does NOT cast values inside aggregation stages, and these
+   * documents store ObjectId tenantIds — so the JWT's string tenantId must
+   * be cast explicitly or every $match silently matches nothing.
    */
   async sumCostCentsByProjectAndMonth(
     tenantId: string,
-    options: { since: Date },
+    options: { since?: Date } = {},
   ): Promise<Array<{ projectId: string | null; monthKey: string; total: number }>> {
+    const tenantObjectId = new Types.ObjectId(tenantId);
     const rows = await this.model.aggregate<{
       _id: { projectId: string | null; month: string };
       total: number;
     }>([
       {
         $match: {
-          tenantId,
+          tenantId: tenantObjectId,
           type: TransactionType.RECEIVE,
           costCents: { $gt: 0 },
-          createdAt: { $gte: options.since },
+          ...(options.since ? { createdAt: { $gte: options.since } } : {}),
         },
       },
       {

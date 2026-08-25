@@ -79,6 +79,7 @@ export class DashboardService {
       projects,
       totalBudgetCents,
       spendRows,
+      allTimeSpendRows,
       recentTransactions,
       materials,
       activity,
@@ -110,15 +111,17 @@ export class DashboardService {
       this.loadProjects(auth, projectFilter),
       this.projectRepo.sumBudgetCents(auth.tenantId, projectFilter),
       this.inventoryService.sumCostCentsByProjectAndMonth(auth, { since: trendStart }),
+      this.inventoryService.sumCostCentsByProjectAndMonth(auth),
       this.loadRecentTransactions(auth),
       this.loadMaterials(auth),
       this.auditService.findAll(auth.tenantId, { page: 1, perPage: RECENT_ACTIVITY }),
       this.auditService.countByDay(auth.tenantId, heatmapStart),
     ]);
 
-    const totalSpentCents = spendRows.reduce((sum, r) => sum + r.total, 0);
+    // Total Spent is all-time ("to date"); the trend uses the 6-month window.
+    const totalSpentCents = allTimeSpendRows.reduce((sum, r) => sum + r.total, 0);
     const spendByProject = new Map<string, number>();
-    for (const r of spendRows) {
+    for (const r of allTimeSpendRows) {
       if (r.projectId) {
         spendByProject.set(r.projectId, (spendByProject.get(r.projectId) ?? 0) + r.total);
       }

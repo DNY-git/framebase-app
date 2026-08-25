@@ -141,6 +141,17 @@ export class InventoryController {
     return { data: result };
   }
 
+  @Get('deliveries')
+  async findDeliveries(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('page') page?: string,
+    @Query('perPage') perPage?: string,
+  ) {
+    const options = parsePagination(page, perPage);
+    const result = await this.inventoryService.findDeliveries(user, options);
+    return formatPaginatedResponse(result);
+  }
+
   @Get('deliveries/:id')
   async getDeliveryById(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     const delivery = await this.inventoryService.getDeliveryById(

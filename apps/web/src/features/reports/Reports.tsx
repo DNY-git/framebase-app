@@ -297,6 +297,12 @@ export function Reports() {
                       {formatDate(run.createdAt)}
                       {run.completedAt && ` — completed ${formatDate(run.completedAt)}`}
                     </div>
+                    {run.status === 'failed' && run.errorMessage && (
+                      <div className="mt-1 text-xs text-danger">Error: {run.errorMessage}</div>
+                    )}
+                    {run.status === 'succeeded' && run.resultUrl && (
+                      <div className="mt-1 text-xs text-foreground-muted">Output: {run.resultUrl}</div>
+                    )}
                   </div>
                 </div>
               );
@@ -417,6 +423,10 @@ function GenerateReportModal({ templates, onClose, onSaved }: { templates: Repor
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!templateId) {
+      setError('Select a template first');
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
@@ -448,7 +458,13 @@ function GenerateReportModal({ templates, onClose, onSaved }: { templates: Repor
         <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
           {error && <div className="rounded-lg border border-danger/20 bg-danger/5 p-3 text-sm text-danger">{error}</div>}
           {templates.length === 0 ? (
-            <p className="text-sm text-foreground-muted">No templates available. Create one first.</p>
+            <div className="rounded-lg border border-border bg-surface-muted/40 p-4 text-sm text-foreground-muted">
+              <p className="font-medium text-foreground">No report templates yet</p>
+              <p className="mt-1">
+                A report is generated from a template. Use the “New Template” button first, then come back here to
+                generate a report from it.
+              </p>
+            </div>
           ) : (
             <div>
               <label htmlFor="rpt-template" className="mb-1.5 block text-sm font-medium text-foreground">Template *</label>
