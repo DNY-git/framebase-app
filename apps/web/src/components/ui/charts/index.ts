@@ -29,6 +29,7 @@ export {
 
 export { AreaChart, type AreaChartProps } from "./area-chart";
 export { Area, type AreaProps } from "./area";
+export { BarChart, type BarChartProps, Bar, type BarProps, BarXAxis, type BarXAxisProps } from "./bar-chart";
 export { PatternArea, type PatternAreaProps } from "./pattern-area";
 export {
   AreaChartLoading,

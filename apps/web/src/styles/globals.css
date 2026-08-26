@@ -74,6 +74,7 @@
   --radius: 0.5rem;
   --chart-line-primary: #52525b;
   --chart-line-secondary: #0ea5e9;
+  --chart-line-spent: #d97706;
   --heatmap-0: #f4f4f5;
   --heatmap-1: #e4e4e7;
   --heatmap-2: #d4d4d8;
@@ -147,6 +148,7 @@
   --radius: 0.5rem;
   --chart-line-primary: #a1a1aa;
   --chart-line-secondary: #38bdf8;
+  --chart-line-spent: #f59e0b;
   --heatmap-0: #18181b;
   --heatmap-1: #27272a;
   --heatmap-2: #3f3f46;

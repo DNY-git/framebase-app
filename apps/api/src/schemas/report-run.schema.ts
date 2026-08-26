@@ -22,6 +22,13 @@ export class ReportRun implements Omit<ReportRunDomain, 'id'> {
   @Prop({ type: String })
   resultUrl?: string;
 
+  @Prop({ type: SchemaTypes.Mixed })
+  resultData?: {
+    type: string;
+    generatedAt: string;
+    sections: Array<{ title: string; content: string }>;
+  } | null;
+
   @Prop({ type: String })
   errorMessage?: string;
 

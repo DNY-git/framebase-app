@@ -33,6 +33,13 @@ export interface AppConfig {
   rateLimitAuthTtl: number;
   rateLimitPublicLimit: number;
   rateLimitPublicTtl: number;
+  smtpHost: string | null;
+  smtpPort: number;
+  smtpSecure: boolean;
+  smtpUser: string;
+  smtpPass: string;
+  mailFrom: string;
+  invitationTtl: string;
 }
 
 export const configuration = (): AppConfig => ({
@@ -74,4 +81,13 @@ export const configuration = (): AppConfig => ({
   rateLimitAuthTtl: parseInt(process.env.RATE_LIMIT_AUTH_TTL ?? '60000', 10),
   rateLimitPublicLimit: parseInt(process.env.RATE_LIMIT_PUBLIC_LIMIT ?? '20', 10),
   rateLimitPublicTtl: parseInt(process.env.RATE_LIMIT_PUBLIC_TTL ?? '60000', 10),
+  // SMTP is optional — when absent, invite emails are skipped and the UI
+  // falls back to copyable accept links (never a fake "sent" state).
+  smtpHost: process.env.SMTP_HOST || null,
+  smtpPort: parseInt(process.env.SMTP_PORT ?? '587', 10),
+  smtpSecure: process.env.SMTP_SECURE === 'true',
+  smtpUser: process.env.SMTP_USER ?? '',
+  smtpPass: process.env.SMTP_PASS ?? '',
+  mailFrom: process.env.MAIL_FROM ?? 'FrameBase <no-reply@framebase.local>',
+  invitationTtl: process.env.INVITATION_TTL ?? '72h',
 });

@@ -156,7 +156,15 @@ export function Team() {
         throw new Error(body?.message ?? 'Failed to create invitation');
       }
       setInviteEmail('');
-      setInviteSuccess('Invitation sent.');
+      // Reflect real delivery state — never fake a "sent" confirmation.
+      if (body?.data?.emailSent) {
+        setInviteSuccess(`Invitation emailed to ${body.data.email ?? inviteEmail}.`);
+      } else {
+        setInviteSuccess(
+          body?.data?.emailError ??
+            'Invitation created — email delivery is not configured, copy the accept link below.',
+        );
+      }
       await loadAll();
     } catch (err) {
       setInviteError((err as Error).message);
@@ -449,7 +457,8 @@ export function Team() {
               </button>
             </form>
             <p className="mt-2 text-xs text-foreground-muted">
-              The invitee receives a development acceptance link (production email delivery is added later).
+              Invitations are emailed when SMTP is configured (SMTP_* in the API .env); otherwise copy the accept
+              link and share it manually. Links expire after 72 hours by default (INVITATION_TTL).
             </p>
           </section>
 
@@ -494,7 +503,7 @@ export function Team() {
                           onClick={() => handleCopyLink(inv.devAcceptUrl)}
                           className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-muted"
                         >
-                          <Copy className="h-3.5 w-3.5" /> Dev link
+                          <Copy className="h-3.5 w-3.5" /> Copy link
                         </button>
                         {!expired && (
                           <button

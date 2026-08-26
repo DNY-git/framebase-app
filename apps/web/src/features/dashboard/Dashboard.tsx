@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom';
 import {
   Area,
   AreaChart,
+  Bar,
+  BarChart,
+  BarXAxis,
   ChartTooltip,
   Grid,
   XAxis,
@@ -126,44 +129,57 @@ function SectionCard({
   );
 }
 
-function progressColor(progress: number): string {
-  if (progress >= 70) return 'bg-success';
-  if (progress >= 40) return 'bg-warning';
-  return 'bg-danger';
+/** SVG-friendly fill token for progress thresholds (green/amber/red). */
+function progressFill(progress: number): string {
+  if (progress >= 70) return 'var(--success)';
+  if (progress >= 40) return 'var(--warning)';
+  return 'var(--danger)';
 }
 
 /**
- * Compact horizontal-free bar chart for project progress. Built from divs
- * (no charting lib exists for bars) so it stays theme-token-driven and
- * never overflows its grid cell. Each bar links to its project.
+ * Project progress rendered with the shared `BarChart` composition — one bar
+ * per active project, value = timeline progress percent. Colors carry the
+ * same semantic thresholds as the rest of the app (green/amber/red).
  */
 function ProjectProgressChart({
   projects,
 }: {
   projects: DashboardOverview['projectProgress'];
 }) {
+  const progressData = useMemo(
+    () =>
+      projects.map((project) => ({
+        day: project.code,
+        fill: progressFill(project.progressPercent),
+        name: project.name,
+        value: project.progressPercent,
+      })),
+    [projects],
+  );
+
   return (
-    <div className="flex h-48 items-end gap-2">
-      {projects.map((project) => (
-        <Link
-          key={project.id}
-          to={`/projects/${project.id}`}
-          className="group flex min-w-0 flex-1 flex-col items-center justify-end gap-1"
-          title={`${project.name} — ${project.progressPercent}%`}
-        >
-          <span className="text-xs font-semibold tabular-nums text-foreground">
-            {project.progressPercent}%
-          </span>
-          <div
-            className={`w-full rounded-t ${progressColor(project.progressPercent)} transition-all duration-500`}
-            style={{ height: `${Math.min(Math.max(project.progressPercent, 2), 100)}%` }}
-          />
-          <span className="w-full truncate text-center font-mono text-[10px] uppercase text-foreground-muted">
-            {project.code}
-          </span>
-        </Link>
-      ))}
-    </div>
+    <BarChart
+      aspectRatio="4 / 1"
+      barGap={0.1}
+      data={progressData}
+      margin={{ top: 8, right: 8, bottom: 40, left: 8 }}
+      xDataKey="day"
+    >
+      <Grid horizontal />
+      <Bar dataKey="value" lineCap="butt" />
+      <BarXAxis maxLabels={8} />
+      <ChartTooltip
+        showDatePill={false}
+        rows={(point) => [
+          {
+            color:
+              typeof point.fill === 'string' ? point.fill : 'var(--chart-line-primary)',
+            label: (point.name as string) ?? (point.day as string),
+            value: `${point.value}%`,
+          },
+        ]}
+      />
+    </BarChart>
   );
 }
 
@@ -325,7 +341,7 @@ export function Dashboard(): React.JSX.Element {
         </div>
 
         {/* Main analytics */}
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid items-start gap-4 lg:grid-cols-3">
           {/* Spending / Budget chart */}
           <SectionCard
             className="lg:col-span-2 min-w-0"
@@ -338,7 +354,7 @@ export function Dashboard(): React.JSX.Element {
                   Budget
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: 'var(--chart-line-secondary)' }} />
+                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: 'var(--chart-line-spent)' }} />
                   Spent
                 </span>
               </div>
@@ -361,8 +377,8 @@ export function Dashboard(): React.JSX.Element {
                   />
                   <Area
                     dataKey="spent"
-                    fill="var(--chart-line-secondary)"
-                    stroke="var(--chart-line-secondary)"
+                    fill="var(--chart-line-spent)"
+                    stroke="var(--chart-line-spent)"
                     fillOpacity={0.2}
                     strokeWidth={2}
                   />
@@ -375,7 +391,7 @@ export function Dashboard(): React.JSX.Element {
                         value: formatCents((p.budget as number) ?? 0),
                       },
                       {
-                        color: 'var(--chart-line-secondary)',
+                        color: 'var(--chart-line-spent)',
                         label: 'Spent',
                         value: formatCents((p.spent as number) ?? 0),
                       },
@@ -396,6 +412,7 @@ export function Dashboard(): React.JSX.Element {
 
           {/* Project progress */}
           <SectionCard className="min-w-0" title="Project Progress" description="Active projects by timeline progress">
+            <div className="overflow-hidden">
             {data.projectProgress.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center rounded-lg border border-border bg-surface-muted/30 py-12 text-center">
                 <FolderKanban className="mb-2 h-8 w-8 text-foreground-muted/30" />
@@ -405,6 +422,7 @@ export function Dashboard(): React.JSX.Element {
             ) : (
               <ProjectProgressChart projects={data.projectProgress} />
             )}
+            </div>
           </SectionCard>
         </div>
 
@@ -428,7 +446,7 @@ export function Dashboard(): React.JSX.Element {
         </SectionCard>
 
         {/* Recent expenses + activity */}
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid items-start gap-4 lg:grid-cols-3">
           <SectionCard
             className="lg:col-span-2"
             title="Recent Expenses"

@@ -496,7 +496,7 @@ function AppearanceTab() {
   return (
     <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
       <h3 className="mb-1 text-sm font-semibold text-foreground">Appearance</h3>
-      <p className="mb-5 text-xs text-foreground-muted">Choose how Framebase looks on your device</p>
+      <p className="mb-5 text-xs text-foreground-muted">Choose how FrameBase looks on your device</p>
 
       <div className="grid gap-3 sm:grid-cols-3 max-w-2xl">
         {options.map(({ value, icon: Icon, title, description }) => {

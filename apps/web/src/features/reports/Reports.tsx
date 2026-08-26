@@ -22,6 +22,8 @@ import {
   Clock,
   AlertTriangle,
   MapPin,
+  Download,
+  Trash,
   X,
 } from '../../shared/components/icons';
 
@@ -87,6 +89,54 @@ interface PaginatedResponse<T> {
 function formatDate(d?: Date | string | null): string {
   if (!d) return '—';
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+/**
+ * Opens a self-contained print-friendly document (browser "Save as PDF"
+ * works from the print dialog — no extra PDF dependency needed).
+ */
+function printRun(run: ReportRunDomain, templateName: string): void {
+  const sections = run.resultData?.sections ?? [];
+  const win = window.open('', '_blank', 'width=800,height=900');
+  if (!win) return;
+  const esc = (s: unknown): string =>
+    String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  win.document.write(`<!doctype html>
+<html><head><meta charset="utf-8" /><title>${esc(templateName)} — ${esc(formatDate(run.createdAt))}</title>
+<style>
+  body { font-family: ui-sans-serif, system-ui, sans-serif; margin: 48px; color: #18181b; }
+  h1 { font-size: 20px; margin: 0; }
+  .meta { color: #71717a; font-size: 12px; margin-top: 4px; }
+  section { margin-top: 24px; }
+  h2 { font-size: 14px; margin: 0 0 6px; text-transform: uppercase; letter-spacing: .05em; color: #52525b; }
+  p { font-size: 13px; line-height: 1.6; white-space: pre-wrap; margin: 0; }
+  hr { border: 0; border-top: 1px solid #e4e4e7; margin: 24px 0; }
+</style></head>
+<body>
+<h1>${esc(templateName)}</h1>
+<div class="meta">Generated ${esc(formatDate(run.createdAt))}${run.completedAt ? ` &middot; Completed ${esc(formatDate(run.completedAt))}` : ''} &middot; Status: ${esc(run.status)}</div>
+<hr />
+${sections.length === 0
+    ? `<section><p>No stored output content is available for this report run (generated before content persistence was added).</p></section>`
+    : sections.map((s) => `<section><h2>${esc(s.title)}</h2><p>${esc(s.content)}</p></section>`).join('\n')}
+</body></html>`);
+  win.document.close();
+  win.focus();
+  win.print();
+}
+
+async function deleteTemplate(id: string, name: string, onError: (message: string) => void, onDeleted: () => void): Promise<void> {
+  if (!window.confirm(`Delete template "${name}"? Templates with generated runs cannot be deleted.`)) return;
+  try {
+    const res = await authFetch(`/api/v1/reports/templates/${id}`, { method: 'DELETE' });
+    if (!res.ok && res.status !== 204) {
+      const body = await res.json().catch(() => null);
+      throw new Error(body?.message ?? 'Failed to delete template');
+    }
+    onDeleted();
+  } catch (err) {
+    onError((err as Error).message);
+  }
 }
 
 const RUN_STATUS_STYLES: Record<string, string> = {
@@ -234,8 +284,29 @@ export function Reports() {
                 {t.description && (
                   <p className="text-xs text-foreground-muted line-clamp-2">{t.description}</p>
                 )}
-                <div className="mt-3 text-xs text-foreground-muted">
-                  Created {formatDate(t.createdAt)}
+                <div className="mt-3 flex items-center justify-between">
+                  <div className="text-xs text-foreground-muted">
+                    Created {formatDate(t.createdAt)}
+                  </div>
+                  {canCreate && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void deleteTemplate(t.id, t.name, setError, () => {
+                          fetchTemplates();
+                          fetchRuns();
+                        })
+                      }
+                      title={
+                        runs.some((r) => r.templateId === t.id)
+                          ? 'This template has generated runs — delete those first'
+                          : 'Delete template'
+                      }
+                      className="rounded-lg border border-danger/20 p-1.5 text-danger transition-colors hover:bg-danger/5"
+                    >
+                      <Trash className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -304,6 +375,15 @@ export function Reports() {
                       <div className="mt-1 text-xs text-foreground-muted">Output: {run.resultUrl}</div>
                     )}
                   </div>
+                  {run.status === 'succeeded' && (
+                    <button
+                      type="button"
+                      onClick={() => printRun(run, templates.find((t) => t.id === run.templateId)?.name ?? 'Report')}
+                      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-muted"
+                    >
+                      <Download className="h-3.5 w-3.5" /> Print / PDF
+                    </button>
+                  )}
                 </div>
               );
             })}

@@ -58,7 +58,7 @@ export function MobileSidebar() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
               <HardHat className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="text-lg font-bold text-sidebar-foreground">Framebase</span>
+            <span className="text-lg font-bold text-sidebar-foreground">FrameBase</span>
           </div>
           <button
             onClick={closeMobile}

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, Query, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Query, Delete, HttpCode, HttpStatus } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { CreateReportTemplateDto } from './dto/create-report-template.dto';
 import { GenerateReportDto } from './dto/generate-report.dto';
@@ -37,6 +37,13 @@ export class ReportsController {
   async findTemplateById(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     const template = await this.reportsService.findTemplateById(user, id);
     return { data: template };
+  }
+
+  @Delete('templates/:id')
+  @Roles(Role.ADMIN, Role.PROJECT_MANAGER)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteTemplate(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    await this.reportsService.deleteTemplate(user, id);
   }
 
   // ====== Runs ======

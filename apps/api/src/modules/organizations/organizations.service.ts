@@ -26,6 +26,7 @@ import { AuditService } from '../audit/audit.service';
 import { PasswordService } from '../auth/password.service';
 import { TokenService } from '../auth/token.service';
 import type { AuthResult } from '../auth/auth.service';
+import { MailerService } from '../../common/mailer/mailer.service';
 import { TenantRepository } from '../auth/repositories/tenant.repository';
 import { UserRepository } from '../auth/repositories/user.repository';
 import { MembershipRepository } from '../auth/repositories/membership.repository';
@@ -44,7 +45,8 @@ export interface RequestMeta {
 /** Roles that protect an organization from losing all leadership. */
 const LEADERSHIP_ROLES: readonly Role[] = [Role.OWNER, Role.ADMIN];
 
-const INVITATION_TTL_DAYS = 7;
+/** Fallback invite TTL when INVITATION_TTL is unset (matches config default). */
+const DEFAULT_INVITATION_TTL = '72h';
 
 @Injectable()
 export class OrganizationsService {
@@ -59,6 +61,7 @@ export class OrganizationsService {
     private readonly sessionRepository: SessionRepository,
     private readonly invitationRepository: InvitationRepository,
     private readonly auditService: AuditService,
+    private readonly mailerService: MailerService,
     private readonly configService: ConfigService<AppConfig, true>,
   ) {}
 
@@ -419,6 +422,10 @@ export class OrganizationsService {
     status: string;
     expiresAt: Date;
     devAcceptUrl: string;
+    /** True only when SMTP delivery actually succeeded. */
+    emailSent: boolean;
+    /** Why the email was not sent (unconfigured SMTP / transport error). */
+    emailError?: string;
   }> {
     this.assertManagement(auth, 'invite members');
 
@@ -460,7 +467,10 @@ export class OrganizationsService {
     }
 
     const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + INVITATION_TTL_DAYS * 24 * 60 * 60 * 1000);
+    const ttlSeconds = this.ttlToSeconds(
+      this.configService.get('invitationTtl', { infer: true }) ?? DEFAULT_INVITATION_TTL,
+    );
+    const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
 
     const invitation = await this.invitationRepository.create({
       tenantId: auth.tenantId,
@@ -481,13 +491,26 @@ export class OrganizationsService {
       correlationId: '',
     });
 
+    const devAcceptUrl = this.devAcceptUrl(token);
+    const mailResult = await this.mailerService.sendInvitationEmail({
+      to: normalizedEmail,
+      inviteUrl: devAcceptUrl,
+      expiresAt,
+      role,
+    });
+
     return {
       id: invitation.id,
       email: invitation.email,
       role: invitation.role,
       status: invitation.status,
       expiresAt: invitation.expiresAt,
-      devAcceptUrl: this.devAcceptUrl(token),
+      devAcceptUrl,
+      emailSent: mailResult.sent,
+      emailError:
+        !mailResult.sent && mailResult.reason === 'not_configured'
+          ? 'SMTP is not configured — copy the accept link and share it manually.'
+          : (!mailResult.sent ? (mailResult.error ?? 'Email delivery failed.') : undefined),
     };
   }
 

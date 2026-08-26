@@ -70,6 +70,8 @@ describe('EquipmentService', () => {
     usageLogRepo = {
       create: vi.fn(),
       find: vi.fn(),
+      findById: vi.fn(),
+      update: vi.fn(),
     };
 
     maintenanceRepo = {
@@ -290,6 +292,73 @@ describe('EquipmentService', () => {
 
       await expect(service.logUsage(mockAuthContext, 'nonexistent', {} as never))
         .rejects.toThrow(DomainException);
+    });
+  });
+
+  describe('updateUsageLog', () => {
+    const existingLog = {
+      id: 'ul-1',
+      tenantId: 'tenant-1',
+      equipmentId: 'eq-1',
+      date: new Date('2026-08-01'),
+      hoursUsed: 4,
+    };
+
+    it('updates hours used and writes an audit record', async () => {
+      equipmentRepo.findById.mockResolvedValue(mockEquipment);
+      usageLogRepo.findById.mockResolvedValue(existingLog);
+      const updatedLog = { ...existingLog, hoursUsed: 7.5 };
+      usageLogRepo.update.mockResolvedValue(updatedLog);
+
+      const result = await service.updateUsageLog(mockAuthContext, 'eq-1', 'ul-1', {
+        hoursUsed: 7.5,
+      });
+
+      expect(result).toEqual(updatedLog);
+      expect(usageLogRepo.update).toHaveBeenCalledWith(
+        'tenant-1',
+        'ul-1',
+        expect.objectContaining({ hoursUsed: 7.5 }),
+      );
+      expect(auditService.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'equipment.usage_log.update',
+          entityId: 'ul-1',
+          before: existingLog,
+          after: updatedLog,
+        }),
+      );
+    });
+
+    it('allows any authenticated tenant role (mirrors logUsage)', async () => {
+      equipmentRepo.findById.mockResolvedValue(mockEquipment);
+      usageLogRepo.findById.mockResolvedValue(existingLog);
+      usageLogRepo.update.mockResolvedValue({ ...existingLog, hoursUsed: 6 });
+
+      await expect(
+        service.updateUsageLog({ ...mockAuthContext, role: Role.CREW }, 'eq-1', 'ul-1', {
+          hoursUsed: 6,
+        }),
+      ).resolves.toMatchObject({ hoursUsed: 6 });
+    });
+
+    it('throws NotFoundException when the log does not belong to the equipment', async () => {
+      equipmentRepo.findById.mockResolvedValue(mockEquipment);
+      usageLogRepo.findById.mockResolvedValue({ ...existingLog, equipmentId: 'other-eq' });
+
+      await expect(
+        service.updateUsageLog(mockAuthContext, 'eq-1', 'ul-1', { hoursUsed: 1 }),
+      ).rejects.toThrow(DomainException);
+      expect(usageLogRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when the log does not exist', async () => {
+      equipmentRepo.findById.mockResolvedValue(mockEquipment);
+      usageLogRepo.findById.mockResolvedValue(null);
+
+      await expect(
+        service.updateUsageLog(mockAuthContext, 'eq-1', 'missing', { hoursUsed: 1 }),
+      ).rejects.toThrow(DomainException);
     });
   });
 

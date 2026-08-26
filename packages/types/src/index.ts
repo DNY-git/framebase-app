@@ -105,6 +105,7 @@ export enum ErrorCode {
   // Reports
   REPORT_TEMPLATE_NOT_FOUND = 'REPORT_TEMPLATE_NOT_FOUND',
   REPORT_RUN_NOT_FOUND = 'REPORT_RUN_NOT_FOUND',
+  REPORT_TEMPLATE_IN_USE = 'REPORT_TEMPLATE_IN_USE',
 
   // Documents
   DOCUMENT_NOT_FOUND = 'DOCUMENT_NOT_FOUND',
@@ -702,6 +703,12 @@ export interface ReportRunDomain {
   params: Record<string, unknown>;
   resultUrl?: string;
   errorMessage?: string;
+  /** Persisted generated content (sections) for viewing/printing. */
+  resultData?: {
+    type: string;
+    generatedAt: string;
+    sections: Array<{ title: string; content: string }>;
+  } | null;
   requestedBy: string;
   createdAt: Date;
   completedAt?: Date;

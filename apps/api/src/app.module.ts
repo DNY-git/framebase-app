@@ -31,6 +31,7 @@ import { DocumentsModule } from './modules/documents/documents.module';
 import { MetricsModule } from './modules/metrics/metrics.module';
 import { AuthorizationModule } from './common/authorization/authorization.module';
 import { RateLimitModule } from './common/rate-limiter/rate-limit.module';
+import { MailerModule } from './common/mailer/mailer.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { AppController } from './app.controller';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
@@ -45,6 +46,7 @@ import { MetricsInterceptor } from './common/interceptors/metrics.interceptor';
     }),
     DatabaseModule,
     AuditModule,
+    MailerModule,
     AuthModule,
     ProjectsModule,
     TasksModule,

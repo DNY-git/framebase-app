@@ -23,6 +23,7 @@ export class ReportRunRepository extends BaseRepository<ReportRunDomain, ReportR
       status: doc.status,
       params: doc.params,
       resultUrl: doc.resultUrl,
+      resultData: doc.resultData ?? null,
       errorMessage: doc.errorMessage,
       requestedBy: doc.requestedBy,
       createdAt: doc.createdAt,
@@ -44,9 +45,17 @@ export class ReportRunRepository extends BaseRepository<ReportRunDomain, ReportR
     const out: Partial<ReportRunDocument> = {};
     if (data.status !== undefined) out.status = data.status;
     if (data.resultUrl !== undefined) out.resultUrl = data.resultUrl;
+    if (data.resultData !== undefined) out.resultData = data.resultData;
     if (data.errorMessage !== undefined) out.errorMessage = data.errorMessage;
     if (data.completedAt !== undefined) out.completedAt = data.completedAt;
     return out;
+  }
+
+  /** Number of runs generated from a template (delete-guard). */
+  async countByTemplate(tenantId: string, templateId: string): Promise<number> {
+    return this.model
+      .countDocuments({ tenantId, templateId })
+      .exec();
   }
 
   async findByTenant(

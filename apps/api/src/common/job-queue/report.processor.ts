@@ -25,6 +25,11 @@ export interface IReportRunWriter {
     patch: {
       status: ReportStatus;
       resultUrl?: string;
+      resultData?: {
+        type: string;
+        generatedAt: string;
+        sections: Array<{ title: string; content: string }>;
+      } | null;
       errorMessage?: string;
       completedAt?: Date;
     },
@@ -75,10 +80,19 @@ export class ReportProcessor implements IJobProcessor<ReportJobPayload> {
       // Execute report generation based on template type
       const result = await this.generateReportContent(template.type, template.config, params);
 
-      // Transition to SUCCEEDED
+      // Transition to SUCCEEDED — persist the generated content so the UI can
+      // display and print it later (the URL is a local pseudo-reference only).
       await this.runWriter.updateStatus(tenantId, runId, {
         status: ReportStatus.SUCCEEDED,
         resultUrl: result.url,
+        resultData:
+          typeof result.data === 'object' && result.data !== null
+            ? (result.data as {
+                type: string;
+                generatedAt: string;
+                sections: Array<{ title: string; content: string }>;
+              })
+            : null,
         completedAt: new Date(),
       });
 

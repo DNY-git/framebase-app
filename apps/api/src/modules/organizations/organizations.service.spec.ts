@@ -187,6 +187,7 @@ describe('OrganizationsService', () => {
       repos.session as never,
       repos.invitation as never,
       repos.audit as never,
+      { sendInvitationEmail: vi.fn().mockResolvedValue({ sent: false, reason: 'not_configured' }) } as never,
       mockConfigService(),
     );
   });
@@ -471,6 +472,9 @@ describe('OrganizationsService', () => {
         }),
       );
       expect(result.devAcceptUrl).toMatch(/^http:\/\/localhost:5173\/invitations\//);
+      // SMTP not configured in the test env — must report honestly, not fake sent.
+      expect(result.emailSent).toBe(false);
+      expect(result.emailError).toContain('SMTP is not configured');
       expect(repos.audit.record).toHaveBeenCalledWith(
         expect.objectContaining({ action: 'organization.invitation_created' }),
       );

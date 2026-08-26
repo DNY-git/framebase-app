@@ -72,7 +72,7 @@ export function RegisterPage() {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
             <HardHat className="h-7 w-7 text-primary-foreground" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Framebase</h1>
+          <h1 className="text-2xl font-bold text-foreground">FrameBase</h1>
           <p className="mt-1 text-sm text-foreground-muted">Create your account</p>
         </div>
 

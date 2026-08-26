@@ -196,6 +196,8 @@ export class EquipmentService {
   /**
    * Correct a recorded usage entry (Hours Used is derived from these logs —
    * editing them is the supported way to change reported hours/utilization).
+   * Mirrors logUsage's access rule (any authenticated tenant user) so the
+   * person who logged hours can also correct them.
    */
   async updateUsageLog(
     auth: AuthContext,
@@ -203,7 +205,6 @@ export class EquipmentService {
     logId: string,
     dto: UpdateUsageLogDto,
   ): Promise<EquipmentUsageLogDomain> {
-    this.assertFleetManager(auth);
     await this.findById(auth, id); // Ensure equipment exists
 
     const before = await this.usageLogRepository.findById(auth.tenantId, logId);

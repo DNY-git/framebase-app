@@ -54,6 +54,40 @@ export class ReportsService {
     return template;
   }
 
+  /**
+   * Deletes a report template. Safety choice: deletion is BLOCKED while any
+   * report run references the template, so historical runs always keep their
+   * source template (names in Report History never degrade to "Report").
+   * Delete the runs first if the template is truly unwanted.
+   */
+  async deleteTemplate(auth: AuthContext, id: string): Promise<void> {
+    this.assertManager(auth);
+
+    const template = await this.templateRepo.findById(auth.tenantId, id);
+    if (!template) throw new DomainException(ErrorCode.REPORT_TEMPLATE_NOT_FOUND, HttpStatus.NOT_FOUND, 'Report template not found');
+
+    const runCount = await this.runRepo.countByTemplate(auth.tenantId, id);
+    if (runCount > 0) {
+      throw new DomainException(
+        ErrorCode.REPORT_TEMPLATE_IN_USE,
+        HttpStatus.CONFLICT,
+        `This template has ${runCount} generated report ${runCount === 1 ? 'run' : 'runs'} and cannot be deleted. Delete its runs first to keep history consistent.`,
+      );
+    }
+
+    const deleted = await this.templateRepo.delete(auth.tenantId, id);
+    if (!deleted) throw new DomainException(ErrorCode.REPORT_TEMPLATE_NOT_FOUND, HttpStatus.NOT_FOUND, 'Report template not found');
+
+    this.auditService.record({
+      tenantId: auth.tenantId,
+      actorId: auth.userId,
+      action: 'report_template.delete',
+      entityType: 'report_template',
+      entityId: id,
+      before: template as unknown as Record<string, unknown>,
+    });
+  }
+
   // ====== Runs ======
 
   async generateReport(auth: AuthContext, dto: GenerateReportDto): Promise<ReportRunDomain> {

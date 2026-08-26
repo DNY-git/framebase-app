@@ -94,7 +94,9 @@ export class UserRepository {
   ): Promise<UserDomain | null> {
     const set: Record<string, unknown> = {};
     if (data.name !== undefined) set.name = data.name;
-    set.avatarUrl = data.avatarUrl ?? null;
+    // Only touch avatarUrl when explicitly provided — an unconditional
+    // `?? null` here wiped the stored reference on every profile save.
+    if (data.avatarUrl !== undefined) set.avatarUrl = data.avatarUrl;
     const doc = await this.model
       .findByIdAndUpdate(id, { $set: set }, { new: true })
       .exec();

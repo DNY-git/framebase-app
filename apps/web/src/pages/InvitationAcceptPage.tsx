@@ -10,7 +10,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { HardHat, Loader2, AlertCircle, CheckCircle, Building, Shield, ArrowRight } from '../shared/components/icons';
+import { HardHat, Loader2, AlertCircle, CheckCircle, Building, Shield, ArrowRight, Clock } from '../shared/components/icons';
 import { useAuthStore } from '../stores/auth-store';
 
 interface InvitationInfo {
@@ -45,6 +45,7 @@ export function InvitationAcceptPage() {
   const [info, setInfo] = useState<InvitationInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadErrorCode, setLoadErrorCode] = useState<string | null>(null);
   const [accepting, setAccepting] = useState(false);
   const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,10 +57,12 @@ export function InvitationAcceptPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
+    setLoadErrorCode(null);
     try {
       const res = await fetch(`/api/v1/invitations/${invitationToken}`);
       const body = await res.json().catch(() => null);
       if (!res.ok || !body?.data) {
+        setLoadErrorCode(body?.errorCode ?? null);
         throw new Error(body?.message ?? 'Could not load this invitation.');
       }
       setInfo(body.data);
@@ -117,6 +120,24 @@ export function InvitationAcceptPage() {
   }
 
   if (loadError) {
+    // Dedicated expired state — distinct from revoked / not-found.
+    if (loadErrorCode === 'INVITATION_EXPIRED') {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-background p-4">
+          <div className="w-full max-w-sm rounded-xl border border-border bg-surface p-6 text-center shadow-sm">
+            <Clock className="mx-auto h-10 w-10 text-warning" />
+            <h1 className="mt-4 text-lg font-bold text-foreground">This invite has expired</h1>
+            <p className="mt-1 text-sm text-foreground-muted">
+              Invitation links are time-limited for security. Ask your organization's admin to send you a fresh
+              invitation.
+            </p>
+            <Link to="/" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
+              Go to dashboard
+            </Link>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-4">
         <div className="w-full max-w-sm rounded-xl border border-border bg-surface p-6 text-center shadow-sm">

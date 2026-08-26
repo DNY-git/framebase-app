@@ -602,7 +602,7 @@ export class AuthService {
       throw new DomainException(ErrorCode.AUTH_INVALID_AVATAR, HttpStatus.BAD_REQUEST, 'Unsupported image type. Use JPEG, PNG, or WebP.');
     }
     if (buffer.length > AVATAR_MAX_BYTES) {
-      throw new DomainException(ErrorCode.AUTH_INVALID_AVATAR, HttpStatus.BAD_REQUEST, 'Avatar image must be 2 MB or smaller.');
+      throw new DomainException(ErrorCode.AUTH_INVALID_AVATAR, HttpStatus.BAD_REQUEST, `Avatar image must be ${AVATAR_MAX_BYTES / (1024 * 1024)} MB or smaller.`);
     }
 
     const current = await this.userRepository.findById(userId);
