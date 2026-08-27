@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsIn, IsArray } from 'class-validator';
 
 export class QueryDto {
   @IsString()
@@ -11,4 +11,9 @@ export class QueryDto {
   @IsOptional()
   @IsIn(['sync', 'async'])
   mode?: 'sync' | 'async';
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  images?: string[];
 }

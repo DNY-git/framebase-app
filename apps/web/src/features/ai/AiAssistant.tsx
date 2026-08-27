@@ -1,8 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
-import { Plus, Mic, ArrowUp } from '../../shared/components/icons';
+import { Plus, Mic, ArrowUp, X } from '../../shared/components/icons';
 
 interface AiAssistantProps {
   token: string;
+}
+
+interface Attachment {
+  id: string;
+  name: string;
+  mimeType: string;
+  dataUrl: string;
 }
 
 interface Message {
@@ -10,6 +17,7 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   citations?: Array<{ entityType: string; entityId: string; label: string }>;
+  attachments?: Attachment[];
   createdAt: string;
 }
 
@@ -42,8 +50,10 @@ export function AiAssistant({ token }: AiAssistantProps): React.JSX.Element {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [jobs, setJobs] = useState<Array<{ id: string; type: string; status: string }>>([]);
+  const [jobs, setJobs] = useState<Array<{ id: string; type: string; status: string; result?: string }>>([]);
   const [showJobs, setShowJobs] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -52,16 +62,19 @@ export function AiAssistant({ token }: AiAssistantProps): React.JSX.Element {
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && attachments.length === 0) || isLoading) return;
 
+    const sentAttachments = attachments;
     const userMsg: Message = {
       id: `user-${Date.now()}`,
       role: 'user',
       content: input.trim(),
+      attachments: sentAttachments.length > 0 ? sentAttachments : undefined,
       createdAt: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
+    setAttachments([]);
     setIsLoading(true);
 
     try {
@@ -71,7 +84,11 @@ export function AiAssistant({ token }: AiAssistantProps): React.JSX.Element {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ question: userMsg.content, mode: 'sync' }),
+        body: JSON.stringify({
+          question: userMsg.content,
+          mode: 'sync',
+          images: sentAttachments.map((a) => a.dataUrl),
+        }),
       });
 
       if (!res.ok) {
@@ -107,6 +124,32 @@ export function AiAssistant({ token }: AiAssistantProps): React.JSX.Element {
     }
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    const next: Attachment[] = [];
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) continue;
+      const reader = new FileReader();
+      reader.onload = () => {
+        next.push({
+          id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          name: file.name,
+          mimeType: file.type,
+          dataUrl: String(reader.result),
+        });
+        if (next.length === files.filter((f) => f.type.startsWith('image/')).length) {
+          setAttachments((prev) => [...prev, ...next]);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeAttachment = (id: string) => {
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
+  };
+
   const handleSummarize = async () => {
     setIsLoading(true);
     try {
@@ -121,12 +164,15 @@ export function AiAssistant({ token }: AiAssistantProps): React.JSX.Element {
       if (!res.ok) throw new Error(await readApiError(res));
       const json = await res.json();
       const job = json.data;
+      const result = job?.result;
       setMessages((prev) => [
         ...prev,
         {
           id: `system-${Date.now()}`,
           role: 'assistant',
-          content: `Summarization job started (ID: ${job.id}). Check back shortly for results.`,
+          content: result
+            ? `**Project Summary**\n\n${result}`
+            : `Summarization job started (ID: ${job?.id}). Check back shortly for results.`,
           createdAt: new Date().toISOString(),
         },
       ]);
@@ -160,12 +206,15 @@ export function AiAssistant({ token }: AiAssistantProps): React.JSX.Element {
       if (!res.ok) throw new Error(await readApiError(res));
       const json = await res.json();
       const job = json.data;
+      const result = job?.result;
       setMessages((prev) => [
         ...prev,
         {
           id: `system-${Date.now()}`,
           role: 'assistant',
-          content: `Report draft started (ID: ${job.id}). Check back shortly for the generated report.`,
+          content: result
+            ? `**Drafted Report**\n\n${result}`
+            : `Report draft started (ID: ${job?.id}). Check back shortly for the generated report.`,
           createdAt: new Date().toISOString(),
         },
       ]);
@@ -256,6 +305,18 @@ export function AiAssistant({ token }: AiAssistantProps): React.JSX.Element {
               }`}
             >
               <p className="whitespace-pre-wrap">{msg.content}</p>
+              {msg.attachments && msg.attachments.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {msg.attachments.map((att) => (
+                    <img
+                      key={att.id}
+                      src={att.dataUrl}
+                      alt={att.name}
+                      className="h-20 w-20 rounded-md border border-border object-cover"
+                    />
+                  ))}
+                </div>
+              )}
               {msg.citations && msg.citations.length > 0 && (
                 <div className="mt-2 border-t border-border pt-1">
                   <p className="text-xs font-medium text-foreground-muted">Citations:</p>
@@ -283,10 +344,40 @@ export function AiAssistant({ token }: AiAssistantProps): React.JSX.Element {
       </div>
 
       <form onSubmit={handleSend} className="flex items-center gap-2 border-t border-border p-3">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={handleFileSelect}
+        />
+        {attachments.length > 0 && (
+          <div className="flex flex-wrap gap-2 px-1 pb-2">
+            {attachments.map((att) => (
+              <div
+                key={att.id}
+                className="relative flex items-center gap-2 rounded-lg border border-border bg-surface-muted px-2 py-1 text-xs"
+              >
+                <img src={att.dataUrl} alt={att.name} className="h-8 w-8 rounded object-cover" />
+                <span className="max-w-[120px] truncate text-foreground">{att.name}</span>
+                <button
+                  type="button"
+                  onClick={() => removeAttachment(att.id)}
+                  aria-label="Remove attachment"
+                  className="text-foreground-muted transition-colors hover:text-danger"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="flex flex-1 items-center gap-1 rounded-full border border-border bg-surface-muted px-2 py-1">
           <button
             type="button"
-            aria-label="Attach file"
+            onClick={() => fileInputRef.current?.click()}
+            aria-label="Attach image"
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-foreground-muted transition-colors hover:bg-surface hover:text-foreground"
           >
             <Plus className="h-4 w-4" />
@@ -309,7 +400,7 @@ export function AiAssistant({ token }: AiAssistantProps): React.JSX.Element {
         </div>
         <button
           type="submit"
-          disabled={isLoading || !input.trim()}
+          disabled={isLoading || (!input.trim() && attachments.length === 0)}
           aria-label="Send message"
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-foreground text-background shadow-sm transition-opacity hover:opacity-90 disabled:opacity-40"
         >

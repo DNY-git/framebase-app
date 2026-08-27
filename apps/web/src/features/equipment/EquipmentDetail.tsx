@@ -537,7 +537,7 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
                       type="button"
                       disabled={maintenanceSaving}
                       onClick={() => void submitNewMaintenance()}
-                      className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                      className="rounded-lg bg-action px-3 py-1.5 text-xs font-medium text-action-foreground transition-colors hover:bg-action/90 disabled:opacity-50"
                     >
                       {maintenanceSaving ? 'Saving...' : 'Save entry'}
                     </button>
@@ -632,7 +632,7 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
                       type="button"
                       disabled={usageSaving}
                       onClick={() => submitNewUsage()}
-                      className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                      className="rounded-lg bg-action px-3 py-1.5 text-xs font-medium text-action-foreground transition-colors hover:bg-action/90 disabled:opacity-50"
                     >
                       {usageSaving ? 'Saving...' : 'Save entry'}
                     </button>
@@ -681,7 +681,7 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
                             type="button"
                             disabled={usageSaving}
                             onClick={() => submitEditedUsage(log.id)}
-                            className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                            className="rounded-lg bg-action px-3 py-1.5 text-xs font-medium text-action-foreground transition-colors hover:bg-action/90 disabled:opacity-50"
                           >
                             {usageSaving ? 'Saving...' : 'Save'}
                           </button>
@@ -790,7 +790,7 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
                     type="button"
                     disabled={downtimeSaving}
                     onClick={() => void submitNewDowntime()}
-                    className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                    className="rounded-lg bg-action px-3 py-1.5 text-xs font-medium text-action-foreground transition-colors hover:bg-action/90 disabled:opacity-50"
                   >
                     {downtimeSaving ? 'Saving...' : 'Save entry'}
                   </button>

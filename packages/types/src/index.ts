@@ -787,6 +787,8 @@ export interface AiCompletionRequest {
   groundingContext: string;
   maxTokens?: number;
   timeoutMs?: number;
+  /** Optional base64 data-URL images attached by the user (multimodal). */
+  images?: string[];
 }
 
 export interface AiCompletionResponse {

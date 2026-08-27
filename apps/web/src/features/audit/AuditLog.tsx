@@ -56,7 +56,6 @@ export function AuditLog() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filterEntity, setFilterEntity] = useState('');
-  const [filterAction, setFilterAction] = useState('');
   const [page, setPage] = useState(1);
 
   const fetchLogs = useCallback(async () => {
@@ -64,7 +63,6 @@ export function AuditLog() {
     setError(null);
     const params = new URLSearchParams({ page: String(page), perPage: '20' });
     if (filterEntity) params.set('entityType', filterEntity);
-    if (filterAction) params.set('action', filterAction);
 
     try {
       const res = await authFetch(`/api/v1/audit?${params}`);
@@ -77,7 +75,7 @@ export function AuditLog() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, filterEntity, filterAction]);
+  }, [page, filterEntity]);
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
@@ -99,14 +97,6 @@ export function AuditLog() {
             { value: '', label: 'All entities' },
             ...ENTITY_TYPES.filter(Boolean).map((t) => ({ value: t, label: t })),
           ]}
-        />
-        <input
-          type="text"
-          value={filterAction}
-          onChange={(e) => setFilterAction(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') { setPage(1); fetchLogs(); } }}
-          placeholder="Filter by action..."
-          className="h-10 w-full max-w-xs rounded-lg border border-border bg-surface px-3 text-sm text-foreground placeholder:text-foreground-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
         />
       </div>
 

@@ -66,6 +66,7 @@ export function DatePicker({
 }: DatePickerProps) {
   const selected = parseISO(value);
   const [open, setOpen] = useState(false);
+  const [openUp, setOpenUp] = useState(false);
   const [view, setView] = useState(() => selected ?? new Date());
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -111,7 +112,13 @@ export function DatePicker({
         type="button"
         id={id}
         disabled={disabled}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          if (!open && containerRef.current) {
+            const rect = containerRef.current.getBoundingClientRect();
+            setOpenUp(window.innerHeight - rect.bottom < 320);
+          }
+          setOpen((o) => !o);
+        }}
         className="flex h-10 w-full items-center justify-between rounded-lg border border-border bg-surface px-3 text-sm text-foreground transition-colors hover:border-primary/60 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
       >
         <span className={value ? "text-foreground" : "text-foreground-muted"}>
@@ -135,7 +142,7 @@ export function DatePicker({
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1 w-64 rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-lg">
+        <div className={`absolute z-50 w-64 rounded-lg bg-popover p-3 text-popover-foreground shadow-lg ${openUp ? 'bottom-full mb-1' : 'mt-1'}`}>
           <div className="mb-2 flex items-center justify-between">
             <button
               type="button"

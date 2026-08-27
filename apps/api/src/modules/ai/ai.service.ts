@@ -67,6 +67,7 @@ export class AiService {
       groundingContext,
       maxTokens,
       timeoutMs: timeout,
+      images: dto.images,
     };
 
     try {

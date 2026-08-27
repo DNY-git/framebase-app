@@ -163,7 +163,7 @@ export function InvitationAcceptPage() {
           </p>
           <button
             onClick={() => navigate('/')}
-            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-action px-4 py-2.5 text-sm font-medium text-action-foreground transition-colors hover:bg-action/90"
           >
             Go to dashboard <ArrowRight className="h-4 w-4" />
           </button>
@@ -211,7 +211,7 @@ export function InvitationAcceptPage() {
                 <button
                   onClick={() => handleAccept()}
                   disabled={accepting}
-                  className="mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                  className="mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-action text-sm font-medium text-action-foreground transition-colors hover:bg-action/90 disabled:opacity-50"
                 >
                   {accepting && <Loader2 className="h-4 w-4 animate-spin" />}
                   Accept invitation
@@ -225,7 +225,7 @@ export function InvitationAcceptPage() {
                 </p>
                 <Link
                   to={`/login?next=${encodeURIComponent(`/invitations/${invitationToken}`)}`}
-                  className="mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                  className="mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-action text-sm font-medium text-action-foreground transition-colors hover:bg-action/90"
                 >
                   Log in to accept
                 </Link>
@@ -269,7 +269,7 @@ export function InvitationAcceptPage() {
               <button
                 type="submit"
                 disabled={accepting}
-                className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-action text-sm font-medium text-action-foreground transition-colors hover:bg-action/90 disabled:opacity-50"
               >
                 {accepting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create account & accept'}
               </button>

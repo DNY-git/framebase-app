@@ -110,7 +110,7 @@ export function ProjectForm({ project, onClose, onSaved }: ProjectFormProps) {
 
           {!isEdit && (
             <div>
-              <label htmlFor="p-code" className="mb-1.5 block text-sm font-medium text-foreground">Code *</label>
+              <label htmlFor="p-code" className="mb-1.5 block text-sm font-medium text-foreground">Code</label>
               <input
                 id="p-code"
                 value={code}
@@ -125,7 +125,7 @@ export function ProjectForm({ project, onClose, onSaved }: ProjectFormProps) {
           )}
 
           <div>
-            <label htmlFor="p-name" className="mb-1.5 block text-sm font-medium text-foreground">Name *</label>
+            <label htmlFor="p-name" className="mb-1.5 block text-sm font-medium text-foreground">Name</label>
             <input
               id="p-name"
               value={name}
@@ -233,7 +233,7 @@ export function ProjectForm({ project, onClose, onSaved }: ProjectFormProps) {
             <button
               type="submit"
               disabled={isLoading}
-              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+              className="flex items-center gap-2 rounded-lg bg-action px-4 py-2 text-sm font-medium text-action-foreground transition-colors hover:bg-action/90 disabled:opacity-50"
             >
               {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
               {isEdit ? 'Save Changes' : 'Create Project'}

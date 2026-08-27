@@ -91,7 +91,7 @@ export function UserProfileMenu() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-lg border border-border bg-surface shadow-lg">
+        <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-lg bg-surface shadow-lg">
           {user && (
             <div className="border-b border-border px-4 py-3">
               <p className="text-sm font-medium text-foreground">{user.name || 'User'}</p>

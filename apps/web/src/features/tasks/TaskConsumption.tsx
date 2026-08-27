@@ -218,7 +218,7 @@ export function TaskConsumption({ token }: { token: string }) {
                 <input type="text" value={eqEquipmentId} onChange={(e) => setEqEquipmentId(e.target.value)} placeholder="Equipment ID" className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground placeholder:text-foreground-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" required />
                 <DatePicker value={eqDate} onChange={setEqDate} placeholder="Select date" />
                 <input type="number" step="0.5" min={0} value={eqHours} onChange={(e) => setEqHours(e.target.value)} placeholder="Hours" className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground placeholder:text-foreground-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" required />
-                <button type="submit" disabled={isSubmittingEq} className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">
+                <button type="submit" disabled={isSubmittingEq} className="flex w-full items-center justify-center gap-2 rounded-lg bg-action px-3 py-2 text-sm font-medium text-action-foreground transition-colors hover:bg-action/90 disabled:opacity-50">
                   {isSubmittingEq && <Loader2 className="h-4 w-4 animate-spin" />}
                   {isSubmittingEq ? 'Recording...' : 'Log Equipment Usage'}
                 </button>
@@ -251,7 +251,7 @@ export function TaskConsumption({ token }: { token: string }) {
               <form onSubmit={(e) => { void handleRecordMaterialConsumption(e); }} className="mb-4 space-y-2 rounded-lg border border-border p-3">
                 <input type="text" value={matMaterialId} onChange={(e) => setMatMaterialId(e.target.value)} placeholder="Material ID" className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground placeholder:text-foreground-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" required />
                 <input type="number" min={1} value={matQuantity} onChange={(e) => setMatQuantity(e.target.value)} placeholder="Quantity" className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground placeholder:text-foreground-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" required />
-                <button type="submit" disabled={isSubmittingMat} className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">
+                <button type="submit" disabled={isSubmittingMat} className="flex w-full items-center justify-center gap-2 rounded-lg bg-action px-3 py-2 text-sm font-medium text-action-foreground transition-colors hover:bg-action/90 disabled:opacity-50">
                   {isSubmittingMat && <Loader2 className="h-4 w-4 animate-spin" />}
                   {isSubmittingMat ? 'Recording...' : 'Consume Material'}
                 </button>

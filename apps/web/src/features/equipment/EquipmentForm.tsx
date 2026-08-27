@@ -227,7 +227,7 @@ export function EquipmentForm({ onClose, onSaved, equipment, inline = false }: E
 
       {source === 'catalog' && !isEdit && (
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-foreground">Equipment type *</label>
+          <label className="mb-1.5 block text-sm font-medium text-foreground">Equipment type</label>
           <select
             value={selectedCatalogId}
             onChange={(e) => selectCatalogItem(e.target.value)}
@@ -251,7 +251,7 @@ export function EquipmentForm({ onClose, onSaved, equipment, inline = false }: E
       )}
 
       <div>
-        <label className="mb-1.5 block text-sm font-medium text-foreground">Name *</label>
+        <label className="mb-1.5 block text-sm font-medium text-foreground">Name</label>
         <input
           type="text"
           value={name}
@@ -263,7 +263,7 @@ export function EquipmentForm({ onClose, onSaved, equipment, inline = false }: E
       </div>
 
       <div>
-        <label className="mb-1.5 block text-sm font-medium text-foreground">Serial number *</label>
+        <label className="mb-1.5 block text-sm font-medium text-foreground">Serial number</label>
         <input
           type="text"
           value={serialNumber}
@@ -275,7 +275,7 @@ export function EquipmentForm({ onClose, onSaved, equipment, inline = false }: E
       </div>
 
       <div>
-        <label className="mb-1.5 block text-sm font-medium text-foreground">Category *</label>
+        <label className="mb-1.5 block text-sm font-medium text-foreground">Category</label>
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value as EquipmentCategory)}
@@ -333,7 +333,7 @@ export function EquipmentForm({ onClose, onSaved, equipment, inline = false }: E
         <button
           type="submit"
           disabled={isLoading}
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+          className="flex items-center gap-2 rounded-lg bg-action px-4 py-2 text-sm font-medium text-action-foreground transition-colors hover:bg-action/90 disabled:opacity-50"
         >
           {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
           {isEdit ? 'Save changes' : 'Add equipment'}

@@ -304,7 +304,7 @@ function ProfileTab({ user, setUser }: { user: User | null; setUser: (u: User) =
         <button
           type="submit"
           disabled={isLoading}
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+          className="flex items-center gap-2 rounded-lg bg-action px-4 py-2.5 text-sm font-medium text-action-foreground transition-colors hover:bg-action/90 disabled:opacity-50"
         >
           {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
           Save Changes
@@ -464,7 +464,7 @@ function OrganizationTab() {
             <button
               onClick={handleCreate}
               disabled={isCreating || !orgName.trim()}
-              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+              className="flex items-center gap-2 rounded-lg bg-action px-4 py-2.5 text-sm font-medium text-action-foreground transition-colors hover:bg-action/90 disabled:opacity-50"
             >
               {isCreating && <Loader2 className="h-4 w-4 animate-spin" />}
               Create

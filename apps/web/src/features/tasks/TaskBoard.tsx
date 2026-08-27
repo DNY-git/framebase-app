@@ -123,7 +123,7 @@ export function TaskBoard() {
         canCreate && selectedProjectId ? (
           <button
             onClick={() => setShowForm(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex items-center gap-2 rounded-lg bg-action px-4 py-2.5 text-sm font-medium text-action-foreground transition-colors hover:bg-action/90"
           >
             <Plus className="h-4 w-4" /> New Task
           </button>

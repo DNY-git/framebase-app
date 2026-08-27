@@ -32,6 +32,8 @@
   --color-accent-foreground: var(--foreground);
   --color-destructive: var(--danger);
   --color-destructive-foreground: #fff;
+  --color-action: var(--action);
+  --color-action-foreground: var(--action-foreground);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -110,6 +112,8 @@
   --chart-3: #71717a;
   --chart-4: #a1a1aa;
   --chart-5: #d4d4d8;
+  --action: #18181b;
+  --action-foreground: #ffffff;
 }
 
 .dark {
@@ -184,6 +188,8 @@
   --chart-3: #71717a;
   --chart-4: #52525b;
   --chart-5: #3f3f46;
+  --action: #fafafa;
+  --action-foreground: #09090b;
 }
 
 :root {

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import type { FeatureCollection, Geometry } from 'geojson';
 import type { ReportTemplateDomain, ReportRunDomain } from '@constructtrack/types';
 import { authFetch } from '../../auth-fetch';
@@ -25,6 +25,7 @@ import {
   Download,
   Trash,
   X,
+  Filter,
 } from '../../shared/components/icons';
 
 type RegionFeatureCollection = FeatureCollection<
@@ -165,6 +166,19 @@ export function Reports() {
   const [showCreateTemplate, setShowCreateTemplate] = useState(false);
   const [showGenerateReport, setShowGenerateReport] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [showTemplateFilter, setShowTemplateFilter] = useState(false);
+  const templateFilterRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showTemplateFilter) return;
+    function onClick(e: MouseEvent) {
+      if (templateFilterRef.current && !templateFilterRef.current.contains(e.target as Node)) {
+        setShowTemplateFilter(false);
+      }
+    }
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [showTemplateFilter]);
 
   const fetchTemplates = useCallback(async () => {
     setIsLoadingTemplates(true);
@@ -215,7 +229,7 @@ export function Reports() {
             </button>
             <button
               onClick={() => setShowGenerateReport(true)}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              className="inline-flex items-center gap-2 rounded-lg bg-action px-4 py-2.5 text-sm font-medium text-action-foreground transition-colors hover:bg-action/90"
             >
               <FileText className="h-4 w-4" /> Generate Report
             </button>
@@ -318,16 +332,30 @@ export function Reports() {
       <section className="rounded-xl border border-border bg-surface p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-foreground">Report History</h3>
-          <FilterDropdown
-            value={selectedTemplateId ?? ''}
-            onChange={(v) => setSelectedTemplateId(v || null)}
-            placeholder="All templates"
-            className="w-44"
-            options={[
-              { value: '', label: 'All templates' },
-              ...templates.map((t) => ({ value: t.id, label: t.name })),
-            ]}
-          />
+          <div className="relative" ref={templateFilterRef}>
+            <button
+              type="button"
+              onClick={() => setShowTemplateFilter((s) => !s)}
+              aria-label="Filter by template"
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground"
+            >
+              <Filter className="h-4 w-4" />
+            </button>
+            {showTemplateFilter && (
+              <div className="absolute right-0 z-20 mt-1 w-56 rounded-lg border border-border bg-popover p-2 shadow-lg">
+                <FilterDropdown
+                  value={selectedTemplateId ?? ''}
+                  onChange={(v) => { setSelectedTemplateId(v || null); setShowTemplateFilter(false); }}
+                  placeholder="All templates"
+                  className="w-full"
+                  options={[
+                    { value: '', label: 'All templates' },
+                    ...templates.map((t) => ({ value: t.id, label: t.name })),
+                  ]}
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         {isLoadingRuns ? (
@@ -370,9 +398,6 @@ export function Reports() {
                     </div>
                     {run.status === 'failed' && run.errorMessage && (
                       <div className="mt-1 text-xs text-danger">Error: {run.errorMessage}</div>
-                    )}
-                    {run.status === 'succeeded' && run.resultUrl && (
-                      <div className="mt-1 text-xs text-foreground-muted">Output: {run.resultUrl}</div>
                     )}
                   </div>
                   {run.status === 'succeeded' && (
@@ -462,7 +487,7 @@ function CreateTemplateModal({ onClose, onSaved }: { onClose: () => void; onSave
         <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
           {error && <div className="rounded-lg border border-danger/20 bg-danger/5 p-3 text-sm text-danger">{error}</div>}
           <div>
-            <label htmlFor="tpl-name" className="mb-1.5 block text-sm font-medium text-foreground">Name *</label>
+            <label htmlFor="tpl-name" className="mb-1.5 block text-sm font-medium text-foreground">Name</label>
             <input id="tpl-name" value={name} onChange={(e) => setName(e.target.value)} required maxLength={200} className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground placeholder:text-foreground-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. Weekly Progress Report" />
           </div>
           <div>
@@ -485,7 +510,7 @@ function CreateTemplateModal({ onClose, onSaved }: { onClose: () => void; onSave
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted">Cancel</button>
-            <button type="submit" disabled={isLoading} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">
+            <button type="submit" disabled={isLoading} className="flex items-center gap-2 rounded-lg bg-action px-4 py-2 text-sm font-medium text-action-foreground transition-colors hover:bg-action/90 disabled:opacity-50">
               {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
               Create Template
             </button>
@@ -547,7 +572,7 @@ function GenerateReportModal({ templates, onClose, onSaved }: { templates: Repor
             </div>
           ) : (
             <div>
-              <label htmlFor="rpt-template" className="mb-1.5 block text-sm font-medium text-foreground">Template *</label>
+              <label htmlFor="rpt-template" className="mb-1.5 block text-sm font-medium text-foreground">Template</label>
               <FilterDropdown
                 value={templateId}
                 onChange={setTemplateId}
@@ -559,7 +584,7 @@ function GenerateReportModal({ templates, onClose, onSaved }: { templates: Repor
           )}
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted">Cancel</button>
-            <button type="submit" disabled={isLoading || templates.length === 0} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">
+            <button type="submit" disabled={isLoading || templates.length === 0} className="flex items-center gap-2 rounded-lg bg-action px-4 py-2 text-sm font-medium text-action-foreground transition-colors hover:bg-action/90 disabled:opacity-50">
               {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
               Generate
             </button>

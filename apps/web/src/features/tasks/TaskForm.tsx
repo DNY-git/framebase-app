@@ -112,7 +112,7 @@ export function TaskForm({ projectId, task, onClose, onSaved }: TaskFormProps) {
           )}
 
           <div>
-            <label htmlFor="t-title" className="mb-1.5 block text-sm font-medium text-foreground">Title *</label>
+            <label htmlFor="t-title" className="mb-1.5 block text-sm font-medium text-foreground">Title</label>
             <input
               id="t-title"
               value={title}
@@ -193,7 +193,7 @@ export function TaskForm({ projectId, task, onClose, onSaved }: TaskFormProps) {
             <button
               type="submit"
               disabled={isLoading}
-              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+              className="flex items-center gap-2 rounded-lg bg-action px-4 py-2 text-sm font-medium text-action-foreground transition-colors hover:bg-action/90 disabled:opacity-50"
             >
               {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
               {isEdit ? 'Save Changes' : 'Create Task'}

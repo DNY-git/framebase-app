@@ -118,6 +118,10 @@ export const Search = createPathsWithElements([
   <path key="2" d="m21 21-4.3-4.3" />,
 ]);
 
+export const Filter = createPathsWithElements([
+  <path key="1" d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />,
+]);
+
 export const Menu = createMultiPathIcon([
   'M4 12h16',
   'M4 6h16',

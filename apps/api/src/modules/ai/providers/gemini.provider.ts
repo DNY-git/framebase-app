@@ -94,11 +94,20 @@ export class GeminiProvider implements IAIProvider {
     const context = request.groundingContext
       ? [{ text: request.groundingContext }]
       : [];
+    const userParts: Array<{ text?: string; inline_data?: { mime_type: string; data: string } }> = [
+      { text: request.userPrompt },
+    ];
+    for (const image of request.images ?? []) {
+      const match = /^data:([^;]+);base64,(.*)$/s.exec(image.trim());
+      if (!match) continue;
+      userParts.push({ inline_data: { mime_type: match[1], data: match[2] } });
+    }
+
     const contents = [
       ...(system.length || context.length
         ? [{ role: 'system', parts: [...system, ...context] }]
         : []),
-      { role: 'user', parts: [{ text: request.userPrompt }] },
+      { role: 'user', parts: userParts },
     ];
 
     const url = `${GeminiProvider.ENDPOINT}/${model}:generateContent?key=${encodeURIComponent(this.apiKey)}`;
