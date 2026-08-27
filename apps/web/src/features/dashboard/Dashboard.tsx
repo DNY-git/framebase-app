@@ -3,9 +3,6 @@ import { Link } from 'react-router-dom';
 import {
   Area,
   AreaChart,
-  Bar,
-  BarChart,
-  BarXAxis,
   ChartTooltip,
   Grid,
   XAxis,
@@ -16,7 +13,6 @@ import { PageLayout } from '../../shared/components/PageLayout';
 import { Skeleton } from '../../shared/components/Skeleton';
 import { ActivityHeatmap } from './ActivityHeatmap';
 import {
-  FolderKanban,
   Package,
   Clock,
   ArrowRight,
@@ -128,59 +124,7 @@ function SectionCard({
   );
 }
 
-/** SVG-friendly fill token for progress thresholds (green/amber/red). */
-function progressFill(progress: number): string {
-  if (progress >= 70) return 'var(--success)';
-  if (progress >= 40) return 'var(--warning)';
-  return 'var(--danger)';
-}
 
-/**
- * Project progress rendered with the shared `BarChart` composition — one bar
- * per active project, value = timeline progress percent. Colors carry the
- * same semantic thresholds as the rest of the app (green/amber/red).
- */
-function ProjectProgressChart({
-  projects,
-}: {
-  projects: DashboardOverview['projectProgress'];
-}) {
-  const progressData = useMemo(
-    () =>
-      projects.map((project) => ({
-        day: project.code,
-        fill: progressFill(project.progressPercent),
-        name: project.name,
-        value: project.progressPercent,
-      })),
-    [projects],
-  );
-
-  return (
-    <BarChart
-      aspectRatio="4 / 1"
-      barGap={0.1}
-      data={progressData}
-      margin={{ top: 8, right: 8, bottom: 40, left: 8 }}
-      xDataKey="day"
-    >
-      <Grid horizontal />
-      <Bar dataKey="value" lineCap="butt" />
-      <BarXAxis maxLabels={8} />
-      <ChartTooltip
-        showDatePill={false}
-        rows={(point) => [
-          {
-            color:
-              typeof point.fill === 'string' ? point.fill : 'var(--chart-line-primary)',
-            label: (point.name as string) ?? (point.day as string),
-            value: `${point.value}%`,
-          },
-        ]}
-      />
-    </BarChart>
-  );
-}
 
 function DashboardLoading() {
   return (
@@ -195,20 +139,9 @@ function DashboardLoading() {
         ))}
       </div>
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="rounded-xl border border-border bg-surface p-5 lg:col-span-2">
+        <div className="rounded-xl border border-border bg-surface p-5 lg:col-span-3">
           <Skeleton className="h-4 w-40" />
           <Skeleton className="mt-5 h-64 w-full" />
-        </div>
-        <div className="rounded-xl border border-border bg-surface p-5">
-          <Skeleton className="h-4 w-32" />
-          <div className="mt-5 space-y-4">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i}>
-                <Skeleton className="h-3 w-3/4" />
-                <Skeleton className="mt-2 h-1.5 w-full" />
-              </div>
-            ))}
-          </div>
         </div>
       </div>
       <div className="grid gap-4 lg:grid-cols-3">
@@ -334,7 +267,7 @@ export function Dashboard(): React.JSX.Element {
         <div className="grid items-start gap-4 lg:grid-cols-3">
           {/* Spending / Budget chart */}
           <SectionCard
-            className="lg:col-span-2 min-w-0"
+            className="lg:col-span-3 min-w-0"
             title="Spending vs Budget"
             description="Last 6 months — budget is allocated across project timelines"
             action={
@@ -400,20 +333,7 @@ export function Dashboard(): React.JSX.Element {
             )}
           </SectionCard>
 
-          {/* Project progress */}
-          <SectionCard className="min-w-0" title="Project Progress" description="Active projects by timeline progress">
-            <div className="overflow-hidden">
-            {data.projectProgress.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center rounded-lg border border-border bg-surface-muted/30 py-12 text-center">
-                <FolderKanban className="mb-2 h-8 w-8 text-foreground-muted/30" />
-                <p className="text-sm font-medium text-foreground">No active projects</p>
-                <p className="mt-1 text-xs text-foreground-muted">Projects will appear here when started.</p>
-              </div>
-            ) : (
-              <ProjectProgressChart projects={data.projectProgress} />
-            )}
-            </div>
-          </SectionCard>
+
         </div>
 
         {/* Project activity heatmap */}

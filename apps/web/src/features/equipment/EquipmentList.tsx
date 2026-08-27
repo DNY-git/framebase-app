@@ -109,7 +109,7 @@ export function EquipmentList() {
         </FilterBar>
         <button
           onClick={() => setShowForm(true)}
-          className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-success px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-success/90"
+          className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-action px-4 py-2.5 text-sm font-medium text-action-foreground shadow-sm transition-colors hover:bg-action/90"
         >
           <Plus className="h-4 w-4" /> Add equipment
         </button>
