@@ -21,7 +21,6 @@ import {
   Clock,
   ArrowRight,
   HardHat,
-  RotateCw,
 } from '../../shared/components/icons';
 
 function useDashboard() {
@@ -276,15 +275,6 @@ export function Dashboard(): React.JSX.Element {
     <PageLayout
       title="Dashboard"
       subtitle="Overview of your construction projects"
-      actions={
-        <button
-          onClick={() => refetch()}
-          className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted"
-        >
-          <RotateCw className="h-3.5 w-3.5 text-foreground-muted" />
-          Refresh
-        </button>
-      }
     >
       <div className="space-y-6">
         {/* KPI row */}

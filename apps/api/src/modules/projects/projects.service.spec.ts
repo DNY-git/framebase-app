@@ -298,16 +298,34 @@ service = new ProjectsService(
       expect(result.status).toBe(ProjectStatus.ACTIVE);
     });
 
-    it('rejects invalid transition: planning → completed', async () => {
+    it('allows valid status transition: planning → completed', async () => {
       projectRepo.findById.mockResolvedValue(
         makeProject({ status: ProjectStatus.PLANNING }),
       );
+      projectRepo.update.mockResolvedValue(
+        makeProject({ status: ProjectStatus.COMPLETED }),
+      );
 
-      await expect(
-        service.update(MOCK_AUTH, 'proj-1', {
-          status: ProjectStatus.COMPLETED,
-        }),
-      ).rejects.toThrow(DomainException);
+      const result = await service.update(MOCK_AUTH, 'proj-1', {
+        status: ProjectStatus.COMPLETED,
+      });
+
+      expect(result.status).toBe(ProjectStatus.COMPLETED);
+    });
+
+    it('allows valid status transition: on_hold → completed', async () => {
+      projectRepo.findById.mockResolvedValue(
+        makeProject({ status: ProjectStatus.ON_HOLD }),
+      );
+      projectRepo.update.mockResolvedValue(
+        makeProject({ status: ProjectStatus.COMPLETED }),
+      );
+
+      const result = await service.update(MOCK_AUTH, 'proj-1', {
+        status: ProjectStatus.COMPLETED,
+      });
+
+      expect(result.status).toBe(ProjectStatus.COMPLETED);
     });
 
     it('rejects invalid transition: completed → active', async () => {

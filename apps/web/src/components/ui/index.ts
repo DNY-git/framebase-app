@@ -10,3 +10,4 @@ export { ErrorState } from '@/components/ui/error-state';
 export { SearchInput } from '@/components/ui/search-input';
 export { FilterBar } from '@/components/ui/filter-bar';
 export { TableToolbar } from '@/components/ui/table-toolbar';
+export { DatePicker } from '@/components/ui/date-picker';

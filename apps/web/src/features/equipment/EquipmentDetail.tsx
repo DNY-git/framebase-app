@@ -7,6 +7,7 @@ import type {
 } from '@constructtrack/types';
 import { authFetch } from '../../auth-fetch';
 import { Skeleton } from '../../shared/components/Skeleton';
+import { DatePicker } from '../../components/ui';
 import { EquipmentForm } from './EquipmentForm';
 
 interface UtilizationMetric {
@@ -107,6 +108,37 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
     hoursUsed: '',
   }));
   const [refreshKey, setRefreshKey] = useState(0);
+
+  const [maintenanceError, setMaintenanceError] = useState<string | null>(null);
+  const [maintenanceSaving, setMaintenanceSaving] = useState(false);
+  const [showAddMaintenance, setShowAddMaintenance] = useState(false);
+  const [maintenanceDraft, setMaintenanceDraft] = useState<{
+    date: string;
+    type: string;
+    status: string;
+    cost: string;
+    notes: string;
+  }>(() => ({
+    date: new Date().toISOString().slice(0, 10),
+    type: 'scheduled',
+    status: 'pending',
+    cost: '',
+    notes: '',
+  }));
+  const [downtimeError, setDowntimeError] = useState<string | null>(null);
+  const [downtimeSaving, setDowntimeSaving] = useState(false);
+  const [showAddDowntime, setShowAddDowntime] = useState(false);
+  const [downtimeDraft, setDowntimeDraft] = useState<{
+    startDate: string;
+    endDate: string;
+    reason: string;
+    notes: string;
+  }>(() => ({
+    startDate: new Date().toISOString().slice(0, 10),
+    endDate: '',
+    reason: 'breakdown',
+    notes: '',
+  }));
 
   // Keep local state in sync when the selected equipment changes.
   useEffect(() => {
@@ -240,6 +272,83 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
     });
   }
 
+  async function submitNewMaintenance() {
+    const cost = maintenanceDraft.cost.trim() === '' ? undefined : Math.round(parseFloat(maintenanceDraft.cost) * 100);
+    if (maintenanceDraft.cost.trim() !== '' && (!Number.isFinite(cost) || (cost as number) < 0)) {
+      setMaintenanceError('Cost must be zero or a positive number');
+      return;
+    }
+    setMaintenanceSaving(true);
+    setMaintenanceError(null);
+    try {
+      const res = await authFetch(`/api/v1/equipment/${current.id}/maintenance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: maintenanceDraft.type,
+          status: maintenanceDraft.status,
+          date: maintenanceDraft.date,
+          ...(typeof cost === 'number' ? { costCents: cost } : {}),
+          ...(maintenanceDraft.notes.trim() ? { notes: maintenanceDraft.notes.trim() } : {}),
+        }),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => null);
+        throw new Error(errBody?.message ?? 'Failed to save maintenance record');
+      }
+      setShowAddMaintenance(false);
+      setMaintenanceDraft({
+        date: new Date().toISOString().slice(0, 10),
+        type: 'scheduled',
+        status: 'pending',
+        cost: '',
+        notes: '',
+      });
+      refreshDerivedData();
+    } catch (err) {
+      setMaintenanceError((err as Error).message);
+    } finally {
+      setMaintenanceSaving(false);
+    }
+  }
+
+  async function submitNewDowntime() {
+    if (!downtimeDraft.startDate) {
+      setDowntimeError('A start date is required');
+      return;
+    }
+    setDowntimeSaving(true);
+    setDowntimeError(null);
+    try {
+      const res = await authFetch(`/api/v1/equipment/${current.id}/downtime`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          startDate: downtimeDraft.startDate,
+          ...(downtimeDraft.endDate ? { endDate: downtimeDraft.endDate } : {}),
+          reason: downtimeDraft.reason,
+          ...(downtimeDraft.notes.trim() ? { notes: downtimeDraft.notes.trim() } : {}),
+        }),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => null);
+        throw new Error(errBody?.message ?? 'Failed to save downtime record');
+      }
+      setShowAddDowntime(false);
+      setDowntimeDraft({
+        startDate: new Date().toISOString().slice(0, 10),
+        endDate: '',
+        reason: 'breakdown',
+        notes: '',
+      });
+      refreshDerivedData();
+    } catch (err) {
+      setDowntimeError((err as Error).message);
+    } finally {
+      setDowntimeSaving(false);
+    }
+  }
+
   const utilizationPercent = Math.min(100, Math.max(0, utilization?.utilizationPercentage ?? 0));
 
   return (
@@ -338,7 +447,103 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
 
           <div className="mt-6 grid gap-5 lg:grid-cols-2">
             <section>
-              <h3 className="text-sm font-bold text-foreground">Maintenance Timeline</h3>
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-bold text-foreground">Maintenance Timeline</h3>
+                {!showAddMaintenance && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMaintenanceError(null);
+                      setShowAddMaintenance(true);
+                    }}
+                    className="rounded-lg border border-border px-3 py-1 text-xs font-medium text-foreground transition-colors hover:bg-surface-muted"
+                  >
+                    + Log maintenance
+                  </button>
+                )}
+              </div>
+              {maintenanceError && (
+                <div className="mt-3 rounded-lg border border-danger/20 text-danger p-2.5 text-sm">{maintenanceError}</div>
+              )}
+              {showAddMaintenance && (
+                <div className="mt-3 space-y-2 rounded-lg border border-border bg-surface-muted/40 p-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="block text-xs font-medium text-foreground-muted">
+                      Date
+                      <div className="mt-1">
+                        <DatePicker
+                          value={maintenanceDraft.date}
+                          onChange={(v) => setMaintenanceDraft((d) => ({ ...d, date: v }))}
+                          placeholder="Select date"
+                        />
+                      </div>
+                    </label>
+                    <label className="block text-xs font-medium text-foreground-muted">
+                      Type
+                      <select
+                        value={maintenanceDraft.type}
+                        onChange={(e) => setMaintenanceDraft((d) => ({ ...d, type: e.target.value }))}
+                        className="mt-1 h-9 w-full rounded-lg border border-border bg-surface px-2 text-sm font-normal text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="scheduled">Scheduled</option>
+                        <option value="repair">Repair</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="block text-xs font-medium text-foreground-muted">
+                      Status
+                      <select
+                        value={maintenanceDraft.status}
+                        onChange={(e) => setMaintenanceDraft((d) => ({ ...d, status: e.target.value }))}
+                        className="mt-1 h-9 w-full rounded-lg border border-border bg-surface px-2 text-sm font-normal text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="completed">Completed</option>
+                      </select>
+                    </label>
+                    <label className="block text-xs font-medium text-foreground-muted">
+                      Cost (USD)
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={maintenanceDraft.cost}
+                        onChange={(e) => setMaintenanceDraft((d) => ({ ...d, cost: e.target.value }))}
+                        placeholder="e.g. 250.00"
+                        className="mt-1 h-9 w-full rounded-lg border border-border bg-surface px-2 text-sm font-normal text-foreground placeholder:text-foreground-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                    </label>
+                  </div>
+                  <label className="block text-xs font-medium text-foreground-muted">
+                    Notes
+                    <input
+                      type="text"
+                      value={maintenanceDraft.notes}
+                      onChange={(e) => setMaintenanceDraft((d) => ({ ...d, notes: e.target.value }))}
+                      placeholder="e.g. Oil change, filter replacement"
+                      className="mt-1 h-9 w-full rounded-lg border border-border bg-surface px-2 text-sm font-normal text-foreground placeholder:text-foreground-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </label>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { setShowAddMaintenance(false); setMaintenanceError(null); }}
+                      className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-muted"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={maintenanceSaving}
+                      onClick={() => void submitNewMaintenance()}
+                      className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                    >
+                      {maintenanceSaving ? 'Saving...' : 'Save entry'}
+                    </button>
+                  </div>
+                </div>
+              )}
               <div className="mt-3 divide-y divide-border rounded-lg border border-border">
                 {[...maintenanceAlerts, ...maintenanceHistory].length === 0 ? (
                   <div className="p-3 text-sm text-foreground-muted">No maintenance records for this equipment.</div>
@@ -392,15 +597,16 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
               {showAddUsage && (
                 <div className="mt-3 space-y-2 rounded-lg border border-border bg-surface-muted/40 p-3">
                   <div className="grid grid-cols-2 gap-2">
-                    <label className="block text-xs font-medium text-foreground-muted">
-                      Date
-                      <input
-                        type="date"
-                        value={addDraft.date}
-                        onChange={(e) => setAddDraft((d) => ({ ...d, date: e.target.value }))}
-                        className="mt-1 h-9 w-full rounded-lg border border-border bg-surface px-2 text-sm font-normal text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                      />
-                    </label>
+                      <label className="block text-xs font-medium text-foreground-muted">
+                        Date
+                        <div className="mt-1">
+                          <DatePicker
+                            value={addDraft.date}
+                            onChange={(v) => setAddDraft((d) => ({ ...d, date: v }))}
+                            placeholder="Select date"
+                          />
+                        </div>
+                      </label>
                     <label className="block text-xs font-medium text-foreground-muted">
                       Hours used
                       <input
@@ -443,12 +649,13 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
                         <div className="grid grid-cols-2 gap-2">
                           <label className="block text-xs font-medium text-foreground-muted">
                             Date
-                            <input
-                              type="date"
-                              value={editingDraft.date}
-                              onChange={(e) => setEditingDraft((d) => ({ ...d, date: e.target.value }))}
-                              className="mt-1 h-9 w-full rounded-lg border border-border bg-surface px-2 text-sm font-normal text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                            />
+                            <div className="mt-1">
+                              <DatePicker
+                                value={editingDraft.date}
+                                onChange={(v) => setEditingDraft((d) => ({ ...d, date: v }))}
+                                placeholder="Select date"
+                              />
+                            </div>
                           </label>
                           <label className="block text-xs font-medium text-foreground-muted">
                             Hours used
@@ -505,7 +712,91 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
           </div>
 
           <section className="mt-5">
-            <h3 className="text-sm font-bold text-foreground">Downtime</h3>
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-bold text-foreground">Downtime</h3>
+              {!showAddDowntime && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDowntimeError(null);
+                    setShowAddDowntime(true);
+                  }}
+                  className="rounded-lg border border-border px-3 py-1 text-xs font-medium text-foreground transition-colors hover:bg-surface-muted"
+                >
+                  + Log downtime
+                </button>
+              )}
+            </div>
+            {downtimeError && (
+              <div className="mt-3 rounded-lg border border-danger/20 bg-danger/5 p-2.5 text-sm text-danger">{downtimeError}</div>
+            )}
+            {showAddDowntime && (
+              <div className="mt-3 space-y-2 rounded-lg border border-border bg-surface-muted/40 p-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="block text-xs font-medium text-foreground-muted">
+                    Start date
+                    <div className="mt-1">
+                      <DatePicker
+                        value={downtimeDraft.startDate}
+                        onChange={(v) => setDowntimeDraft((d) => ({ ...d, startDate: v }))}
+                        placeholder="Select start date"
+                      />
+                    </div>
+                  </label>
+                  <label className="block text-xs font-medium text-foreground-muted">
+                    End date
+                    <div className="mt-1">
+                      <DatePicker
+                        value={downtimeDraft.endDate}
+                        onChange={(v) => setDowntimeDraft((d) => ({ ...d, endDate: v }))}
+                        placeholder="Select end date"
+                      />
+                    </div>
+                  </label>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="block text-xs font-medium text-foreground-muted">
+                    Reason
+                    <select
+                      value={downtimeDraft.reason}
+                      onChange={(e) => setDowntimeDraft((d) => ({ ...d, reason: e.target.value }))}
+                      className="mt-1 h-9 w-full rounded-lg border border-border bg-surface px-2 text-sm font-normal text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="breakdown">Breakdown</option>
+                      <option value="weather">Weather</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </label>
+                  <label className="block text-xs font-medium text-foreground-muted">
+                    Notes
+                    <input
+                      type="text"
+                      value={downtimeDraft.notes}
+                      onChange={(e) => setDowntimeDraft((d) => ({ ...d, notes: e.target.value }))}
+                      placeholder="e.g. Motor failure"
+                      className="mt-1 h-9 w-full rounded-lg border border-border bg-surface px-2 text-sm font-normal text-foreground placeholder:text-foreground-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </label>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setShowAddDowntime(false); setDowntimeError(null); }}
+                    className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-muted"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={downtimeSaving}
+                    onClick={() => void submitNewDowntime()}
+                    className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                  >
+                    {downtimeSaving ? 'Saving...' : 'Save entry'}
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="mt-3 divide-y divide-border rounded-lg border border-border">
               {downtimeHistory.length === 0 ? (
                 <div className="p-3 text-sm text-foreground-muted">No downtime recorded.</div>

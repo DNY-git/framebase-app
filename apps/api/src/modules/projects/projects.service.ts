@@ -29,9 +29,9 @@ import { UpdateProjectDto } from './dto/update-project.dto';
 // ---------------------------------------------------------------------------
 
 const VALID_TRANSITIONS: ReadonlyMap<ProjectStatus, ReadonlySet<ProjectStatus>> = new Map([
-  [ProjectStatus.PLANNING, new Set([ProjectStatus.ACTIVE])],
+  [ProjectStatus.PLANNING, new Set([ProjectStatus.ACTIVE, ProjectStatus.COMPLETED])],
   [ProjectStatus.ACTIVE, new Set([ProjectStatus.ON_HOLD, ProjectStatus.COMPLETED])],
-  [ProjectStatus.ON_HOLD, new Set([ProjectStatus.ACTIVE])],
+  [ProjectStatus.ON_HOLD, new Set([ProjectStatus.ACTIVE, ProjectStatus.COMPLETED])],
   [ProjectStatus.COMPLETED, new Set([ProjectStatus.ARCHIVED])],
   [ProjectStatus.ARCHIVED, new Set<ProjectStatus>()],
 ]);

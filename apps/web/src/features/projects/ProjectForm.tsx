@@ -3,6 +3,7 @@ import type { ProjectDomain } from '@constructtrack/types';
 import { ProjectStatus } from '@constructtrack/types';
 import { authFetch } from '../../auth-fetch';
 import { FilterDropdown } from '../../shared/components/FilterDropdown';
+import { DatePicker } from '../../components/ui';
 import { X, Loader2 } from '../../shared/components/icons';
 
 interface ProjectFormProps {
@@ -176,22 +177,20 @@ export function ProjectForm({ project, onClose, onSaved }: ProjectFormProps) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="p-start" className="mb-1.5 block text-sm font-medium text-foreground">Start Date</label>
-              <input
+              <DatePicker
                 id="p-start"
-                type="date"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                onChange={setStartDate}
+                placeholder="Select start date"
               />
             </div>
             <div>
               <label htmlFor="p-end" className="mb-1.5 block text-sm font-medium text-foreground">End Date</label>
-              <input
+              <DatePicker
                 id="p-end"
-                type="date"
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                onChange={setEndDate}
+                placeholder="Select end date"
               />
             </div>
           </div>

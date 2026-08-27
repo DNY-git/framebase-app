@@ -29,6 +29,7 @@ export function TransactionLedger() {
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [newMaterialName, setNewMaterialName] = useState('');
   const [newMaterialUnit, setNewMaterialUnit] = useState('');
+  const [newMaterialReorder, setNewMaterialReorder] = useState('');
   const [formProjectId, setFormProjectId] = useState('');
   const [formNote, setFormNote] = useState('');
   const [formCostCents, setFormCostCents] = useState('');
@@ -73,7 +74,7 @@ export function TransactionLedger() {
    * creates a new Material for it and returns that id.
    */
   const ensureMaterial = useCallback(
-    async (item: { name: string; unit?: string; sku?: string }): Promise<string> => {
+    async (item: { name: string; unit?: string; sku?: string; reorderPoint?: number }): Promise<string> => {
       const existing = materials.find((m) => m.name.toLowerCase() === item.name.toLowerCase());
       if (existing) return existing.id;
       const res = await authFetch('/api/v1/materials', {
@@ -82,7 +83,7 @@ export function TransactionLedger() {
           name: item.name,
           unit: item.unit ?? 'each',
           sku: item.sku ?? `MAT-${Date.now().toString(36).toUpperCase()}`,
-          reorderPoint: 0,
+          reorderPoint: item.reorderPoint ?? 0,
         }),
       });
       if (!res.ok) {
@@ -122,11 +123,21 @@ export function TransactionLedger() {
     e.preventDefault();
     if (!newMaterialName.trim()) return;
     setError(null);
+    const reorderNum = newMaterialReorder.trim() === '' ? 0 : parseFloat(newMaterialReorder);
+    if (newMaterialReorder.trim() !== '' && (!Number.isFinite(reorderNum) || reorderNum < 0)) {
+      setError('Reorder threshold must be zero or a positive number');
+      return;
+    }
     try {
-      const materialId = await ensureMaterial({ name: newMaterialName.trim(), unit: newMaterialUnit.trim() || undefined });
+      const materialId = await ensureMaterial({
+        name: newMaterialName.trim(),
+        unit: newMaterialUnit.trim() || undefined,
+        reorderPoint: reorderNum,
+      });
       setFormMaterialId(materialId);
       setNewMaterialName('');
       setNewMaterialUnit('');
+      setNewMaterialReorder('');
       setIsAddingNew(false);
       setCatalogSelection('');
     } catch (err) {
@@ -285,6 +296,10 @@ export function TransactionLedger() {
                 <div>
                   <label htmlFor="tx-new-unit" className="mb-1.5 block text-sm font-medium text-foreground">Unit (optional)</label>
                   <input id="tx-new-unit" type="text" value={newMaterialUnit} onChange={(e) => setNewMaterialUnit(e.target.value)} className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground placeholder:text-foreground-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. bag" />
+                </div>
+                <div>
+                  <label htmlFor="tx-new-reorder" className="mb-1.5 block text-sm font-medium text-foreground">Reorder threshold</label>
+                  <input id="tx-new-reorder" type="number" min={0} step="1" value={newMaterialReorder} onChange={(e) => setNewMaterialReorder(e.target.value)} className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground placeholder:text-foreground-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. 10" />
                 </div>
                 <button
                   type="button"

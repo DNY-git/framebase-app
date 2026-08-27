@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { authFetch } from '../../auth-fetch';
 import { X, Loader2 } from '../../shared/components/icons';
+import { DatePicker } from '../../components/ui';
 import { EquipmentCategory, type EquipmentDomain } from '@constructtrack/types';
 
 interface EquipmentFormProps {
@@ -296,11 +297,10 @@ export function EquipmentForm({ onClose, onSaved, equipment, inline = false }: E
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="mb-1.5 block text-sm font-medium text-foreground">Purchase date</label>
-          <input
-            type="date"
+          <DatePicker
             value={purchaseDate}
-            onChange={(e) => setPurchaseDate(e.target.value)}
-            className={inputClass}
+            onChange={setPurchaseDate}
+            placeholder="Select purchase date"
           />
         </div>
         <div>

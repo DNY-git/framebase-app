@@ -3,6 +3,7 @@ import type { TaskDomain } from '@constructtrack/types';
 import { TaskStatus, TaskPriority } from '@constructtrack/types';
 import { authFetch } from '../../auth-fetch';
 import { FilterDropdown } from '../../shared/components/FilterDropdown';
+import { DatePicker } from '../../components/ui';
 import { X, Loader2 } from '../../shared/components/icons';
 
 interface TaskFormProps {
@@ -160,12 +161,11 @@ export function TaskForm({ projectId, task, onClose, onSaved }: TaskFormProps) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="t-due" className="mb-1.5 block text-sm font-medium text-foreground">Due Date</label>
-              <input
+              <DatePicker
                 id="t-due"
-                type="date"
                 value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                onChange={setDueDate}
+                placeholder="Select due date"
               />
             </div>
             <div>
