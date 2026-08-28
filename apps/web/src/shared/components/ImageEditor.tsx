@@ -207,6 +207,7 @@ export function ImageEditor({
             ref={stageRef}
             className="relative mx-auto overflow-hidden rounded-lg border border-border bg-black"
             style={{ width: stageSize.width, height: stageSize.height, touchAction: 'none' }}
+            onPointerDown={(e) => handlePointerDown(e, 'move')}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
@@ -247,7 +248,10 @@ export function ImageEditor({
                       <span
                         key={corner}
                         aria-hidden
-                        onPointerDown={(e) => handlePointerDown(e, 'resize', corner)}
+                        onPointerDown={(e) => {
+                          e.stopPropagation();
+                          handlePointerDown(e, 'resize', corner);
+                        }}
                         className={`absolute h-3.5 w-3.5 rounded-full border-2 border-white bg-black/70 ${cornerCursor(corner)}`}
                         style={cornerStyle(corner)}
                       />

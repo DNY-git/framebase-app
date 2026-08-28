@@ -288,5 +288,64 @@ export class EquipmentService {
   async getDowntimeLogs(auth: AuthContext, id: string, options: PaginationOptions): Promise<PaginatedResponse<DowntimeLogDomain>> {
     return this.downtimeLogRepository.find(auth.tenantId, { equipmentId: id }, options);
   }
+
+  /**
+   * Delete a usage log. Mirrors updateUsageLog's access rule (any
+   * authenticated tenant member) so the person who logged hours can also
+   * remove it. Hours Used / Utilization are derived from the remaining logs,
+   * so callers must re-fetch the equipment detail afterward.
+   */
+  async deleteUsageLog(auth: AuthContext, id: string, logId: string): Promise<void> {
+    await this.findById(auth, id); // Ensure equipment exists
+    const existing = await this.usageLogRepository.findById(auth.tenantId, logId);
+    if (!existing || existing.equipmentId !== id) {
+      throw new DomainException(ErrorCode.EQUIPMENT_NOT_FOUND, HttpStatus.NOT_FOUND, 'Usage log not found');
+    }
+    await this.usageLogRepository.delete(auth.tenantId, logId);
+    this.auditService.record({
+      tenantId: auth.tenantId,
+      actorId: auth.userId,
+      action: 'equipment.usage_log.delete',
+      entityType: 'equipment_usage_log',
+      entityId: logId,
+      before: existing as unknown as Record<string, unknown>,
+    });
+  }
+
+  async deleteMaintenance(auth: AuthContext, id: string, maintenanceId: string): Promise<void> {
+    this.assertFleetManager(auth);
+    await this.findById(auth, id); // Ensure equipment exists
+    const existing = await this.maintenanceRepository.findById(auth.tenantId, maintenanceId);
+    if (!existing || existing.equipmentId !== id) {
+      throw new DomainException(ErrorCode.MAINTENANCE_RECORD_NOT_FOUND, HttpStatus.NOT_FOUND, 'Maintenance record not found');
+    }
+    await this.maintenanceRepository.delete(auth.tenantId, maintenanceId);
+    this.auditService.record({
+      tenantId: auth.tenantId,
+      actorId: auth.userId,
+      action: 'equipment.maintenance.delete',
+      entityType: 'maintenance_record',
+      entityId: maintenanceId,
+      before: existing as unknown as Record<string, unknown>,
+    });
+  }
+
+  async deleteDowntime(auth: AuthContext, id: string, downtimeId: string): Promise<void> {
+    this.assertFleetManager(auth);
+    await this.findById(auth, id); // Ensure equipment exists
+    const existing = await this.downtimeLogRepository.findById(auth.tenantId, downtimeId);
+    if (!existing || existing.equipmentId !== id) {
+      throw new DomainException(ErrorCode.EQUIPMENT_NOT_FOUND, HttpStatus.NOT_FOUND, 'Downtime log not found');
+    }
+    await this.downtimeLogRepository.delete(auth.tenantId, downtimeId);
+    this.auditService.record({
+      tenantId: auth.tenantId,
+      actorId: auth.userId,
+      action: 'equipment.downtime.delete',
+      entityType: 'downtime_log',
+      entityId: downtimeId,
+      before: existing as unknown as Record<string, unknown>,
+    });
+  }
 }
 

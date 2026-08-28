@@ -55,30 +55,6 @@ function formatBudget(cents?: number): string {
   return `${(cents / 100).toLocaleString()}`;
 }
 
-function computeProgress(p: ProjectDomain): number | null {
-  if (p.status === ProjectStatus.COMPLETED || p.status === ProjectStatus.ARCHIVED) return 100;
-  if (!p.startDate || !p.endDate) return null;
-  const start = new Date(p.startDate).getTime();
-  const end = new Date(p.endDate).getTime();
-  if (end <= start) return null;
-  const now = Date.now();
-  if (now <= start) return 0;
-  if (now >= end) return 100;
-  return Math.round(((now - start) / (end - start)) * 100);
-}
-
-function progressColor(progress: number): string {
-  if (progress >= 70) return 'bg-success';
-  if (progress >= 40) return 'bg-warning';
-  return 'bg-danger';
-}
-
-function progressTextColor(progress: number): string {
-  if (progress >= 70) return 'text-success';
-  if (progress >= 40) return 'text-warning';
-  return 'text-danger';
-}
-
 function displayStatus(p: ProjectDomain): string {
   if (p.status === ProjectStatus.ACTIVE && p.endDate && new Date(p.endDate).getTime() < Date.now()) {
     return 'delayed';
@@ -342,14 +318,13 @@ export function ProjectsList() {
           <div className="overflow-x-auto rounded-xl border border-border bg-surface">
             <table className="w-full table-fixed text-sm">
               <colgroup>
-                <col className="w-[24%]" />
-                <col className="w-[11%]" />
-                <col className="w-[16%]" />
-                <col className="w-[11%]" />
+                <col className="w-[26%]" />
+                <col className="w-[12%]" />
+                <col className="w-[18%]" />
+                <col className="w-[12%]" />
+                <col className="w-[12%]" />
                 <col className="w-[10%]" />
                 <col className="w-[10%]" />
-                <col className="w-[10%]" />
-                <col className="w-[8%]" />
               </colgroup>
               <thead>
                 <tr className="border-b border-border bg-surface-muted/60 text-left">
@@ -374,15 +349,11 @@ export function ProjectsList() {
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-foreground-muted">
                     End date
                   </th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-foreground-muted">
-                    Progress
-                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {projects.map((project) => {
                   const statusValue = displayStatus(project);
-                  const progress = computeProgress(project);
                   const member = managers.get(project.id) ?? null;
                   const isCurrentUser = member?.userId === user?.id;
                   const managerName = isCurrentUser
@@ -443,27 +414,8 @@ export function ProjectsList() {
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums text-foreground">{formatBudget(project.budgetCents)}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-foreground-muted">{formatDate(project.startDate)}</td>
-                      <td className="px-4 py-3 whitespace-nowrap text-foreground-muted">{formatDate(project.endDate)}</td>
-                      <td className="px-4 py-3">
-                        {progress != null ? (
-                          <div className="flex items-center gap-2">
-                            <div className="h-1.5 w-14 overflow-hidden rounded-full bg-surface-muted">
-                              <div
-                                className={`h-full rounded-full ${progressColor(progress)}`}
-                                style={{ width: `${progress}%` }}
-                              />
-                            </div>
-                            <span
-                              className={`text-xs font-semibold tabular-nums ${progressTextColor(progress)}`}
-                            >
-                              {progress}%
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-foreground-muted">—</span>
-                        )}
-                      </td>
-                    </tr>
+                       <td className="px-4 py-3 whitespace-nowrap text-foreground-muted">{formatDate(project.endDate)}</td>
+                     </tr>
                   );
                 })}
               </tbody>

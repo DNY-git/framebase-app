@@ -17,6 +17,7 @@ import {
   Check,
   Camera,
   Trash,
+  Edit,
 } from '../../shared/components/icons';
 
 const PREVIEW_MAX_DIMENSION = 1600;
@@ -116,6 +117,7 @@ function ProfileTab({ user, setUser }: { user: User | null; setUser: (u: User) =
   const [error, setError] = useState<string | null>(null);
   const [editorSrc, setEditorSrc] = useState<string | null>(null);
   const editorUrlRef = useRef<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const closeEditor = useCallback(() => {
     setEditorSrc(null);
@@ -234,28 +236,38 @@ function ProfileTab({ user, setUser }: { user: User | null; setUser: (u: User) =
       )}
 
       <div className="mb-6 flex items-center gap-4">
-        <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-primary text-lg font-semibold text-primary-foreground">
-          {user?.avatarUrl ? (
-            <img
-              src={`/api/v1/auth/${user.id}/avatar?v=${encodeURIComponent(user.avatarUrl)}`}
-              alt="Profile photo"
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            user?.name
-              ?.split(' ')
-              .map((n) => n[0])
-              .join('')
-              .toUpperCase()
-              .slice(0, 2) ?? '?'
-          )}
+        <div className="relative">
+          <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-primary text-lg font-semibold text-primary-foreground">
+            {user?.avatarUrl ? (
+              <img
+                src={`/api/v1/auth/${user.id}/avatar?v=${encodeURIComponent(user.avatarUrl)}`}
+                alt="Profile photo"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              user?.name
+                ?.split(' ')
+                .map((n) => n[0])
+                .join('')
+                .toUpperCase()
+                .slice(0, 2) ?? '?'
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => avatarInputRef.current?.click()}
+            aria-label="Edit profile photo"
+            className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border border-border bg-surface text-foreground-muted shadow-sm transition-colors hover:bg-surface-muted hover:text-foreground"
+          >
+            <Edit className="h-3.5 w-3.5" />
+          </button>
         </div>
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
             <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted">
               {isAvatarUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
               {isAvatarUploading ? 'Uploading…' : 'Upload photo'}
-              <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleAvatarChange} disabled={isAvatarUploading} />
+              <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleAvatarChange} disabled={isAvatarUploading} />
             </label>
             {user?.avatarUrl && (
               <button

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, LogOut, ChevronDown, Building, Check, Loader2 } from './icons';
+import { User, LogOut, ChevronDown, Check, Loader2 } from './icons';
 import { useAuthStore } from '../../stores/auth-store';
 import { logoutAll } from '../../auth-fetch';
 
@@ -104,7 +104,6 @@ export function UserProfileMenu() {
 
           {activeOrgName && (
             <div className="flex items-center gap-2 border-b border-border px-4 py-2">
-              <Building className="h-4 w-4 shrink-0 text-foreground-muted" />
               <span className="truncate text-xs font-medium text-foreground">{activeOrgName}</span>
             </div>
           )}
@@ -123,7 +122,6 @@ export function UserProfileMenu() {
                     org.id === user?.tenantId ? 'text-foreground' : 'text-foreground-muted'
                   }`}
                 >
-                  <Building className="h-4 w-4 shrink-0" />
                   <span className="min-w-0 flex-1 truncate">{org.name}</span>
                   {switching === org.id ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin text-foreground-muted" />
@@ -154,7 +152,6 @@ export function UserProfileMenu() {
               onClick={() => setOpen(false)}
               className="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-surface-muted"
             >
-              <Building className="h-4 w-4 text-foreground-muted" />
               Organizations
             </Link>
           </div>

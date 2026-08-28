@@ -156,7 +156,8 @@ const RUN_STATUS_ICONS: Record<string, React.ComponentType<{ className?: string 
 
 export function Reports() {
   const { user } = useAuthStore();
-  const canCreate = user?.role === 'admin' || user?.role === 'project_manager';
+  const canCreate =
+    user?.role === 'owner' || user?.role === 'admin' || user?.role === 'project_manager';
 
   const [templates, setTemplates] = useState<ReportTemplateDomain[]>([]);
   const [runs, setRuns] = useState<ReportRunDomain[]>([]);

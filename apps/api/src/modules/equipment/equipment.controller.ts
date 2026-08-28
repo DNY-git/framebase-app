@@ -109,7 +109,7 @@ export class EquipmentController {
 
   @Get(':id/usage')
   async getUsageLogs(
-    @CurrentUser() user: AuthenticatedUser, 
+    @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
     @Query('page') page?: string,
     @Query('perPage') perPage?: string,
@@ -117,6 +117,16 @@ export class EquipmentController {
     const options = parsePagination(page, perPage);
     const result = await this.equipmentService.getUsageLogs(user, id, options);
     return formatPaginatedResponse(result);
+  }
+
+  @Delete(':id/usage/:logId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteUsageLog(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('logId') logId: string,
+  ) {
+    await this.equipmentService.deleteUsageLog(user, id, logId);
   }
 
   // --- Maintenance ---
@@ -143,7 +153,7 @@ export class EquipmentController {
 
   @Get(':id/maintenance')
   async getMaintenanceRecords(
-    @CurrentUser() user: AuthenticatedUser, 
+    @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
     @Query('page') page?: string,
     @Query('perPage') perPage?: string,
@@ -151,6 +161,17 @@ export class EquipmentController {
     const options = parsePagination(page, perPage);
     const result = await this.equipmentService.getMaintenanceRecords(user, id, options);
     return formatPaginatedResponse(result);
+  }
+
+  @Delete(':id/maintenance/:maintenanceId')
+  @Roles(Role.ADMIN, Role.FLEET_MANAGER)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteMaintenance(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('maintenanceId') maintenanceId: string,
+  ) {
+    await this.equipmentService.deleteMaintenance(user, id, maintenanceId);
   }
 
   // --- Downtime ---
@@ -165,7 +186,7 @@ export class EquipmentController {
 
   @Get(':id/downtime')
   async getDowntimeLogs(
-    @CurrentUser() user: AuthenticatedUser, 
+    @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
     @Query('page') page?: string,
     @Query('perPage') perPage?: string,
@@ -173,6 +194,17 @@ export class EquipmentController {
     const options = parsePagination(page, perPage);
     const result = await this.equipmentService.getDowntimeLogs(user, id, options);
     return formatPaginatedResponse(result);
+  }
+
+  @Delete(':id/downtime/:downtimeId')
+  @Roles(Role.ADMIN, Role.FLEET_MANAGER)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteDowntime(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('downtimeId') downtimeId: string,
+  ) {
+    await this.equipmentService.deleteDowntime(user, id, downtimeId);
   }
 
   // ===== T-202: Equipment Reporting & Utilization =====

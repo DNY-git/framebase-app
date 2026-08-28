@@ -7,6 +7,7 @@ import type {
 } from '@constructtrack/types';
 import { authFetch } from '../../auth-fetch';
 import { Skeleton } from '../../shared/components/Skeleton';
+import { DeleteMinusButton } from '../../shared/components/DeleteMinusButton';
 import { DatePicker } from '../../components/ui';
 import { EquipmentForm } from './EquipmentForm';
 
@@ -349,6 +350,22 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
     }
   }
 
+  async function deleteLogEntry(kind: 'usage' | 'maintenance' | 'downtime', logId: string) {
+    try {
+      const res = await authFetch(`/api/v1/equipment/${current.id}/${kind}/${logId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => null);
+        throw new Error(errBody?.message ?? `Failed to delete ${kind} entry`);
+      }
+      refreshDerivedData();
+    } catch (err) {
+      const message = (err as Error).message;
+      if (kind === 'usage') setUsageError(message);
+      else if (kind === 'maintenance') setMaintenanceError(message);
+      else setDowntimeError(message);
+    }
+  }
+
   const utilizationPercent = Math.min(100, Math.max(0, utilization?.utilizationPercentage ?? 0));
 
   return (
@@ -561,12 +578,18 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
                       </div>
                     ))}
                     {maintenanceHistory.map((record) => (
-                      <div key={`history-${record.id}`} className="p-3 text-sm">
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="font-medium text-foreground">{record.type}</span>
-                          <span className="text-foreground-muted">{record.status}</span>
+                      <div key={`history-${record.id}`} className="flex items-center justify-between gap-3 p-3 text-sm">
+                        <div>
+                          <div className="flex items-center gap-3">
+                            <span className="font-medium text-foreground">{record.type}</span>
+                            <span className="text-foreground-muted">{record.status}</span>
+                          </div>
+                          <div className="text-foreground-muted">{formatDate(record.date ?? record.nextDueAt)}</div>
                         </div>
-                        <div className="text-foreground-muted">{formatDate(record.date ?? record.nextDueAt)}</div>
+                        <DeleteMinusButton
+                          label="Delete maintenance record"
+                          onClick={() => void deleteLogEntry('maintenance', record.id)}
+                        />
                       </div>
                     ))}
                   </>
@@ -702,6 +725,10 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
                           >
                             Edit
                           </button>
+                          <DeleteMinusButton
+                            label="Delete usage log"
+                            onClick={() => void deleteLogEntry('usage', log.id)}
+                          />
                         </div>
                       </div>
                     ),
@@ -803,10 +830,16 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
               ) : (
                 downtimeHistory.map((log) => (
                   <div key={log.id} className="flex flex-col gap-1 p-3 text-sm md:flex-row md:items-center md:justify-between">
-                    <div className="font-medium text-foreground">{log.reason}</div>
-                    <div className="text-foreground-muted">
-                      {formatDate(log.startDate)} to {formatDate(log.endDate)}
+                    <div>
+                      <div className="font-medium text-foreground">{log.reason}</div>
+                      <div className="text-foreground-muted">
+                        {formatDate(log.startDate)} to {formatDate(log.endDate)}
+                      </div>
                     </div>
+                    <DeleteMinusButton
+                      label="Delete downtime log"
+                      onClick={() => void deleteLogEntry('downtime', log.id)}
+                    />
                   </div>
                 ))
               )}

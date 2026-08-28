@@ -15,7 +15,7 @@ export class ReportsController {
   // ====== Templates ======
 
   @Post('templates')
-  @Roles(Role.ADMIN, Role.PROJECT_MANAGER)
+  @Roles(Role.OWNER, Role.ADMIN, Role.PROJECT_MANAGER)
   @HttpCode(HttpStatus.CREATED)
   async createTemplate(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateReportTemplateDto) {
     const template = await this.reportsService.createTemplate(user, dto);
@@ -40,7 +40,7 @@ export class ReportsController {
   }
 
   @Delete('templates/:id')
-  @Roles(Role.ADMIN, Role.PROJECT_MANAGER)
+  @Roles(Role.OWNER, Role.ADMIN, Role.PROJECT_MANAGER)
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteTemplate(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     await this.reportsService.deleteTemplate(user, id);

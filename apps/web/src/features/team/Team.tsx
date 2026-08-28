@@ -19,7 +19,6 @@ import {
   Mail,
   Copy,
   Loader2,
-  Trash,
   Shield,
   CheckCircle,
   AlertCircle,
@@ -27,6 +26,7 @@ import {
   Building,
 } from '../../shared/components/icons';
 import { Role } from '@constructtrack/types';
+import { DeleteMinusButton } from '../../shared/components/DeleteMinusButton';
 
 interface TeamMember {
   id: string;
@@ -391,18 +391,11 @@ export function Team() {
                         <td className="px-5 py-3 text-xs text-foreground-muted">
                           {formatDate(member.joinedAt)}
                         </td>
-                        <td className="px-5 py-3 text-right">
-                          {!isSelf && (
-                            <button
-                              onClick={() => handleRemove(member.id)}
-                              title="Remove member"
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-danger/20 px-2.5 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/5"
-                            >
-                              <Trash className="h-3.5 w-3.5" />
-                              Remove
-                            </button>
-                          )}
-                        </td>
+                         <td className="px-5 py-3 text-right">
+                           {!isSelf && (
+                             <DeleteMinusButton label="Remove member" onClick={() => handleRemove(member.id)} />
+                           )}
+                         </td>
                       </tr>
                     );
                   })}
@@ -505,14 +498,9 @@ export function Team() {
                         >
                           <Copy className="h-3.5 w-3.5" /> Copy link
                         </button>
-                        {!expired && (
-                          <button
-                            onClick={() => handleRevoke(inv.id)}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-danger/20 px-2.5 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/5"
-                          >
-                            <Trash className="h-3.5 w-3.5" /> Revoke
-                          </button>
-                        )}
+                         {!expired && (
+                           <DeleteMinusButton label="Revoke invitation" onClick={() => handleRevoke(inv.id)} />
+                         )}
                       </div>
                     );
                   })}
