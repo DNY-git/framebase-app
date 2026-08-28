@@ -13,6 +13,11 @@ export class ReportRun implements Omit<ReportRunDomain, 'id'> {
   @Prop({ type: SchemaTypes.ObjectId, required: true, index: true })
   templateId!: string;
 
+  /** Denormalized template name captured at generation time so Report History
+   *  keeps displaying the correct name even after the source template is deleted. */
+  @Prop({ type: String })
+  templateName?: string;
+
   @Prop({ type: String, enum: ReportStatus, required: true, default: ReportStatus.PENDING })
   status!: ReportStatus;
 

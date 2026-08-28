@@ -21,6 +21,7 @@ import { SessionRepository } from '../auth/repositories/session.repository';
 import { TokenService } from '../auth/token.service';
 import { PasswordService } from '../auth/password.service';
 import { AuditModule } from '../audit/audit.module';
+import { MailerModule } from '../../common/mailer/mailer.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { AuditModule } from '../audit/audit.module';
       { name: Invitation.name, schema: InvitationSchema },
     ]),
     AuditModule,
+    MailerModule,
   ],
   controllers: [OrganizationsController, InvitationsController],
   providers: [

@@ -18,6 +18,7 @@ import {
   Building,
   UserPlus,
 } from '../../shared/components/icons';
+import { ConfirmDialog } from '../../shared/components/ConfirmDialog';
 
 const STATUS_STYLES: Record<string, string> = {
   [ProjectStatus.PLANNING]: 'bg-info/10 text-info',
@@ -103,7 +104,7 @@ export function ProjectDetail() {
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [pendingRemoveUserId, setPendingRemoveUserId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'members' | 'activity'>('overview');
 
   // Member assignment state
@@ -202,7 +203,7 @@ export function ProjectDetail() {
   };
 
   const handleRemoveMember = async (userId: string) => {
-    if (!id || !window.confirm('Remove this member from the project?')) return;
+    if (!id) return;
     if (userId === user?.id) {
       setMemberError('You cannot remove yourself from a project you manage.');
       return;
@@ -241,7 +242,7 @@ export function ProjectDetail() {
   const handleDelete = async () => {
     if (!id) return;
     setIsDeleting(true);
-    setDeleteError(null);
+    setError(null);
     try {
       const res = await authFetch(`/api/v1/projects/${id}`, { method: 'DELETE' });
       if (!res.ok) {
@@ -251,7 +252,7 @@ export function ProjectDetail() {
       }
       navigate('/projects');
     } catch (err) {
-      setDeleteError((err as Error).message);
+      setError((err as Error).message);
       setIsDeleting(false);
     }
   };
@@ -512,7 +513,7 @@ export function ProjectDetail() {
                         </span>
                         {canEdit && m.userId !== user?.id && (
                           <button
-                            onClick={() => handleRemoveMember(m.userId)}
+                            onClick={() => setPendingRemoveUserId(m.userId)}
                             disabled={removingUserId === m.userId}
                             title="Remove from project"
                             className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-danger/20 text-danger transition-colors hover:bg-danger/5 disabled:opacity-50"
@@ -582,42 +583,36 @@ export function ProjectDetail() {
       )}
 
       {/* Delete Confirmation Modal */}
-      {showDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl border border-border bg-surface p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-foreground">Delete project?</h3>
-            <p className="mt-2 text-sm text-foreground-muted">
-              <span className="font-medium text-foreground">{project.name}</span> will be permanently
-              deleted. This action cannot be undone.
-            </p>
-            {deleteError && (
-              <p className="mt-3 rounded-lg border border-danger/20 bg-danger/5 p-3 text-sm text-danger">
-                {deleteError}
-              </p>
-            )}
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                onClick={() => {
-                  setShowDelete(false);
-                  setDeleteError(null);
-                }}
-                disabled={isDeleting}
-                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={isDeleting}
-                className="inline-flex items-center gap-2 rounded-lg bg-danger px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-danger/90 disabled:opacity-50"
-              >
-                {isDeleting && <Loader2 className="h-4 w-4 animate-spin" />}
-                {isDeleting ? 'Deleting…' : 'Delete project'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={showDelete}
+        title="Delete project?"
+        description={
+          <span>
+            <span className="font-medium text-foreground">{project.name}</span> will be permanently
+            deleted. This action cannot be undone.
+          </span>
+        }
+        confirmLabel="Delete project"
+        isLoading={isDeleting}
+        onConfirm={handleDelete}
+        onCancel={() => {
+          setShowDelete(false);
+          setError(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={pendingRemoveUserId !== null}
+        title="Remove member?"
+        description="This member will be removed from the project."
+        confirmLabel="Remove"
+        onConfirm={() => {
+          const uid = pendingRemoveUserId;
+          setPendingRemoveUserId(null);
+          if (uid) void handleRemoveMember(uid);
+        }}
+        onCancel={() => setPendingRemoveUserId(null)}
+      />
     </div>
   );
 }

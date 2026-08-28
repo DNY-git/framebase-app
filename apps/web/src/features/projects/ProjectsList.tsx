@@ -17,11 +17,11 @@ import {
 
 const STATUS_STYLES: Record<string, string> = {
   [ProjectStatus.PLANNING]: 'bg-info/20 text-info',
-  [ProjectStatus.ACTIVE]: 'bg-success text-white',
-  [ProjectStatus.ON_HOLD]: 'bg-warning text-white',
-  [ProjectStatus.COMPLETED]: 'bg-primary text-white',
-  [ProjectStatus.ARCHIVED]: 'bg-foreground-muted text-white',
-  delayed: 'bg-danger text-white',
+  [ProjectStatus.ACTIVE]: 'bg-success/10 text-success',
+  [ProjectStatus.ON_HOLD]: 'bg-warning/10 text-warning',
+  [ProjectStatus.COMPLETED]: 'bg-primary/10 text-primary',
+  [ProjectStatus.ARCHIVED]: 'bg-foreground-muted/10 text-foreground-muted',
+  delayed: 'bg-danger/10 text-danger',
 };
 
 // Solid dot colour used as the row indicator next to each project name.

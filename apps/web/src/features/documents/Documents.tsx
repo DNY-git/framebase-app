@@ -220,7 +220,7 @@ export function Documents() {
               {isLoading ? (
                 <>
                   {Array.from({ length: 5 }).map((_, i) => (
-                    <tr key={i} className="border-b border-border last:border-0">
+                    <tr key={i} className="">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <Skeleton className="h-9 w-9 rounded-lg" />
@@ -252,7 +252,7 @@ export function Documents() {
                 documents.map((doc) => {
                   const project = projectMap.get(doc.projectId ?? '');
                   return (
-                    <tr key={doc.id} className="border-b border-border last:border-0">
+                    <tr key={doc.id} className="">
                       <td className="px-4 py-3 font-medium text-foreground">{doc.name}</td>
                       <td className="px-4 py-3 text-sm text-foreground-muted">
                         {doc.mimeType || 'Unknown type'}

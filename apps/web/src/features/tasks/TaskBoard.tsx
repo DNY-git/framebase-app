@@ -138,6 +138,7 @@ export function TaskBoard() {
           value={selectedProjectId}
           onChange={setSelectedProjectId}
           placeholder="Select a project..."
+          variant="button"
           className="w-full sm:w-56"
           options={[
             { value: '', label: 'Select a project...' },

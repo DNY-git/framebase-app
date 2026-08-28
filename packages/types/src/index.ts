@@ -699,6 +699,8 @@ export interface ReportRunDomain {
   id: string;
   tenantId: string;
   templateId: string;
+  /** Denormalized template name captured at generation time (survives template deletion). */
+  templateName?: string;
   status: ReportStatus;
   params: Record<string, unknown>;
   resultUrl?: string;

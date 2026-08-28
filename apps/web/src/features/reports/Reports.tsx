@@ -5,6 +5,7 @@ import { authFetch } from '../../auth-fetch';
 import { useAuthStore } from '../../stores/auth-store';
 import { FilterDropdown } from '@/shared/components/FilterDropdown';
 import { Skeleton } from '@/shared/components/Skeleton';
+import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { StatusStatRow } from '@/components/ui/status-stat-row';
 import {
   ChoroplethChart,
@@ -126,8 +127,7 @@ ${sections.length === 0
   win.print();
 }
 
-async function deleteTemplate(id: string, name: string, onError: (message: string) => void, onDeleted: () => void): Promise<void> {
-  if (!window.confirm(`Delete template "${name}"? Templates with generated runs cannot be deleted.`)) return;
+async function deleteTemplate(id: string, onError: (message: string) => void, onDeleted: () => void): Promise<void> {
   try {
     const res = await authFetch(`/api/v1/reports/templates/${id}`, { method: 'DELETE' });
     if (!res.ok && res.status !== 204) {
@@ -161,6 +161,7 @@ export function Reports() {
 
   const [templates, setTemplates] = useState<ReportTemplateDomain[]>([]);
   const [runs, setRuns] = useState<ReportRunDomain[]>([]);
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
   const [isLoadingRuns, setIsLoadingRuns] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -306,17 +307,8 @@ export function Reports() {
                   {canCreate && (
                     <button
                       type="button"
-                      onClick={() =>
-                        void deleteTemplate(t.id, t.name, setError, () => {
-                          fetchTemplates();
-                          fetchRuns();
-                        })
-                      }
-                      title={
-                        runs.some((r) => r.templateId === t.id)
-                          ? 'This template has generated runs — delete those first'
-                          : 'Delete template'
-                      }
+                      onClick={() => setPendingDelete({ id: t.id, name: t.name })}
+                      title="Delete template"
                       className="rounded-lg border border-danger/20 p-1.5 text-danger transition-colors hover:bg-danger/5"
                     >
                       <Trash className="h-3.5 w-3.5" />
@@ -386,7 +378,7 @@ export function Reports() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-foreground">
-                        {templates.find((t) => t.id === run.templateId)?.name ?? 'Report'}
+                        {run.templateName ?? templates.find((t) => t.id === run.templateId)?.name ?? 'Report'}
                       </span>
                       <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${RUN_STATUS_STYLES[run.status] ?? ''}`}>
                         <StatusIcon className={`h-3 w-3 ${run.status === 'generating' ? 'animate-spin' : ''}`} />
@@ -404,7 +396,7 @@ export function Reports() {
                   {run.status === 'succeeded' && (
                     <button
                       type="button"
-                      onClick={() => printRun(run, templates.find((t) => t.id === run.templateId)?.name ?? 'Report')}
+                      onClick={() => printRun(run, run.templateName ?? templates.find((t) => t.id === run.templateId)?.name ?? 'Report')}
                       className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-muted"
                     >
                       <Download className="h-3.5 w-3.5" /> Print / PDF
@@ -444,10 +436,22 @@ export function Reports() {
           onSaved={() => { setShowGenerateReport(false); fetchRuns(); }}
         />
       )}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Delete template?"
+        description={`Template "${pendingDelete?.name}" will be permanently deleted. Existing report runs are preserved in Report History.`}
+        confirmLabel="Delete"
+        onConfirm={() => {
+          const target = pendingDelete;
+          setPendingDelete(null);
+          if (target) void deleteTemplate(target.id, setError, () => { fetchTemplates(); fetchRuns(); });
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }
-
 function CreateTemplateModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');

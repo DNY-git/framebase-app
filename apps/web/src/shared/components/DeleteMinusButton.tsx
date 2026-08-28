@@ -26,7 +26,7 @@ export function DeleteMinusButton({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-danger/40 text-danger transition-colors hover:bg-danger/10 disabled:opacity-50 ${className}`}
+      className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-danger/40 text-danger transition-colors hover:bg-danger/10 disabled:opacity-50 ${className}`}
     >
       <span className="text-base leading-none" aria-hidden>
         −

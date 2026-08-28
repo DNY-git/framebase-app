@@ -37,7 +37,11 @@
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xl: calc(--radius + 4px);
+
+  /* Geist typeface (replaces the previous monospace default) */
+  --font-sans: 'Geist Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 }
 
 :root {
@@ -193,7 +197,7 @@
 }
 
 :root {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-family: 'Geist Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.5;
 }
 
@@ -201,6 +205,13 @@ body {
   margin: 0;
   background-color: var(--background);
   color: var(--foreground);
+}
+
+code,
+pre,
+kbd,
+samp {
+  font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 }
 
 * {
@@ -245,4 +256,11 @@ input[type="number"]::-webkit-inner-spin-button {
   .scrollbar-thin {
     scrollbar-width: thin;
   }
+}
+
+/* App-wide: remove row divider lines from tables and lists (design update).
+   Rows stay visually distinguishable via their existing cell padding; the outer
+   card borders (border border-border) are intentionally preserved. */
+.divide-y > * {
+  border-top-width: 0 !important;
 }

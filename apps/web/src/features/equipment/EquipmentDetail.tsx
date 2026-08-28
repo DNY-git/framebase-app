@@ -8,6 +8,7 @@ import type {
 import { authFetch } from '../../auth-fetch';
 import { Skeleton } from '../../shared/components/Skeleton';
 import { DeleteMinusButton } from '../../shared/components/DeleteMinusButton';
+import { ConfirmDialog } from '../../shared/components/ConfirmDialog';
 import { DatePicker } from '../../components/ui';
 import { EquipmentForm } from './EquipmentForm';
 
@@ -350,6 +351,7 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
     }
   }
 
+  const [pendingLogDelete, setPendingLogDelete] = useState<{ kind: 'usage' | 'maintenance' | 'downtime'; logId: string } | null>(null);
   async function deleteLogEntry(kind: 'usage' | 'maintenance' | 'downtime', logId: string) {
     try {
       const res = await authFetch(`/api/v1/equipment/${current.id}/${kind}/${logId}`, { method: 'DELETE' });
@@ -588,7 +590,7 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
                         </div>
                         <DeleteMinusButton
                           label="Delete maintenance record"
-                          onClick={() => void deleteLogEntry('maintenance', record.id)}
+                          onClick={() => setPendingLogDelete({ kind: 'maintenance', logId: record.id })}
                         />
                       </div>
                     ))}
@@ -727,7 +729,7 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
                           </button>
                           <DeleteMinusButton
                             label="Delete usage log"
-                            onClick={() => void deleteLogEntry('usage', log.id)}
+                            onClick={() => setPendingLogDelete({ kind: 'usage', logId: log.id })}
                           />
                         </div>
                       </div>
@@ -838,7 +840,7 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
                     </div>
                     <DeleteMinusButton
                       label="Delete downtime log"
-                      onClick={() => void deleteLogEntry('downtime', log.id)}
+                      onClick={() => setPendingLogDelete({ kind: 'downtime', logId: log.id })}
                     />
                   </div>
                 ))
@@ -847,6 +849,18 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
           </section>
         </>
       )}
+    <ConfirmDialog
+        open={pendingLogDelete !== null}
+        title="Delete log entry?"
+        description="This log entry will be permanently removed."
+        confirmLabel="Delete"
+        onConfirm={() => {
+          const target = pendingLogDelete;
+          setPendingLogDelete(null);
+          if (target) void deleteLogEntry(target.kind, target.logId);
+        }}
+        onCancel={() => setPendingLogDelete(null)}
+      />
     </section>
   );
 }

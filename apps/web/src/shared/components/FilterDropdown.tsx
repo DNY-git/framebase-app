@@ -13,9 +13,11 @@ interface FilterDropdownProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  /** 'dropdown' = bordered select-style trigger (default); 'button' = solid action button. */
+  variant?: 'dropdown' | 'button';
 }
 
-export function FilterDropdown({ value, onChange, options, placeholder = 'Select...', className, disabled }: FilterDropdownProps) {
+export function FilterDropdown({ value, onChange, options, placeholder = 'Select...', className, disabled, variant = 'dropdown' }: FilterDropdownProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -48,7 +50,11 @@ export function FilterDropdown({ value, onChange, options, placeholder = 'Select
         aria-haspopup="listbox"
         aria-expanded={open}
         disabled={disabled}
-        className="flex h-10 w-full items-center justify-between gap-2 rounded-lg border border-border bg-surface px-3 text-sm text-foreground transition-colors hover:bg-surface-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+        className={
+          variant === 'button'
+            ? 'flex h-10 w-full items-center justify-between gap-2 rounded-lg bg-action px-4 text-sm font-medium text-action-foreground transition-colors hover:bg-action/90 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50'
+            : 'flex h-10 w-full items-center justify-between gap-2 rounded-lg border border-border bg-surface px-3 text-sm text-foreground transition-colors hover:bg-surface-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50'
+        }
       >
         <span className="truncate">{selectedLabel}</span>
         <ChevronDown

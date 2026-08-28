@@ -27,6 +27,7 @@ import {
 } from '../../shared/components/icons';
 import { Role } from '@constructtrack/types';
 import { DeleteMinusButton } from '../../shared/components/DeleteMinusButton';
+import { ConfirmDialog } from '../../shared/components/ConfirmDialog';
 
 interface TeamMember {
   id: string;
@@ -195,7 +196,6 @@ export function Team() {
   };
 
   const handleRemove = async (memberId: string) => {
-    if (!window.confirm('Remove this member from the organization?')) return;
     setMemberError(null);
     try {
       const res = await authFetch(`/api/v1/organizations/members/${memberId}`, {
@@ -212,7 +212,6 @@ export function Team() {
   };
 
   const handleRevoke = async (invitationId: string) => {
-    if (!window.confirm('Revoke this invitation?')) return;
     setMemberError(null);
     try {
       const res = await authFetch(`/api/v1/organizations/invitations/${invitationId}`, {
@@ -226,6 +225,14 @@ export function Team() {
     } catch (err) {
       setMemberError((err as Error).message);
     }
+  };
+
+  const [pendingDelete, setPendingDelete] = useState<{ kind: 'remove' | 'revoke'; id: string } | null>(null);
+  const confirmPendingDelete = async () => {
+    if (!pendingDelete) return;
+    if (pendingDelete.kind === 'remove') await handleRemove(pendingDelete.id);
+    else await handleRevoke(pendingDelete.id);
+    setPendingDelete(null);
   };
 
   const handleCopyLink = async (url: string | null) => {
@@ -393,7 +400,7 @@ export function Team() {
                         </td>
                          <td className="px-5 py-3 text-right">
                            {!isSelf && (
-                             <DeleteMinusButton label="Remove member" onClick={() => handleRemove(member.id)} />
+                             <DeleteMinusButton label="Remove member" onClick={() => setPendingDelete({ kind: 'remove', id: member.id })} />
                            )}
                          </td>
                       </tr>
@@ -446,13 +453,9 @@ export function Team() {
                 className="flex h-10 items-center justify-center gap-2 rounded-lg bg-action px-4 text-sm font-medium text-action-foreground transition-colors hover:bg-action/90 disabled:opacity-50"
               >
                 {isInviting ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
-                Invite
-              </button>
+                 Invite
+               </button>
             </form>
-            <p className="mt-2 text-xs text-foreground-muted">
-              Invitations are emailed when SMTP is configured (SMTP_* in the API .env); otherwise copy the accept
-              link and share it manually. Links expire after 72 hours by default (INVITATION_TTL).
-            </p>
           </section>
 
           {/* Pending invitations */}
@@ -498,9 +501,9 @@ export function Team() {
                         >
                           <Copy className="h-3.5 w-3.5" /> Copy link
                         </button>
-                         {!expired && (
-                           <DeleteMinusButton label="Revoke invitation" onClick={() => handleRevoke(inv.id)} />
-                         )}
+                          {!expired && (
+                            <DeleteMinusButton label="Revoke invitation" onClick={() => setPendingDelete({ kind: 'revoke', id: inv.id })} />
+                          )}
                       </div>
                     );
                   })}
@@ -509,6 +512,19 @@ export function Team() {
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title={pendingDelete?.kind === 'remove' ? 'Remove member?' : 'Revoke invitation?'}
+        description={
+          pendingDelete?.kind === 'remove'
+            ? 'This member will be removed from the organization.'
+            : 'The invitation will be revoked and can no longer be accepted.'
+        }
+        confirmLabel={pendingDelete?.kind === 'remove' ? 'Remove' : 'Revoke'}
+        onConfirm={confirmPendingDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </PageLayout>
   );
 }
