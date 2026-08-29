@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import type { TaskDomain, ProjectDomain } from '@constructtrack/types';
 import { TaskStatus, TaskPriority } from '@constructtrack/types';
@@ -6,6 +6,7 @@ import { authFetch } from '../../auth-fetch';
 import { useAuthStore } from '../../stores/auth-store';
 import { PageLayout } from '../../shared/components/PageLayout';
 import { FilterDropdown } from '../../shared/components/FilterDropdown';
+import { Button } from '../../components/ui/button';
 import { TaskForm } from './TaskForm';
 import {
   CheckSquare,
@@ -13,6 +14,8 @@ import {
   Plus,
   Clock,
   AlertTriangle,
+  ChevronDown,
+  Check,
 } from '../../shared/components/icons';
 
 /* ─── Constants ─── */
@@ -134,16 +137,10 @@ export function TaskBoard() {
 
       {/* Project Selector + Filters */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <FilterDropdown
+        <ProjectSelect
+          projects={projects}
           value={selectedProjectId}
           onChange={setSelectedProjectId}
-          placeholder="Select a project..."
-          variant="button"
-          className="w-full sm:w-56"
-          options={[
-            { value: '', label: 'Select a project...' },
-            ...projects.map((p) => ({ value: p.id, label: `${p.name} (${p.code})` })),
-          ]}
         />
 
         {selectedProjectId && (
@@ -378,5 +375,85 @@ function StatusBadge({ status }: { status: TaskStatus }) {
     <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${styles[status]}`}>
       {labels[status]}
     </span>
+  );
+}
+
+/* ─── Project Selector (Button-styled) ─── */
+
+function ProjectSelect({
+  projects,
+  value,
+  onChange,
+}: {
+  projects: ProjectDomain[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  const options = [
+    { value: '', label: 'Select a project...' },
+    ...projects.map((p) => ({ value: p.id, label: `${p.name} (${p.code})` })),
+  ];
+  const selectedLabel = options.find((o) => o.value === value)?.label ?? 'Select a project...';
+
+  return (
+    <div className="relative w-full sm:w-56" ref={ref}>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className="w-full justify-between"
+      >
+        <span className="truncate">{selectedLabel}</span>
+        <ChevronDown
+          className={`h-4 w-4 shrink-0 opacity-60 transition-transform ${open ? 'rotate-180' : ''}`}
+        />
+      </Button>
+      {open && (
+        <ul
+          role="listbox"
+          className="absolute left-0 right-0 z-50 mt-1 max-h-64 overflow-y-auto rounded-lg bg-surface py-1 shadow-lg scrollbar-thin"
+        >
+          {options.map((o) => (
+            <li key={o.value}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={o.value === value}
+                onClick={() => {
+                  onChange(o.value);
+                  setOpen(false);
+                }}
+                className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors hover:bg-surface-muted ${
+                  o.value === value ? 'font-medium text-foreground' : 'text-foreground'
+                }`}
+              >
+                {o.label}
+                {o.value === value && <Check className="h-4 w-4 shrink-0 text-primary" />}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

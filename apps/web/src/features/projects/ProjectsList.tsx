@@ -1,12 +1,21 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import type { ProjectDomain, ProjectMemberDomain } from '@constructtrack/types';
-import { ProjectStatus, ProjectRole } from '@constructtrack/types';
+import type { ProjectDomain } from '@constructtrack/types';
+import { ProjectStatus } from '@constructtrack/types';
 import { authFetch } from '../../auth-fetch';
-import { useAuthStore } from '../../stores/auth-store';
 import { ProjectForm } from './ProjectForm';
 import { PageLayout } from '../../shared/components/PageLayout';
 import { FilterDropdown } from '../../shared/components/FilterDropdown';
+
+/** Organization member directory entry (GET /organizations/directory). */
+interface DirectoryEntry {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  avatarUrl: string | null;
+  joinedAt: string;
+}
 import {
   Search,
   Plus,
@@ -16,7 +25,7 @@ import {
 } from '../../shared/components/icons';
 
 const STATUS_STYLES: Record<string, string> = {
-  [ProjectStatus.PLANNING]: 'bg-info/20 text-info',
+  [ProjectStatus.PLANNING]: 'bg-info/10 text-info',
   [ProjectStatus.ACTIVE]: 'bg-success/10 text-success',
   [ProjectStatus.ON_HOLD]: 'bg-warning/10 text-warning',
   [ProjectStatus.COMPLETED]: 'bg-primary/10 text-primary',
@@ -80,10 +89,9 @@ interface ProjectsResponse {
 export function ProjectsList() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user } = useAuthStore();
 
   const [projects, setProjects] = useState<ProjectDomain[]>([]);
-  const [managers, setManagers] = useState<Map<string, ProjectMemberDomain | null>>(new Map());
+  const [directoryMap, setDirectoryMap] = useState<Map<string, DirectoryEntry>>(new Map());
   const [meta, setMeta] = useState({ page: 1, perPage: 12, totalItems: 0, totalPages: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -110,7 +118,6 @@ export function ProjectsList() {
       const items = body.data ?? [];
       setProjects(items);
       setMeta(body.meta ?? { page: 1, perPage: 12, totalItems: 0, totalPages: 0 });
-      setManagers(new Map());
       return items;
     } catch (err) {
       setError((err as Error).message);
@@ -120,38 +127,25 @@ export function ProjectsList() {
     }
   }, [page, search, status]);
 
-  const loadManagers = useCallback(async (items: ProjectDomain[]) => {
-    if (items.length === 0) return;
-    const results = await Promise.all(
-      items.map(async (p) => {
-        try {
-          const res = await authFetch(`/api/v1/projects/${p.id}/members`);
-          if (!res.ok) return { projectId: p.id, member: null };
-          const body = await res.json();
-          const memberList: ProjectMemberDomain[] = Array.isArray(body.data) ? body.data : [];
-          const manager =
-            memberList.find((m) => m.role === ProjectRole.MANAGER) ??
-            memberList.find((m) => m.role === ProjectRole.ADMIN) ??
-            memberList[0] ??
-            null;
-          return { projectId: p.id, member: manager };
-        } catch {
-          return { projectId: p.id, member: null };
-        }
-      }),
-    );
-    setManagers(new Map(results.map((r) => [r.projectId, r.member])));
+  const loadDirectory = useCallback(async () => {
+    try {
+      const res = await authFetch('/api/v1/organizations/directory');
+      if (!res.ok) return;
+      const body = await res.json();
+      const items = body.data ?? body;
+      if (!Array.isArray(items)) return;
+      setDirectoryMap(new Map(items.map((d: DirectoryEntry) => [d.id, d])));
+    } catch {
+      // Directory is optional (non-manager roles get nothing) — Manager
+      // column degrades to a placeholder when unavailable.
+      setDirectoryMap(new Map());
+    }
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    fetchProjects().then((items) => {
-      if (!cancelled) loadManagers(items);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [fetchProjects, loadManagers]);
+    fetchProjects();
+    loadDirectory();
+  }, [fetchProjects, loadDirectory]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -354,15 +348,9 @@ export function ProjectsList() {
               <tbody className="divide-y divide-border">
                 {projects.map((project) => {
                   const statusValue = displayStatus(project);
-                  const member = managers.get(project.id) ?? null;
-                  const isCurrentUser = member?.userId === user?.id;
-                  const managerName = isCurrentUser
-                    ? user?.name
-                    : member?.role === ProjectRole.MANAGER
-                      ? 'Project Manager'
-                      : member?.role === ProjectRole.ADMIN
-                        ? 'Project Admin'
-                        : 'Team Member';
+                  const managerEntry = project.managerId
+                    ? directoryMap.get(project.managerId) ?? null
+                    : null;
 
                   return (
                     <tr
@@ -392,12 +380,20 @@ export function ProjectsList() {
                       </td>
                       <td className="truncate px-4 py-3 text-foreground-muted">{project.location ?? '—'}</td>
                       <td className="px-4 py-3">
-                        {member ? (
+                        {managerEntry ? (
                           <div className="flex items-center gap-2">
-                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-muted text-xs font-semibold text-foreground-muted">
-                              {initials(managerName)}
+                            <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-muted text-xs font-semibold text-foreground-muted">
+                              {managerEntry.avatarUrl ? (
+                                <img
+                                  src={`/api/v1/auth/${managerEntry.id}/avatar?v=${encodeURIComponent(managerEntry.avatarUrl)}`}
+                                  alt=""
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                initials(managerEntry.name)
+                              )}
                             </span>
-                            <span className="truncate text-foreground">{managerName}</span>
+                            <span className="truncate text-foreground">{managerEntry.name}</span>
                           </div>
                         ) : (
                           <span className="text-foreground-muted">—</span>
@@ -412,7 +408,7 @@ export function ProjectsList() {
                           {statusValue.replace(/_/g, ' ')}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums text-foreground">{formatBudget(project.budgetCents)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-foreground money">{formatBudget(project.budgetCents)}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-foreground-muted">{formatDate(project.startDate)}</td>
                        <td className="px-4 py-3 whitespace-nowrap text-foreground-muted">{formatDate(project.endDate)}</td>
                      </tr>

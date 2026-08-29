@@ -37,11 +37,12 @@
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(--radius + 4px);
+  --radius-xl: calc(var(--radius) + 4px);
 
-  /* Geist typeface (replaces the previous monospace default) */
-  --font-sans: 'Geist Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  /* Base font reverted to the previous default (monospace stack). Geist is now
+     used ONLY for money/currency values via the `.money` utility below. */
+  --font-sans: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 }
 
 :root {
@@ -197,7 +198,7 @@
 }
 
 :root {
-  font-family: 'Geist Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   line-height: 1.5;
 }
 
@@ -255,6 +256,14 @@ input[type="number"]::-webkit-inner-spin-button {
 @layer utilities {
   .scrollbar-thin {
     scrollbar-width: thin;
+  }
+
+  /* Money/currency values use Geist (the only place the Geist typeface is
+     applied now that the base font has been reverted to the previous default).
+     Tabular figures keep amounts aligned. */
+  .money {
+    font-family: 'Geist Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    font-feature-settings: 'tnum' 1;
   }
 }
 

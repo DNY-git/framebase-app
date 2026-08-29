@@ -6,6 +6,16 @@ import { FilterDropdown } from '../../shared/components/FilterDropdown';
 import { DatePicker } from '../../components/ui';
 import { X, Loader2 } from '../../shared/components/icons';
 
+/** Organization member directory entry (GET /organizations/directory). */
+interface DirectoryEntry {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  avatarUrl: string | null;
+  joinedAt: string;
+}
+
 interface ProjectFormProps {
   project?: ProjectDomain | null;
   onClose: () => void;
@@ -31,9 +41,23 @@ export function ProjectForm({ project, onClose, onSaved }: ProjectFormProps) {
   const [endDate, setEndDate] = useState(project?.endDate ? String(project.endDate).slice(0, 10) : '');
   const [budgetCents, setBudgetCents] = useState(project?.budgetCents != null ? String(project.budgetCents) : '');
   const [location, setLocation] = useState(project?.location ?? '');
+  const [managerId, setManagerId] = useState(project?.managerId ?? '');
+
+  const [directory, setDirectory] = useState<DirectoryEntry[]>([]);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    authFetch('/api/v1/organizations/directory')
+      .then(async (res) => {
+        if (!res.ok) return;
+        const body = await res.json();
+        const items = body.data ?? body;
+        setDirectory(Array.isArray(items) ? items : []);
+      })
+      .catch(() => setDirectory([]));
+  }, []);
 
   useEffect(() => {
     function handleEsc(e: KeyboardEvent) {
@@ -61,6 +85,7 @@ export function ProjectForm({ project, onClose, onSaved }: ProjectFormProps) {
           ? Math.round(budgetMajorNum * 100)
           : undefined,
       location: location || undefined,
+      managerId: managerId || undefined,
     };
 
     if (!isEdit) {
@@ -219,6 +244,23 @@ export function ProjectForm({ project, onClose, onSaved }: ProjectFormProps) {
                 className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground placeholder:text-foreground-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 placeholder="City, State"
               />
+            </div>
+
+            <div>
+              <label htmlFor="p-manager" className="mb-1.5 block text-sm font-medium text-foreground">Manager</label>
+              <select
+                id="p-manager"
+                value={managerId}
+                onChange={(e) => setManagerId(e.target.value)}
+                className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="">No manager assigned</option>
+                {directory.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name} ({d.email})
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

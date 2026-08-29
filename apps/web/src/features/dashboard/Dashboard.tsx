@@ -78,16 +78,18 @@ function KpiCard({
   value,
   subtext,
   href,
+  valueClassName,
 }: {
   label: string;
   value: string;
   subtext?: string;
   href?: string;
+  valueClassName?: string;
 }) {
   const body = (
     <div className="group rounded-xl border border-border bg-surface p-5 shadow-sm transition-colors hover:bg-surface-muted/30">
       <p className="text-xs font-medium uppercase tracking-wide text-foreground-muted">{label}</p>
-      <p className="mt-3 text-3xl font-bold tracking-tight text-foreground">{value}</p>
+      <p className={`mt-3 text-3xl font-bold tracking-tight text-foreground ${valueClassName ?? ''}`}>{value}</p>
       {subtext && <p className="mt-1.5 text-xs text-foreground-muted">{subtext}</p>}
       {href && (
         <ArrowRight className="mt-2 h-3.5 w-3.5 text-foreground-muted opacity-0 transition-opacity group-hover:opacity-100" />
@@ -215,18 +217,21 @@ export function Dashboard(): React.JSX.Element {
           <KpiCard
             label="Total Budget"
             value={formatCompact(f.totalBudgetCents)}
+            valueClassName="money"
             subtext={`${p.active + p.onHold} projects with budgets`}
             href="/projects"
           />
           <KpiCard
             label="Total Spent"
             value={formatCompact(f.totalSpentCents)}
+            valueClassName="money"
             subtext="Material purchases to date"
             href="/inventory/transactions"
           />
           <KpiCard
             label="Remaining Budget"
             value={formatCompact(Math.max(f.remainingBudgetCents, 0))}
+            valueClassName="money"
             subtext={
               f.totalBudgetCents > 0
                 ? `${Math.round(Math.min((f.totalSpentCents / f.totalBudgetCents) * 100, 100))}% of budget used`

@@ -63,4 +63,8 @@ export class CreateProjectDto {
   @IsOptional()
   @MaxLength(300)
   location?: string;
+
+  @IsString()
+  @IsOptional()
+  managerId?: string;
 }

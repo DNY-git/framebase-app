@@ -64,6 +64,13 @@ export class Project {
   @Prop({ type: String, trim: true })
   location?: string;
 
+  /** The team member assigned as this project's manager (org user id). */
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'User',
+  })
+  managerId?: MongooseSchema.Types.ObjectId;
+
   /** The user who created the project. */
   @Prop({
     type: MongooseSchema.Types.ObjectId,

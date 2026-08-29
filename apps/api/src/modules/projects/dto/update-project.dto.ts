@@ -57,4 +57,8 @@ export class UpdateProjectDto {
   @IsOptional()
   @MaxLength(300)
   location?: string;
+
+  @IsString()
+  @IsOptional()
+  managerId?: string;
 }

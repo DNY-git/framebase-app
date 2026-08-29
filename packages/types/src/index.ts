@@ -276,6 +276,8 @@ export interface ProjectDomain {
   endDate?: Date;
   budgetCents?: number;
   location?: string;
+  /** The team member assigned as this project's manager (org user id). */
+  managerId?: string;
   createdBy: string;
   archivedAt?: Date | null;
   archivedBy?: string | null;

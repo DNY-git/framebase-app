@@ -363,7 +363,7 @@ export function ProjectDetail() {
 
       {/* Quick Info Cards */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <InfoCard icon={<Building className="h-4 w-4" />} label="Budget" value={formatBudget(project.budgetCents)} />
+        <InfoCard icon={<Building className="h-4 w-4" />} label="Budget" value={formatBudget(project.budgetCents)} valueClassName="money" />
         <InfoCard icon={<MapPin className="h-4 w-4" />} label="Location" value={project.location ?? '—'} />
         <InfoCard icon={<Calendar className="h-4 w-4" />} label="Timeline" value={
           project.startDate || project.endDate
@@ -617,13 +617,13 @@ export function ProjectDetail() {
   );
 }
 
-function InfoCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function InfoCard({ icon, label, value, valueClassName }: { icon: React.ReactNode; label: string; value: string; valueClassName?: string }) {
   return (
     <div className="rounded-xl border border-border bg-surface p-4">
       <div className="mb-1 flex items-center gap-2 text-xs text-foreground-muted">
         {icon} {label}
       </div>
-      <p className="text-sm font-medium text-foreground truncate">{value}</p>
+      <p className={`text-sm font-medium text-foreground truncate ${valueClassName ?? ''}`}>{value}</p>
     </div>
   );
 }

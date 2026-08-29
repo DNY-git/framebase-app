@@ -39,6 +39,7 @@ export interface ProjectCreateInput {
   endDate?: Date;
   budgetCents?: number;
   location?: string;
+  managerId?: string;
   createdBy: string;
 }
 
@@ -142,6 +143,7 @@ export class ProjectRepository extends BaseRepository<
       endDate: doc.endDate,
       budgetCents: doc.budgetCents,
       location: doc.location,
+      managerId: doc.managerId ? doc.managerId.toString() : undefined,
       createdBy: doc.createdBy.toString(),
       archivedAt: doc.archivedAt ?? null,
       archivedBy: doc.archivedBy ? doc.archivedBy.toString() : null,
@@ -164,6 +166,9 @@ export class ProjectRepository extends BaseRepository<
       endDate: data.endDate,
       budgetCents: data.budgetCents,
       location: data.location,
+      managerId: data.managerId
+        ? (new Types.ObjectId(data.managerId) as unknown as Project['managerId'])
+        : undefined,
       status: ProjectStatus.PLANNING,
       createdBy: data.createdBy as unknown as Project['createdBy'],
     };
@@ -183,6 +188,11 @@ export class ProjectRepository extends BaseRepository<
     }
     if (data.budgetCents !== undefined) update.budgetCents = data.budgetCents;
     if (data.location !== undefined) update.location = data.location;
+    if (data.managerId !== undefined) {
+      (update as Record<string, unknown>).managerId = data.managerId
+        ? new Types.ObjectId(data.managerId)
+        : null;
+    }
     return update;
   }
 }

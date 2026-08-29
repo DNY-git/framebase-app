@@ -196,7 +196,7 @@ export function DeliveryForm() {
                       </div>
                       <div className="text-right">
                         <div className="font-bold text-success">+{del.quantity}</div>
-                        <div className="text-xs text-foreground-muted">{formatCurrency(del.costCents ?? 0)}</div>
+                        <div className="text-xs text-foreground-muted money">{formatCurrency(del.costCents ?? 0)}</div>
                       </div>
                     </div>
                     {del.notes && <div className="mt-1 text-foreground-muted">{del.notes}</div>}

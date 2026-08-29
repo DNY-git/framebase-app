@@ -20,6 +20,7 @@ export class ReportRunRepository extends BaseRepository<ReportRunDomain, ReportR
       id: doc._id.toString(),
       tenantId: doc.tenantId.toString(),
       templateId: doc.templateId.toString(),
+      templateName: doc.templateName,
       status: doc.status,
       params: doc.params,
       resultUrl: doc.resultUrl,
@@ -31,10 +32,14 @@ export class ReportRunRepository extends BaseRepository<ReportRunDomain, ReportR
     };
   }
 
-  protected toCreateDoc(tenantId: string, data: Partial<GenerateReportDto> & { requestedBy?: string }): Partial<ReportRunDocument> {
+  protected toCreateDoc(
+    tenantId: string,
+    data: Partial<GenerateReportDto> & { requestedBy?: string; templateName?: string },
+  ): Partial<ReportRunDocument> {
     return {
       tenantId,
       templateId: data.templateId!,
+      templateName: data.templateName,
       status: ReportStatus.PENDING,
       params: data.params ?? {},
       requestedBy: data.requestedBy ?? '',

@@ -65,6 +65,7 @@ export class ProjectsService {
       endDate: data.endDate ? new Date(data.endDate) : undefined,
       budgetCents: data.budgetCents,
       location: data.location,
+      managerId: data.managerId,
       createdBy: auth.userId,
     };
 
@@ -77,6 +78,16 @@ export class ProjectsService {
       userId: auth.userId,
       role: ProjectRole.ADMIN,
     });
+
+    // Assign the chosen manager as a project member (if not the creator).
+    if (data.managerId && data.managerId !== auth.userId) {
+      await this.addMember(auth, project.id, data.managerId, ProjectRole.MANAGER).catch(
+        () => {
+          // Manager assignment must not block project creation — the
+          // managerId is stored on the project regardless.
+        },
+      );
+    }
 
     this.auditService.record({
       tenantId: auth.tenantId as string,

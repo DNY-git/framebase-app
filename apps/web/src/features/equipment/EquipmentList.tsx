@@ -192,7 +192,7 @@ export function EquipmentList() {
                       <td className="px-4 py-3 whitespace-nowrap text-foreground-muted">
                         {eq.purchaseDate ? formatDate(eq.purchaseDate) : '—'}
                       </td>
-                      <td className="px-4 py-3 tabular-nums text-foreground">
+                      <td className="px-4 py-3 tabular-nums text-foreground money">
                         {typeof eq.purchaseCostCents === 'number' ? formatCurrency(eq.purchaseCostCents) : '—'}
                       </td>
                     </tr>

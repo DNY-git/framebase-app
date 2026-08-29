@@ -399,10 +399,12 @@ export function Team() {
                           {formatDate(member.joinedAt)}
                         </td>
                          <td className="px-5 py-3 text-right">
-                           {!isSelf && (
-                             <DeleteMinusButton label="Remove member" onClick={() => setPendingDelete({ kind: 'remove', id: member.id })} />
-                           )}
-                         </td>
+                            <div className="flex justify-end">
+                              {!isSelf && (
+                                <DeleteMinusButton label="Remove member" onClick={() => setPendingDelete({ kind: 'remove', id: member.id })} />
+                              )}
+                            </div>
+                          </td>
                       </tr>
                     );
                   })}

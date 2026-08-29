@@ -380,7 +380,7 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
         </div>
         <div className="flex items-start gap-3 text-sm text-foreground-muted">
           <div>
-            <div className="font-medium text-foreground">{formatCurrency(current.purchaseCostCents)}</div>
+            <div className="money font-medium text-foreground">{formatCurrency(current.purchaseCostCents)}</div>
             <div>Acquired {formatDate(current.purchaseDate)}</div>
           </div>
           {!isEditing && (
