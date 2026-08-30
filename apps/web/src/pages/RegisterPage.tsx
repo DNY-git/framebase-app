@@ -16,7 +16,7 @@ interface RegisterApiResponse {
 export function RegisterPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const next = searchParams.get('next') ?? '/';
+  const next = searchParams.get('next') ?? '/dashboard';
   const { login } = useAuthStore();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -62,7 +62,7 @@ export function RegisterPage() {
 
   const startGoogle = () => {
     const base = '/api/v1/auth/google';
-    window.location.href = next !== '/' ? `${base}?next=${encodeURIComponent(next)}` : base;
+    window.location.href = next !== '/dashboard' ? `${base}?next=${encodeURIComponent(next)}` : base;
   };
 
   return (

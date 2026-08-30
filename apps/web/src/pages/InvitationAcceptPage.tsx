@@ -131,7 +131,7 @@ export function InvitationAcceptPage() {
               Invitation links are time-limited for security. Ask your organization's admin to send you a fresh
               invitation.
             </p>
-            <Link to="/" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
+            <Link to="/dashboard" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
               Go to dashboard
             </Link>
           </div>
@@ -144,7 +144,7 @@ export function InvitationAcceptPage() {
           <AlertCircle className="mx-auto h-10 w-10 text-danger" />
           <h1 className="mt-4 text-lg font-bold text-foreground">Invitation unavailable</h1>
           <p className="mt-1 text-sm text-foreground-muted">{loadError}</p>
-          <Link to="/" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
+          <Link to="/dashboard" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
             Go to dashboard
           </Link>
         </div>
@@ -162,7 +162,7 @@ export function InvitationAcceptPage() {
             You are now a member of {info?.organizationName} as {info?.role.replace(/_/g, ' ')}.
           </p>
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/dashboard')}
             className="mt-4 inline-flex items-center gap-2 rounded-lg bg-action px-4 py-2.5 text-sm font-medium text-action-foreground transition-colors hover:bg-action/90"
           >
             Go to dashboard <ArrowRight className="h-4 w-4" />

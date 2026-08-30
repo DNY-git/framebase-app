@@ -9,7 +9,7 @@ import {
 } from '../shared/components/icons';
 
 const MOBILE_ITEMS = [
-  { to: '/', icon: LayoutDashboard, label: 'Home' },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Home' },
   { to: '/projects', icon: FolderKanban, label: 'Projects' },
   { to: '/tasks', icon: CheckSquare, label: 'Tasks' },
   { to: '/equipment', icon: Wrench, label: 'Equipment' },
@@ -28,7 +28,7 @@ export function MobileNav() {
           <li key={to}>
             <NavLink
               to={to}
-              end={to === '/'}
+              end={to === '/dashboard'}
               className={({ isActive }) =>
                 `flex flex-col items-center gap-0.5 rounded-lg px-3 py-1.5 text-[10px] font-medium transition-colors ${
                   isActive

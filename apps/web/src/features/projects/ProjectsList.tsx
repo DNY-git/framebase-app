@@ -22,6 +22,7 @@ import {
   ChevronLeft,
   ChevronRight,
   FolderKanban,
+  User,
 } from '../../shared/components/icons';
 
 const STATUS_STYLES: Record<string, string> = {
@@ -382,12 +383,12 @@ export function ProjectsList() {
                       <td className="px-4 py-3">
                         {managerEntry ? (
                           <div className="flex items-center gap-2">
-                            <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-muted text-xs font-semibold text-foreground-muted">
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-xs font-semibold text-primary">
                               {managerEntry.avatarUrl ? (
                                 <img
                                   src={`/api/v1/auth/${managerEntry.id}/avatar?v=${encodeURIComponent(managerEntry.avatarUrl)}`}
                                   alt=""
-                                  className="h-full w-full object-cover"
+                                  className="h-full w-full rounded-full object-cover"
                                 />
                               ) : (
                                 initials(managerEntry.name)
@@ -396,7 +397,12 @@ export function ProjectsList() {
                             <span className="truncate text-foreground">{managerEntry.name}</span>
                           </div>
                         ) : (
-                          <span className="text-foreground-muted">—</span>
+                          <div className="flex items-center gap-2">
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-dashed border-border bg-surface-muted text-foreground-muted">
+                              <User className="h-4 w-4" />
+                            </span>
+                            <span className="text-foreground-muted">Unassigned</span>
+                          </div>
                         )}
                       </td>
                       <td className="px-4 py-3">

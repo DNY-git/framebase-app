@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { HardHat, Settings as SettingsIcon } from '../shared/components/icons';
 
 const NAV_ITEMS = [
-  { to: '/', label: 'Dashboard' },
+  { to: '/dashboard', label: 'Dashboard' },
   { to: '/projects', label: 'Projects' },
   { to: '/team', label: 'Team' },
   { to: '/tasks', label: 'Tasks' },
@@ -35,7 +35,7 @@ export function Sidebar() {
               <li key={to}>
                 <NavLink
                   to={to}
-                  end={to === '/'}
+                  end={to === '/dashboard'}
                   className={({ isActive }) =>
                     `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                       isActive

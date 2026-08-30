@@ -55,7 +55,7 @@ export function UserProfileMenu() {
     setSwitching(null);
     if (ok) {
       setOpen(false);
-      navigate('/');
+      navigate('/dashboard');
     }
   };
 

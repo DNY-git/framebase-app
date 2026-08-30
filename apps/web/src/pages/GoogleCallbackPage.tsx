@@ -22,7 +22,7 @@ export function GoogleCallbackPage() {
     started.current = true;
     const code = searchParams.get('code');
     const errorParam = searchParams.get('error');
-    const next = searchParams.get('next') ?? '/';
+    const next = searchParams.get('next') ?? '/dashboard';
     if (!next.startsWith('/') || next.startsWith('//')) {
       setError('Invalid redirect target.');
       return;

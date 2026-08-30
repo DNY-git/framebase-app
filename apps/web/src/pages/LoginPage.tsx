@@ -16,7 +16,7 @@ interface LoginApiResponse {
 export function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const next = searchParams.get('next') ?? '/';
+  const next = searchParams.get('next') ?? '/dashboard';
   const { login, fetchUser } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -54,7 +54,7 @@ export function LoginPage() {
 
   const startGoogle = () => {
     const base = '/api/v1/auth/google';
-    window.location.href = next !== '/' ? `${base}?next=${encodeURIComponent(next)}` : base;
+    window.location.href = next !== '/dashboard' ? `${base}?next=${encodeURIComponent(next)}` : base;
   };
 
   return (
@@ -140,7 +140,7 @@ export function LoginPage() {
 
           <div className="mt-4 text-center text-sm text-foreground-muted">
             Don&apos;t have an account?{' '}
-            <Link to={next !== '/' ? `/register?next=${encodeURIComponent(next)}` : '/register'} className="font-medium text-primary hover:underline">
+            <Link to={next !== '/dashboard' ? `/register?next=${encodeURIComponent(next)}` : '/register'} className="font-medium text-primary hover:underline">
               Sign up
             </Link>
           </div>

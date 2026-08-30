@@ -17,7 +17,7 @@ import {
 import { useSidebarStore } from '../stores/sidebar-store';
 
 const NAV_ITEMS = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/projects', label: 'Projects', icon: FolderKanban },
   { to: '/team', label: 'Team', icon: Users },
   { to: '/tasks', label: 'Tasks', icon: CheckSquare },
@@ -75,7 +75,7 @@ export function MobileSidebar() {
               <li key={to}>
                 <NavLink
                   to={to}
-                  end={to === '/'}
+                  end={to === '/dashboard'}
                   onClick={closeMobile}
                   className={({ isActive }) =>
                     `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${

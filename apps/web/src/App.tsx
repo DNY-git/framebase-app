@@ -12,6 +12,7 @@ import { GoogleCallbackPage } from './pages/GoogleCallbackPage';
 import { NotFound } from './pages/NotFound';
 import { Unauthorized } from './pages/Unauthorized';
 import { UiLab } from './pages/UiLab';
+import { LandingPage } from './pages/LandingPage';
 import { Dashboard } from './features/dashboard/Dashboard';
 import { EquipmentList } from './features/equipment/EquipmentList';
 import { EquipmentDetailPage } from './features/equipment/EquipmentDetailPage';
@@ -87,6 +88,7 @@ export function App(): React.JSX.Element {
       <QueryClientProvider client={queryClient}>
         <FetchUserOnMount />
         <Routes>
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -98,7 +100,7 @@ export function App(): React.JSX.Element {
 
           <Route element={<ProtectedRoute />}>
             <Route element={<AppShell />}>
-              <Route index element={<Dashboard />} />
+              <Route path="dashboard" element={<Dashboard />} />
               <Route path="projects" element={<ProjectsPageWrapper />} />
               <Route path="team" element={<Team />} />
               <Route path="projects/:id" element={<ProjectDetailPageWrapper />} />
