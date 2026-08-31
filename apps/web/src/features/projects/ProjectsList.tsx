@@ -59,10 +59,10 @@ function formatDate(d?: Date | string | null): string {
 }
 
 function formatBudget(cents?: number): string {
-  if (!cents && cents !== 0) return '—';
-  if (cents >= 100_000_00) return `${(cents / 100_000_00).toFixed(1)}M`;
-  if (cents >= 1_000_00) return `${(cents / 1_000_00).toFixed(1)}M`;
-  return `${(cents / 100).toLocaleString()}`;
+  if (cents == null) return '—';
+  if (cents >= 100_000_00) return `$${(cents / 100_000_00).toFixed(1)}M`;
+  if (cents >= 1_000_00) return `$${(cents / 1_000_00).toFixed(1)}M`;
+  return `$${(cents / 100).toLocaleString()}`;
 }
 
 function displayStatus(p: ProjectDomain): string {

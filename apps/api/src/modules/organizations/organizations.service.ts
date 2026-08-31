@@ -415,6 +415,7 @@ export class OrganizationsService {
     auth: AuthContext,
     email: string,
     role: Role,
+    expiresAtIso?: string,
   ): Promise<{
     id: string;
     email: string;
@@ -467,10 +468,25 @@ export class OrganizationsService {
     }
 
     const token = crypto.randomBytes(32).toString('hex');
-    const ttlSeconds = this.ttlToSeconds(
-      this.configService.get('invitationTtl', { infer: true }) ?? DEFAULT_INVITATION_TTL,
-    );
-    const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
+    let expiresAt: Date;
+    if (expiresAtIso) {
+      const parsed = new Date(expiresAtIso);
+      if (Number.isNaN(parsed.getTime())) {
+        throw new DomainException(ErrorCode.VALIDATION_ERROR, HttpStatus.BAD_REQUEST, 'Invalid expiration date.');
+      }
+      if (parsed.getTime() <= Date.now() + 60_000) {
+        throw new DomainException(ErrorCode.VALIDATION_ERROR, HttpStatus.BAD_REQUEST, 'Expiration must be in the future.');
+      }
+      if (parsed.getTime() > Date.now() + 90 * 24 * 3600 * 1000) {
+        throw new DomainException(ErrorCode.VALIDATION_ERROR, HttpStatus.BAD_REQUEST, 'Expiration cannot be more than 90 days away.');
+      }
+      expiresAt = parsed;
+    } else {
+      const ttlSeconds = this.ttlToSeconds(
+        this.configService.get('invitationTtl', { infer: true }) ?? DEFAULT_INVITATION_TTL,
+      );
+      expiresAt = new Date(Date.now() + ttlSeconds * 1000);
+    }
 
     const invitation = await this.invitationRepository.create({
       tenantId: auth.tenantId,
@@ -535,6 +551,41 @@ export class OrganizationsService {
       createdAt: i.createdAt,
       devAcceptUrl: i.status === 'pending' ? this.devAcceptUrl(i.token) : null,
     }));
+  }
+
+  /** Updates a pending invitation's expiration. OWNER/ADMIN only. */
+  async updateInvitation(auth: AuthContext, invitationId: string, expiresAtIso: string): Promise<InvitationDomain> {
+    this.assertManagement(auth, 'update invitations');
+    const invitation = await this.invitationRepository.findById(invitationId, auth.tenantId);
+    if (!invitation) {
+      throw new DomainException(ErrorCode.INVITATION_NOT_FOUND, HttpStatus.NOT_FOUND, 'Invitation not found.');
+    }
+    if (invitation.status !== 'pending') {
+      throw new DomainException(ErrorCode.INVITATION_NOT_FOUND, HttpStatus.CONFLICT, 'Only pending invitations can be updated.');
+    }
+    const parsed = new Date(expiresAtIso);
+    if (Number.isNaN(parsed.getTime())) {
+      throw new DomainException(ErrorCode.VALIDATION_ERROR, HttpStatus.BAD_REQUEST, 'Invalid expiration date.');
+    }
+    if (parsed.getTime() <= Date.now() + 60_000) {
+      throw new DomainException(ErrorCode.VALIDATION_ERROR, HttpStatus.BAD_REQUEST, 'Expiration must be in the future.');
+    }
+    if (parsed.getTime() > Date.now() + 90 * 24 * 3600 * 1000) {
+      throw new DomainException(ErrorCode.VALIDATION_ERROR, HttpStatus.BAD_REQUEST, 'Expiration cannot be more than 90 days away.');
+    }
+    const updated = await this.invitationRepository.updateExpiresAt(invitation.id, parsed);
+    if (!updated) throw new DomainException(ErrorCode.INVITATION_NOT_FOUND, HttpStatus.NOT_FOUND, 'Invitation not found.');
+    await this.auditService.record({
+      tenantId: auth.tenantId,
+      actorId: auth.userId,
+      action: 'organization.invitation_expiration_updated',
+      entityType: 'Invitation',
+      entityId: updated.id,
+      before: { expiresAt: invitation.expiresAt },
+      after: { expiresAt: parsed },
+      correlationId: '',
+    });
+    return updated;
   }
 
   /** Revokes a pending invitation. OWNER/ADMIN only. */

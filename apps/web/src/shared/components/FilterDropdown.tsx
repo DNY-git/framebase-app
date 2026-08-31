@@ -53,7 +53,7 @@ export function FilterDropdown({ value, onChange, options, placeholder = 'Select
         className={
           variant === 'button'
             ? 'flex h-10 w-full items-center justify-between gap-2 rounded-lg bg-action px-4 text-sm font-medium text-action-foreground transition-colors hover:bg-action/90 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50'
-            : 'flex h-10 w-full items-center justify-between gap-2 rounded-lg border border-border bg-surface px-3 text-sm text-foreground transition-colors hover:bg-surface-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50'
+            : 'flex h-10 w-full items-center justify-between gap-2 rounded-lg border-0 bg-surface px-3 text-sm text-foreground transition-colors hover:bg-surface-muted focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50'
         }
       >
         <span className="truncate">{selectedLabel}</span>

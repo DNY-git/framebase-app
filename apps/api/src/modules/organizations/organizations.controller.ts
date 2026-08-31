@@ -34,6 +34,7 @@ import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { SwitchOrganizationDto } from './dto/switch-organization.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 import { CreateInvitationDto } from './dto/create-invitation.dto';
+import { UpdateInvitationDto } from './dto/update-invitation.dto';
 
 const MANAGE_ROLES = (): Role[] => [Role.OWNER, Role.ADMIN];
 
@@ -145,6 +146,7 @@ export class OrganizationsController {
         user,
         dto.email,
         dto.role,
+        dto.expiresAt,
       ),
     };
   }
@@ -153,6 +155,18 @@ export class OrganizationsController {
   @Roles(...MANAGE_ROLES())
   async listInvitations(@CurrentUser() user: AuthenticatedUser) {
     return { data: await this.organizationsService.listInvitations(user) };
+  }
+
+  @Patch('invitations/:id')
+  @Roles(...MANAGE_ROLES())
+  async updateInvitation(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') invitationId: string,
+    @Body() dto: UpdateInvitationDto,
+  ) {
+    return {
+      data: await this.organizationsService.updateInvitation(user, invitationId, dto.expiresAt),
+    };
   }
 
   @Delete('invitations/:id')

@@ -119,6 +119,13 @@ export class InvitationRepository {
     return doc ? this.toDomain(doc) : null;
   }
 
+  async updateExpiresAt(id: string, expiresAt: Date): Promise<InvitationDomain | null> {
+    const doc = await this.model
+      .findByIdAndUpdate(id, { $set: { expiresAt } }, { new: true })
+      .exec();
+    return doc ? this.toDomain(doc) : null;
+  }
+
   /** Invalidates other pending invitations for the same (tenant, email). */
   async revokePendingForEmail(tenantId: string, email: string): Promise<void> {
     await this.model

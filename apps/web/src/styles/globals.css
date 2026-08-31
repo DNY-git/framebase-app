@@ -39,8 +39,8 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
-  /* Base font reverted to the previous default (monospace stack). Geist is now
-     used ONLY for money/currency values via the `.money` utility below. */
+  /* Base font reverted to the previous default (monospace stack). Poppins is now
+      used ONLY for money/currency values via the `.money` utility below. */
   --font-sans: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 }
@@ -258,11 +258,9 @@ input[type="number"]::-webkit-inner-spin-button {
     scrollbar-width: thin;
   }
 
-  /* Money/currency values use Geist (the only place the Geist typeface is
-     applied now that the base font has been reverted to the previous default).
-     Tabular figures keep amounts aligned. */
+  /* Money/currency values use Poppins (targeted — does not affect base font). */
   .money {
-    font-family: 'Geist Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Poppins', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     font-feature-settings: 'tnum' 1;
   }
 }

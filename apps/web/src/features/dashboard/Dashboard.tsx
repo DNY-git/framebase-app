@@ -297,18 +297,18 @@ export function Dashboard(): React.JSX.Element {
                 >
                   <Grid horizontal />
                   <Area
-                    dataKey="budget"
-                    fill="var(--chart-line-primary)"
-                    stroke="var(--chart-line-primary)"
-                    fillOpacity={0.15}
-                    strokeWidth={2}
-                  />
-                  <Area
                     dataKey="spent"
                     fill="var(--chart-line-spent)"
                     stroke="var(--chart-line-spent)"
                     fillOpacity={0.2}
                     strokeWidth={2}
+                  />
+                  <Area
+                    dataKey="budget"
+                    fill="var(--chart-line-primary)"
+                    stroke="var(--chart-line-primary)"
+                    fillOpacity={0.3}
+                    strokeWidth={2.5}
                   />
                   <XAxis />
                   <ChartTooltip

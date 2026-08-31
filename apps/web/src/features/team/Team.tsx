@@ -98,9 +98,19 @@ export function Team() {
   // Invite form
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<string>(Role.SITE_ENGINEER);
+  const [inviteExpiresAt, setInviteExpiresAt] = useState<string>(() => {
+    const d = new Date(Date.now() + 72 * 3600 * 1000);
+    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 16);
+  });
   const [isInviting, setIsInviting] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
+
+  // Editing pending invitation expiration
+  const [editingExpiresId, setEditingExpiresId] = useState<string | null>(null);
+  const [editingExpiresValue, setEditingExpiresValue] = useState<string>('');
+  const [savingExpires, setSavingExpires] = useState<string | null>(null);
 
   // New member role changes
   const [savingMember, setSavingMember] = useState<string | null>(null);
@@ -148,9 +158,14 @@ export function Team() {
     setInviteError(null);
     setInviteSuccess(null);
     try {
+      const payload: Record<string, unknown> = { email: inviteEmail.trim(), role: inviteRole };
+      if (inviteExpiresAt) {
+        const iso = new Date(inviteExpiresAt).toISOString();
+        if (!Number.isNaN(new Date(iso).getTime())) payload.expiresAt = iso;
+      }
       const res = await authFetch('/api/v1/organizations/invitations', {
         method: 'POST',
-        body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
+        body: JSON.stringify(payload),
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
@@ -224,6 +239,30 @@ export function Team() {
       await loadAll();
     } catch (err) {
       setMemberError((err as Error).message);
+    }
+  };
+
+  const handleUpdateExpires = async (invitationId: string) => {
+    if (!editingExpiresValue) return;
+    setSavingExpires(invitationId);
+    setMemberError(null);
+    try {
+      const iso = new Date(editingExpiresValue).toISOString();
+      const res = await authFetch(`/api/v1/organizations/invitations/${invitationId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ expiresAt: iso }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message ?? 'Failed to update expiration');
+      }
+      setEditingExpiresId(null);
+      setEditingExpiresValue('');
+      await loadAll();
+    } catch (err) {
+      setMemberError((err as Error).message);
+    } finally {
+      setSavingExpires(null);
     }
   };
 
@@ -381,7 +420,7 @@ export function Team() {
                                 value={member.role}
                                 onChange={(e) => handleRoleChange(member.id, e.target.value)}
                                 disabled={savingMember === member.id}
-                                className="h-8 rounded-lg border border-border bg-surface px-2 text-xs text-foreground focus:border-primary focus:outline-none disabled:opacity-50"
+                                className="h-8 rounded-lg border-0 bg-surface px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
                               >
                                 {ROLE_OPTIONS.map((opt) => (
                                   <option key={opt.value} value={opt.value}>
@@ -441,7 +480,7 @@ export function Team() {
               <select
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value)}
-                className="h-10 rounded-lg border border-border bg-surface px-3 text-sm text-foreground focus:border-primary focus:outline-none sm:w-52"
+                className="h-10 rounded-lg border-0 bg-surface px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary sm:w-52"
               >
                 {INVITABLE_ROLES.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -449,6 +488,12 @@ export function Team() {
                   </option>
                 ))}
               </select>
+              <input
+                type="datetime-local"
+                value={inviteExpiresAt}
+                onChange={(e) => setInviteExpiresAt(e.target.value)}
+                className="h-10 rounded-lg border border-border bg-surface px-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:w-56"
+              />
               <button
                 type="submit"
                 disabled={isInviting}
@@ -484,26 +529,63 @@ export function Team() {
                             {roleLabel(inv.role)}
                           </p>
                         </div>
-                        <span
-                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-medium uppercase ${
-                            expired ? 'bg-danger/10 text-danger' : 'bg-info/20 text-info'
-                          }`}
-                        >
-                          {expired ? (
-                            <span className="inline-flex items-center gap-1">
-                              <Clock className="h-3 w-3" /> Expired {formatDate(inv.expiresAt)}
-                            </span>
-                          ) : (
-                            `Expires ${formatDate(inv.expiresAt)}`
-                          )}
-                        </span>
+                        {editingExpiresId === inv.id ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="datetime-local"
+                              value={editingExpiresValue}
+                              onChange={(e) => setEditingExpiresValue(e.target.value)}
+                              className="h-8 rounded-lg border border-border bg-surface px-2 text-xs text-foreground focus:border-primary focus:outline-none"
+                            />
+                            <button
+                              onClick={() => handleUpdateExpires(inv.id)}
+                              disabled={savingExpires === inv.id}
+                              className="rounded-lg bg-action px-2.5 py-1 text-xs font-medium text-action-foreground hover:bg-action/90 disabled:opacity-50"
+                            >
+                              {savingExpires === inv.id ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
+                            </button>
+                            <button
+                              onClick={() => { setEditingExpiresId(null); setEditingExpiresValue(''); }}
+                              className="rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-foreground hover:bg-surface-muted"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <span
+                            className={`rounded-full px-2.5 py-0.5 text-[10px] font-medium uppercase ${
+                              expired ? 'bg-danger/10 text-danger' : 'bg-info/20 text-info'
+                            }`}
+                          >
+                            {expired ? (
+                              <span className="inline-flex items-center gap-1">
+                                <Clock className="h-3 w-3" /> Expired {formatDate(inv.expiresAt)}
+                              </span>
+                            ) : (
+                              `Expires ${formatDate(inv.expiresAt)}`
+                            )}
+                          </span>
+                        )}
                         <button
                           onClick={() => handleCopyLink(inv.devAcceptUrl)}
                           className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-muted"
                         >
                           <Copy className="h-3.5 w-3.5" /> Copy link
                         </button>
-                          {!expired && (
+                        {!expired && editingExpiresId !== inv.id && (
+                          <button
+                            onClick={() => {
+                              const d = new Date(inv.expiresAt);
+                              const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+                              setEditingExpiresValue(local.toISOString().slice(0, 16));
+                              setEditingExpiresId(inv.id);
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-muted"
+                          >
+                            Edit expiry
+                          </button>
+                        )}
+                        {!expired && (
                             <DeleteMinusButton label="Revoke invitation" onClick={() => setPendingDelete({ kind: 'revoke', id: inv.id })} />
                           )}
                       </div>

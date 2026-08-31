@@ -351,6 +351,80 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
     }
   }
 
+  // Project assignment
+  const [projectOptions, setProjectOptions] = useState<Array<{ id: string; name: string }>>([]);
+  const [assignProjectId, setAssignProjectId] = useState('');
+  const [assignStartDate, setAssignStartDate] = useState(new Date().toISOString().slice(0, 10));
+  const [assignError, setAssignError] = useState<string | null>(null);
+  const [assignLoading, setAssignLoading] = useState(false);
+
+  useEffect(() => {
+    authFetch('/api/v1/projects?perPage=100')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (j?.data && Array.isArray(j.data)) {
+          setProjectOptions(j.data.map((p: { id: string; name: string }) => ({ id: p.id, name: p.name })));
+        } else if (j?.data?.items && Array.isArray(j.data.items)) {
+          setProjectOptions(j.data.items.map((p: { id: string; name: string }) => ({ id: p.id, name: p.name })));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  async function handleAssign() {
+    if (!assignProjectId || !assignStartDate) {
+      setAssignError('Select a project and start date');
+      return;
+    }
+    setAssignLoading(true);
+    setAssignError(null);
+    try {
+      const res = await authFetch(`/api/v1/equipment/${current.id}/assignments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: assignProjectId, startDate: assignStartDate }),
+      });
+      if (!res.ok) {
+        const b = await res.json().catch(() => null);
+        throw new Error(b?.message ?? 'Failed to assign equipment');
+      }
+      setCurrent((c) => ({ ...c, status: 'assigned' as typeof c.status }));
+      setAssignProjectId('');
+      refreshDerivedData();
+    } catch (err) {
+      setAssignError((err as Error).message);
+    } finally {
+      setAssignLoading(false);
+    }
+  }
+
+  const [statusChanging, setStatusChanging] = useState(false);
+  async function handleStatusChange(next: string) {
+    if (next === current.status) return;
+    setStatusChanging(true);
+    setError(null);
+    try {
+      const res = await authFetch(`/api/v1/equipment/${current.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: next }),
+      });
+      if (!res.ok) {
+        const b = await res.json().catch(() => null);
+        throw new Error(b?.message ?? 'Failed to update status');
+      }
+      const j = await res.json().catch(() => null);
+      const saved = j?.data ?? j;
+      if (saved) setCurrent(saved);
+      else setCurrent((c) => ({ ...c, status: next as typeof c.status }));
+      onUpdated?.(saved ?? { ...current, status: next as typeof current.status });
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setStatusChanging(false);
+    }
+  }
+
   const [pendingLogDelete, setPendingLogDelete] = useState<{ kind: 'usage' | 'maintenance' | 'downtime'; logId: string } | null>(null);
   async function deleteLogEntry(kind: 'usage' | 'maintenance' | 'downtime', logId: string) {
     try {
@@ -394,6 +468,61 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
           )}
         </div>
       </div>
+
+      {/* Status + assignment controls */}
+      {!isEditing && (
+        <div className="mt-4 grid gap-3 rounded-lg border border-border bg-surface-muted/30 p-4 sm:grid-cols-2">
+          <label className="block text-xs font-medium text-foreground-muted">
+            Status
+            <select
+              value={current.status}
+              onChange={(e) => handleStatusChange(e.target.value)}
+              disabled={statusChanging}
+              className="mt-1 h-9 w-full rounded-lg border-0 bg-surface px-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+            >
+              <option value="available">Available</option>
+              <option value="assigned">Assigned</option>
+              <option value="maintenance">Maintenance</option>
+              <option value="retired">Retired</option>
+            </select>
+          </label>
+          <div>
+            <p className="text-xs font-medium text-foreground-muted">Assign to project</p>
+            <div className="mt-1 flex gap-2">
+              <select
+                value={assignProjectId}
+                onChange={(e) => setAssignProjectId(e.target.value)}
+                disabled={current.status === 'retired' || current.status === 'maintenance'}
+                className="h-9 flex-1 rounded-lg border-0 bg-surface px-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+              >
+                <option value="">Select project</option>
+                {projectOptions.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+              <input
+                type="date"
+                value={assignStartDate}
+                onChange={(e) => setAssignStartDate(e.target.value)}
+                disabled={current.status === 'retired' || current.status === 'maintenance'}
+                className="h-9 w-36 rounded-lg border border-border bg-surface px-2 text-sm text-foreground focus:border-primary focus:outline-none disabled:opacity-50"
+              />
+              <button
+                type="button"
+                onClick={() => void handleAssign()}
+                disabled={assignLoading || !assignProjectId || current.status === 'retired' || current.status === 'maintenance'}
+                className="rounded-lg bg-action px-3 py-1 text-xs font-medium text-action-foreground hover:bg-action/90 disabled:opacity-50"
+              >
+                {assignLoading ? '...' : 'Assign'}
+              </button>
+            </div>
+            {assignError && <p className="mt-1 text-xs text-danger">{assignError}</p>}
+            {(current.status === 'retired' || current.status === 'maintenance') && (
+              <p className="mt-1 text-xs text-foreground-muted">Cannot assign while {current.status}.</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {error ? <div className="mt-4 rounded-lg border border-danger/20 bg-danger/5 p-3 text-sm text-danger">{error}</div> : null}
 
@@ -502,7 +631,7 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
                       <select
                         value={maintenanceDraft.type}
                         onChange={(e) => setMaintenanceDraft((d) => ({ ...d, type: e.target.value }))}
-                        className="mt-1 h-9 w-full rounded-lg border border-border bg-surface px-2 text-sm font-normal text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        className="mt-1 h-9 w-full rounded-lg border-0 bg-surface px-2 text-sm font-normal text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                       >
                         <option value="scheduled">Scheduled</option>
                         <option value="repair">Repair</option>
@@ -515,7 +644,7 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
                       <select
                         value={maintenanceDraft.status}
                         onChange={(e) => setMaintenanceDraft((d) => ({ ...d, status: e.target.value }))}
-                        className="mt-1 h-9 w-full rounded-lg border border-border bg-surface px-2 text-sm font-normal text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        className="mt-1 h-9 w-full rounded-lg border-0 bg-surface px-2 text-sm font-normal text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                       >
                         <option value="pending">Pending</option>
                         <option value="completed">Completed</option>
@@ -786,10 +915,10 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
                 <div className="grid grid-cols-2 gap-2">
                   <label className="block text-xs font-medium text-foreground-muted">
                     Reason
-                    <select
+                      <select
                       value={downtimeDraft.reason}
                       onChange={(e) => setDowntimeDraft((d) => ({ ...d, reason: e.target.value }))}
-                      className="mt-1 h-9 w-full rounded-lg border border-border bg-surface px-2 text-sm font-normal text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="mt-1 h-9 w-full rounded-lg border-0 bg-surface px-2 text-sm font-normal text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                     >
                       <option value="breakdown">Breakdown</option>
                       <option value="weather">Weather</option>

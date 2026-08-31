@@ -85,6 +85,72 @@ function timeAgo(date: Date | string): string {
   return formatDate(date);
 }
 
+function formatCentsCompact(cents: number): string {
+  if (cents >= 100_000_00) return `$${(cents / 100_000_00).toFixed(1)}M`;
+  if (cents >= 1_000_00) return `$${(cents / 1_000_00).toFixed(1)}M`;
+  return `$${(cents / 100).toLocaleString()}`;
+}
+
+function describeActivity(log: AuditLogDomain): string {
+  const after = log.after as Record<string, unknown> | undefined;
+  const before = log.before as Record<string, unknown> | undefined;
+  const action = log.action;
+
+  if (action === 'project_created') {
+    const name = (after?.name as string) ?? 'Project';
+    const code = after?.code ? ` (${after.code as string})` : '';
+    return `Project created — ${name}${code}`;
+  }
+  if (action === 'project_updated') {
+    if (!before || !after) return 'Project updated';
+    const changes: string[] = [];
+    const meaningfulKeys = ['name', 'status', 'phase', 'budgetCents', 'location', 'managerId', 'description', 'startDate', 'endDate'] as const;
+    for (const key of meaningfulKeys) {
+      const b = before[key];
+      const a = after[key];
+      if (JSON.stringify(b) !== JSON.stringify(a)) {
+        if (key === 'status' && typeof a === 'string') {
+          changes.push(`Status changed to ${String(a).replace(/_/g, ' ')}`);
+        } else if (key === 'budgetCents' && typeof a === 'number') {
+          changes.push(`Budget updated to ${formatCentsCompact(a)}`);
+        } else if (key === 'location' && typeof a === 'string' && a) {
+          changes.push(`Location set to ${a}`);
+        } else if (key === 'name' && typeof a === 'string' && a) {
+          changes.push(`Renamed to "${a}"`);
+        } else if (key === 'phase' && typeof a === 'string' && a) {
+          changes.push(`Phase set to ${a}`);
+        } else if (key === 'managerId') {
+          if (a) changes.push('Manager assigned');
+          else changes.push('Manager unassigned');
+        } else if (key === 'description') {
+          changes.push('Description updated');
+        } else if (key === 'startDate' || key === 'endDate') {
+          if (a) changes.push(`${key === 'startDate' ? 'Start date' : 'End date'} set to ${formatDate(a as string)}`);
+        }
+      }
+    }
+    if (changes.length === 0) return 'Project updated';
+    if (changes.length === 1) return changes[0];
+    return changes.slice(0, 2).join(' · ') + (changes.length > 2 ? ` +${changes.length - 2} more` : '');
+  }
+  if (action === 'project_archived') return 'Project archived';
+  if (action === 'project_deleted') return 'Project deleted';
+  if (action === 'project_member_added') {
+    const role = after?.role ? ` as ${projectRoleLabel(after.role as string)}` : '';
+    return `Member added${role}`;
+  }
+  if (action === 'project_member_removed') {
+    const role = before?.role ? ` (${projectRoleLabel(before.role as string)})` : '';
+    return `Member removed${role}`;
+  }
+  if (action === 'project_member_role_updated') {
+    const r = after?.role ? projectRoleLabel(after.role as string) : 'new role';
+    return `Member role changed to ${r}`;
+  }
+  // Fallback: humanize action
+  return action.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -175,6 +241,15 @@ export function ProjectDetail() {
     fetchActivity();
     fetchDirectory();
   }, [fetchProject, fetchMembers, fetchActivity, fetchDirectory]);
+
+  // Clear stale member errors when project context changes or members reload.
+  useEffect(() => {
+    setMemberError(null);
+  }, [id]);
+
+  useEffect(() => {
+    if (activeTab !== 'members') setMemberError(null);
+  }, [activeTab]);
 
   const handleAssignMember = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -423,7 +498,7 @@ export function ProjectDetail() {
                   value={assignUserId}
                   onChange={(e) => setAssignUserId(e.target.value)}
                   required
-                  className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground focus:border-primary focus:outline-none sm:w-64"
+                  className="h-10 w-full rounded-lg border-0 bg-surface px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary sm:w-64"
                 >
                   <option value="" disabled>
                     {assignableMembers.length > 0
@@ -445,7 +520,7 @@ export function ProjectDetail() {
                   id="assign-role"
                   value={assignRole}
                   onChange={(e) => setAssignRole(e.target.value)}
-                  className="h-10 rounded-lg border border-border bg-surface px-3 text-sm text-foreground focus:border-primary focus:outline-none sm:w-44"
+                  className="h-10 rounded-lg border-0 bg-surface px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary sm:w-44"
                 >
                   {Object.values(ProjectRole).map((r) => (
                     <option key={r} value={r}>
@@ -548,19 +623,10 @@ export function ProjectDetail() {
                 <div key={log.id} className="px-5 py-3">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="text-sm text-foreground">
-                        <span className="font-medium">{log.action}</span>
-                        {log.entityType && (
-                          <span className="text-foreground-muted"> on {log.entityType}</span>
-                        )}
-                      </p>
-                      {log.after && (
-                        <p className="mt-0.5 text-xs text-foreground-muted">
-                          {JSON.stringify(log.after)}
-                        </p>
-                      )}
+                      <p className="text-sm text-foreground">{describeActivity(log)}</p>
+                      <p className="mt-0.5 text-xs text-foreground-muted">{timeAgo(log.createdAt)}</p>
                     </div>
-                    <span className="shrink-0 text-xs text-foreground-muted">{timeAgo(log.createdAt)}</span>
+                    <span className="shrink-0 rounded-full bg-surface-muted px-2 py-0.5 text-[10px] font-medium capitalize text-foreground-muted">{log.entityType.replace(/_/g, ' ')}</span>
                   </div>
                 </div>
               ))}
