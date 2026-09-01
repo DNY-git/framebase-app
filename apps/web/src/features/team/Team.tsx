@@ -44,6 +44,8 @@ interface PendingInvitation {
   role: string;
   status: string;
   expiresAt: string;
+  usageLimit: number | null;
+  usedCount: number;
   createdAt: string;
   devAcceptUrl: string | null;
 }
@@ -98,18 +100,17 @@ export function Team() {
   // Invite form
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<string>(Role.SITE_ENGINEER);
-  const [inviteExpiresAt, setInviteExpiresAt] = useState<string>(() => {
-    const d = new Date(Date.now() + 72 * 3600 * 1000);
-    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-    return local.toISOString().slice(0, 16);
-  });
+  const [inviteExpiryDays, setInviteExpiryDays] = useState<number>(3);
+  const [inviteUsageLimit, setInviteUsageLimit] = useState<number | null>(null);
+  const [showInvitePopover, setShowInvitePopover] = useState(false);
   const [isInviting, setIsInviting] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
 
   // Editing pending invitation expiration
   const [editingExpiresId, setEditingExpiresId] = useState<string | null>(null);
-  const [editingExpiresValue, setEditingExpiresValue] = useState<string>('');
+  const [editingExpiryDays, setEditingExpiryDays] = useState<number>(3);
+  const [editingUsageLimit, setEditingUsageLimit] = useState<number | null>(null);
   const [savingExpires, setSavingExpires] = useState<string | null>(null);
 
   // New member role changes
@@ -159,10 +160,9 @@ export function Team() {
     setInviteSuccess(null);
     try {
       const payload: Record<string, unknown> = { email: inviteEmail.trim(), role: inviteRole };
-      if (inviteExpiresAt) {
-        const iso = new Date(inviteExpiresAt).toISOString();
-        if (!Number.isNaN(new Date(iso).getTime())) payload.expiresAt = iso;
-      }
+      const expiresAt = new Date(Date.now() + inviteExpiryDays * 24 * 3600 * 1000).toISOString();
+      payload.expiresAt = expiresAt;
+      if (inviteUsageLimit != null) payload.usageLimit = inviteUsageLimit;
       const res = await authFetch('/api/v1/organizations/invitations', {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -243,21 +243,22 @@ export function Team() {
   };
 
   const handleUpdateExpires = async (invitationId: string) => {
-    if (!editingExpiresValue) return;
     setSavingExpires(invitationId);
     setMemberError(null);
     try {
-      const iso = new Date(editingExpiresValue).toISOString();
+      const iso = new Date(Date.now() + editingExpiryDays * 24 * 3600 * 1000).toISOString();
+      const payload: Record<string, unknown> = { expiresAt: iso };
+      if (editingUsageLimit != null) payload.usageLimit = editingUsageLimit;
+      else payload.usageLimit = null;
       const res = await authFetch(`/api/v1/organizations/invitations/${invitationId}`, {
         method: 'PATCH',
-        body: JSON.stringify({ expiresAt: iso }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         throw new Error(body?.message ?? 'Failed to update expiration');
       }
       setEditingExpiresId(null);
-      setEditingExpiresValue('');
       await loadAll();
     } catch (err) {
       setMemberError((err as Error).message);
@@ -488,12 +489,61 @@ export function Team() {
                   </option>
                 ))}
               </select>
-              <input
-                type="datetime-local"
-                value={inviteExpiresAt}
-                onChange={(e) => setInviteExpiresAt(e.target.value)}
-                className="h-10 rounded-lg border border-border bg-surface px-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:w-56"
-              />
+              <div className="relative flex items-center gap-2">
+                <span className="hidden text-xs text-foreground-muted sm:inline">
+                  {inviteExpiryDays}d • {inviteUsageLimit == null ? 'No limit' : `Limit ${inviteUsageLimit}`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowInvitePopover((v) => !v)}
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  Edit expiry
+                </button>
+                {showInvitePopover && (
+                  <div className="absolute right-0 top-full z-20 mt-2 w-72 rounded-xl border border-border bg-surface p-4 shadow-xl">
+                    <p className="text-xs font-semibold text-foreground">Expiry duration</p>
+                    <div className="mt-2 grid grid-cols-4 gap-2">
+                      {[1, 3, 7, 30].map((d) => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => setInviteExpiryDays(d)}
+                          className={`rounded-lg px-2 py-2 text-xs font-medium ${inviteExpiryDays === d ? 'bg-primary text-primary-foreground' : 'bg-surface-muted text-foreground hover:bg-surface-muted/80'}`}
+                        >
+                          {d}d
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-4 text-xs font-semibold text-foreground">Usage limit</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setInviteUsageLimit(null)}
+                        className={`rounded-lg px-3 py-1.5 text-xs font-medium ${inviteUsageLimit == null ? 'bg-primary text-primary-foreground' : 'border border-border bg-surface text-foreground'}`}
+                      >
+                        No limit
+                      </button>
+                      <span className="text-xs text-foreground-muted">or</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={50}
+                        value={inviteUsageLimit ?? ''}
+                        onChange={(e) => {
+                          const v = e.target.value ? parseInt(e.target.value, 10) : null;
+                          if (v == null || (v >= 1 && v <= 50)) setInviteUsageLimit(v);
+                        }}
+                        placeholder="1-50"
+                        className="h-8 w-20 rounded-lg border border-border bg-surface px-2 text-xs text-foreground placeholder:text-foreground-muted focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                    </div>
+                    <div className="mt-4 flex justify-end">
+                      <button type="button" onClick={() => setShowInvitePopover(false)} className="rounded-lg bg-action px-3 py-1.5 text-xs font-medium text-action-foreground">Done</button>
+                    </div>
+                  </div>
+                )}
+              </div>
               <button
                 type="submit"
                 disabled={isInviting}
@@ -529,29 +579,64 @@ export function Team() {
                             {roleLabel(inv.role)}
                           </p>
                         </div>
-                        {editingExpiresId === inv.id ? (
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="datetime-local"
-                              value={editingExpiresValue}
-                              onChange={(e) => setEditingExpiresValue(e.target.value)}
-                              className="h-8 rounded-lg border border-border bg-surface px-2 text-xs text-foreground focus:border-primary focus:outline-none"
-                            />
-                            <button
-                              onClick={() => handleUpdateExpires(inv.id)}
-                              disabled={savingExpires === inv.id}
-                              className="rounded-lg bg-action px-2.5 py-1 text-xs font-medium text-action-foreground hover:bg-action/90 disabled:opacity-50"
-                            >
-                              {savingExpires === inv.id ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
-                            </button>
-                            <button
-                              onClick={() => { setEditingExpiresId(null); setEditingExpiresValue(''); }}
-                              className="rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-foreground hover:bg-surface-muted"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
+                        <div className="relative flex items-center gap-2">
+                          {editingExpiresId === inv.id ? (
+                            <div className="absolute right-0 top-full z-20 mt-2 w-72 rounded-xl border border-border bg-surface p-4 shadow-xl">
+                              <p className="text-xs font-semibold text-foreground">Expiry duration</p>
+                              <div className="mt-2 grid grid-cols-4 gap-2">
+                                {[1, 3, 7, 30].map((d) => (
+                                  <button
+                                    key={d}
+                                    type="button"
+                                    onClick={() => setEditingExpiryDays(d)}
+                                    className={`rounded-lg px-2 py-2 text-xs font-medium ${editingExpiryDays === d ? 'bg-primary text-primary-foreground' : 'bg-surface-muted text-foreground'}`}
+                                  >
+                                    {d}d
+                                  </button>
+                                ))}
+                              </div>
+                              <p className="mt-3 text-xs font-semibold text-foreground">Usage limit</p>
+                              <div className="mt-2 flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingUsageLimit(null)}
+                                  className={`rounded-lg px-3 py-1.5 text-xs font-medium ${editingUsageLimit == null ? 'bg-primary text-primary-foreground' : 'border border-border bg-surface text-foreground'}`}
+                                >
+                                  No limit
+                                </button>
+                                <span className="text-xs text-foreground-muted">or</span>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={50}
+                                  value={editingUsageLimit ?? ''}
+                                  onChange={(e) => {
+                                    const v = e.target.value ? parseInt(e.target.value, 10) : null;
+                                    if (v == null || (v >= 1 && v <= 50)) setEditingUsageLimit(v);
+                                  }}
+                                  placeholder="1-50"
+                                  className="h-8 w-20 rounded-lg border border-border bg-surface px-2 text-xs text-foreground placeholder:text-foreground-muted focus:outline-none focus:ring-1 focus:ring-primary"
+                                />
+                              </div>
+                              <div className="mt-3 flex justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingExpiresId(null)}
+                                  className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateExpires(inv.id)}
+                                  disabled={savingExpires === inv.id}
+                                  className="rounded-lg bg-action px-3 py-1.5 text-xs font-medium text-action-foreground disabled:opacity-50"
+                                >
+                                  {savingExpires === inv.id ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
                           <span
                             className={`rounded-full px-2.5 py-0.5 text-[10px] font-medium uppercase ${
                               expired ? 'bg-danger/10 text-danger' : 'bg-info/20 text-info'
@@ -565,22 +650,27 @@ export function Team() {
                               `Expires ${formatDate(inv.expiresAt)}`
                             )}
                           </span>
-                        )}
+                          <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[10px] font-medium text-foreground-muted">
+                            {inv.usageLimit == null ? 'No limit' : `Limit ${inv.usageLimit}${inv.usedCount ? ` • ${inv.usedCount} used` : ''}`}
+                          </span>
+                        </div>
                         <button
                           onClick={() => handleCopyLink(inv.devAcceptUrl)}
                           className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-muted"
                         >
                           <Copy className="h-3.5 w-3.5" /> Copy link
                         </button>
-                        {!expired && editingExpiresId !== inv.id && (
+                        {!expired && (
                           <button
+                            type="button"
                             onClick={() => {
-                              const d = new Date(inv.expiresAt);
-                              const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-                              setEditingExpiresValue(local.toISOString().slice(0, 16));
-                              setEditingExpiresId(inv.id);
+                              const diffDays = Math.round((new Date(inv.expiresAt).getTime() - Date.now()) / (24 * 3600 * 1000));
+                              const snap = [1, 3, 7, 30].reduce((a, b) => Math.abs(b - diffDays) < Math.abs(a - diffDays) ? b : a, 3);
+                              setEditingExpiryDays(snap);
+                              setEditingUsageLimit(inv.usageLimit ?? null);
+                              setEditingExpiresId((prev) => (prev === inv.id ? null : inv.id));
                             }}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-muted"
+                            className="inline-flex items-center gap-1.5 rounded-lg border-0 bg-surface px-2.5 py-1.5 text-xs font-medium text-primary hover:underline"
                           >
                             Edit expiry
                           </button>

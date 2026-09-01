@@ -1,9 +1,10 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import type { ProjectDomain } from '@constructtrack/types';
 import { ProjectStatus } from '@constructtrack/types';
 import { authFetch } from '../../auth-fetch';
 import { ProjectForm } from './ProjectForm';
+import { ProjectPreviewPanel } from './ProjectPreviewPanel';
 import { PageLayout } from '../../shared/components/PageLayout';
 import { FilterDropdown } from '../../shared/components/FilterDropdown';
 
@@ -16,6 +17,7 @@ interface DirectoryEntry {
   avatarUrl: string | null;
   joinedAt: string;
 }
+import { formatCompactCurrency } from '../../utils';
 import {
   Search,
   Plus,
@@ -59,10 +61,7 @@ function formatDate(d?: Date | string | null): string {
 }
 
 function formatBudget(cents?: number): string {
-  if (cents == null) return '—';
-  if (cents >= 100_000_00) return `$${(cents / 100_000_00).toFixed(1)}M`;
-  if (cents >= 1_000_00) return `$${(cents / 1_000_00).toFixed(1)}M`;
-  return `$${(cents / 100).toLocaleString()}`;
+  return formatCompactCurrency(cents ?? null);
 }
 
 function displayStatus(p: ProjectDomain): string {
@@ -104,6 +103,7 @@ export function ProjectsList() {
   const status = searchParams.get('status') ?? '';
   const [searchInput, setSearchInput] = useState(search);
   const showNew = searchParams.get('new') === '1';
+  const [previewProject, setPreviewProject] = useState<ProjectDomain | null>(null);
 
   const fetchProjects = useCallback(async () => {
     setIsLoading(true);
@@ -356,8 +356,8 @@ export function ProjectsList() {
                   return (
                     <tr
                       key={project.id}
-                      onClick={() => navigate(`/projects/${project.id}`)}
-                      className="group cursor-pointer transition-colors hover:bg-surface-muted/50"
+                      onClick={() => setPreviewProject(project)}
+                      className={`group cursor-pointer transition-colors hover:bg-surface-muted/50 ${previewProject?.id === project.id ? 'bg-primary/5' : ''}`}
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
@@ -368,13 +368,13 @@ export function ProjectsList() {
                             aria-hidden
                           />
                           <div className="min-w-0">
-                            <Link
-                              to={`/projects/${project.id}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="block truncate font-medium text-foreground transition-colors group-hover:text-primary"
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setPreviewProject(project); }}
+                              className="block truncate text-left font-medium text-foreground transition-colors group-hover:text-primary"
                             >
                               {project.name}
-                            </Link>
+                            </button>
                             <span className="block truncate text-xs font-mono text-foreground-muted">{project.code}</span>
                           </div>
                         </div>
@@ -464,6 +464,8 @@ export function ProjectsList() {
             }}
           />
         )}
+
+        <ProjectPreviewPanel project={previewProject} onClose={() => setPreviewProject(null)} />
       </div>
     </PageLayout>
   );

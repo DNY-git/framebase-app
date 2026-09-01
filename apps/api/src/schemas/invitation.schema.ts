@@ -61,6 +61,13 @@ export class Invitation {
   @Prop({ type: Date, required: true })
   expiresAt!: Date;
 
+  /** null = unlimited, 1–50 = max accepts. */
+  @Prop({ type: Number, default: null })
+  usageLimit?: number | null;
+
+  @Prop({ type: Number, default: 0 })
+  usedCount!: number;
+
   /** The user who created the invitation. */
   @Prop({
     type: MongooseSchema.Types.ObjectId,

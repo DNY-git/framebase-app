@@ -9,6 +9,7 @@ import {
 } from '@bklitui/ui/charts';
 import type { ApiResponse, DashboardOverview } from '@constructtrack/types';
 import { authFetch } from '../../auth-fetch';
+import { formatCompactCurrency } from '../../utils';
 import { PageLayout } from '../../shared/components/PageLayout';
 import { Skeleton } from '../../shared/components/Skeleton';
 import { ActivityHeatmap } from './ActivityHeatmap';
@@ -46,25 +47,12 @@ function useDashboard() {
   return { data, error, isLoading, refetch: fetchData };
 }
 
-const centsCompact = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  notation: 'compact',
-  maximumFractionDigits: 1,
-});
-
-const centsFull = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  maximumFractionDigits: 0,
-});
-
 function formatCents(cents: number): string {
-  return centsFull.format(cents / 100);
+  return formatCompactCurrency(cents);
 }
 
 function formatCompact(cents: number): string {
-  return centsCompact.format(cents / 100);
+  return formatCompactCurrency(cents);
 }
 
 function formatDate(d?: Date | string | null): string {

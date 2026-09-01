@@ -16,6 +16,7 @@ import {
   ExternalLink,
   AlertCircle,
 } from '../../shared/components/icons';
+import { TaskConnectionsBoard } from './TaskConnectionsBoard';
 
 /* ─── Helpers ─── */
 
@@ -81,7 +82,8 @@ export function TaskDetail() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showEdit, setShowEdit] = useState(false);
-  const [activeTab, setActiveTab] = useState<'details' | 'dependencies' | 'activity'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'connections' | 'dependencies' | 'activity'>('details');
+  const [projectName, setProjectName] = useState<string | undefined>(undefined);
 
   const fetchTask = useCallback(async () => {
     if (!taskId) return;
@@ -107,6 +109,16 @@ export function TaskDetail() {
 
       if (!found) throw new Error('Task not found');
       setTask(found);
+      // Fetch project name for connections board
+      try {
+        const projDetailRes = await authFetch(`/api/v1/projects/${found.projectId}`);
+        if (projDetailRes.ok) {
+          const projDetailBody = await projDetailRes.json();
+          setProjectName(projDetailBody.data?.name ?? projDetailBody.name ?? undefined);
+        }
+      } catch {
+        // ignore
+      }
 
       // Fetch dependencies
       const depRes = await authFetch(`/api/v1/projects/${found.projectId}/tasks/${taskId}/dependencies`);
@@ -225,7 +237,7 @@ export function TaskDetail() {
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border">
-        {(['details', 'dependencies', 'activity'] as const).map((tab) => (
+        {(['details', 'connections', 'dependencies', 'activity'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -257,6 +269,10 @@ export function TaskDetail() {
             <Detail label="Last Updated" value={formatDate(task.updatedAt)} />
           </dl>
         </div>
+      )}
+
+      {activeTab === 'connections' && task && (
+        <TaskConnectionsBoard task={task} projectId={task.projectId} projectName={projectName} onDependencyChange={fetchTask} />
       )}
 
       {activeTab === 'dependencies' && (

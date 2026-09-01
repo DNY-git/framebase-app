@@ -416,6 +416,7 @@ export class OrganizationsService {
     email: string,
     role: Role,
     expiresAtIso?: string,
+    usageLimit?: number | null,
   ): Promise<{
     id: string;
     email: string;
@@ -488,12 +489,21 @@ export class OrganizationsService {
       expiresAt = new Date(Date.now() + ttlSeconds * 1000);
     }
 
+    let normalizedLimit: number | null = null;
+    if (usageLimit != null) {
+      if (!Number.isInteger(usageLimit) || usageLimit < 1 || usageLimit > 50) {
+        throw new DomainException(ErrorCode.VALIDATION_ERROR, HttpStatus.BAD_REQUEST, 'Usage limit must be between 1 and 50.');
+      }
+      normalizedLimit = usageLimit;
+    }
+
     const invitation = await this.invitationRepository.create({
       tenantId: auth.tenantId,
       email: normalizedEmail,
       role,
       token,
       expiresAt,
+      usageLimit: normalizedLimit,
       invitedBy: auth.userId,
     });
 
@@ -537,6 +547,8 @@ export class OrganizationsService {
     role: Role;
     status: string;
     expiresAt: Date;
+    usageLimit: number | null;
+    usedCount: number;
     createdAt: Date;
     devAcceptUrl: string | null;
   }>> {
@@ -548,13 +560,15 @@ export class OrganizationsService {
       role: i.role,
       status: i.status,
       expiresAt: i.expiresAt,
+      usageLimit: i.usageLimit ?? null,
+      usedCount: i.usedCount ?? 0,
       createdAt: i.createdAt,
       devAcceptUrl: i.status === 'pending' ? this.devAcceptUrl(i.token) : null,
     }));
   }
 
-  /** Updates a pending invitation's expiration. OWNER/ADMIN only. */
-  async updateInvitation(auth: AuthContext, invitationId: string, expiresAtIso: string): Promise<InvitationDomain> {
+  /** Updates a pending invitation's expiration / usage limit. OWNER/ADMIN only. */
+  async updateInvitation(auth: AuthContext, invitationId: string, expiresAtIso?: string, usageLimit?: number | null): Promise<InvitationDomain> {
     this.assertManagement(auth, 'update invitations');
     const invitation = await this.invitationRepository.findById(invitationId, auth.tenantId);
     if (!invitation) {
@@ -563,17 +577,35 @@ export class OrganizationsService {
     if (invitation.status !== 'pending') {
       throw new DomainException(ErrorCode.INVITATION_NOT_FOUND, HttpStatus.CONFLICT, 'Only pending invitations can be updated.');
     }
-    const parsed = new Date(expiresAtIso);
-    if (Number.isNaN(parsed.getTime())) {
-      throw new DomainException(ErrorCode.VALIDATION_ERROR, HttpStatus.BAD_REQUEST, 'Invalid expiration date.');
+    let nextExpiresAt = invitation.expiresAt;
+    let nextUsageLimit = invitation.usageLimit ?? null;
+    let hasChange = false;
+    if (expiresAtIso) {
+      const parsed = new Date(expiresAtIso);
+      if (Number.isNaN(parsed.getTime())) {
+        throw new DomainException(ErrorCode.VALIDATION_ERROR, HttpStatus.BAD_REQUEST, 'Invalid expiration date.');
+      }
+      if (parsed.getTime() <= Date.now() + 60_000) {
+        throw new DomainException(ErrorCode.VALIDATION_ERROR, HttpStatus.BAD_REQUEST, 'Expiration must be in the future.');
+      }
+      if (parsed.getTime() > Date.now() + 90 * 24 * 3600 * 1000) {
+        throw new DomainException(ErrorCode.VALIDATION_ERROR, HttpStatus.BAD_REQUEST, 'Expiration cannot be more than 90 days away.');
+      }
+      nextExpiresAt = parsed;
+      hasChange = true;
     }
-    if (parsed.getTime() <= Date.now() + 60_000) {
-      throw new DomainException(ErrorCode.VALIDATION_ERROR, HttpStatus.BAD_REQUEST, 'Expiration must be in the future.');
+    if (usageLimit !== undefined) {
+      if (usageLimit !== null && (!Number.isInteger(usageLimit) || usageLimit < 1 || usageLimit > 50)) {
+        throw new DomainException(ErrorCode.VALIDATION_ERROR, HttpStatus.BAD_REQUEST, 'Usage limit must be between 1 and 50.');
+      }
+      if (usageLimit !== null && usageLimit < (invitation.usedCount ?? 0)) {
+        throw new DomainException(ErrorCode.VALIDATION_ERROR, HttpStatus.BAD_REQUEST, 'Usage limit cannot be less than already used count.');
+      }
+      nextUsageLimit = usageLimit;
+      hasChange = true;
     }
-    if (parsed.getTime() > Date.now() + 90 * 24 * 3600 * 1000) {
-      throw new DomainException(ErrorCode.VALIDATION_ERROR, HttpStatus.BAD_REQUEST, 'Expiration cannot be more than 90 days away.');
-    }
-    const updated = await this.invitationRepository.updateExpiresAt(invitation.id, parsed);
+    if (!hasChange) return invitation;
+    const updated = await this.invitationRepository.updateExpiryAndLimit(invitation.id, nextExpiresAt, nextUsageLimit);
     if (!updated) throw new DomainException(ErrorCode.INVITATION_NOT_FOUND, HttpStatus.NOT_FOUND, 'Invitation not found.');
     await this.auditService.record({
       tenantId: auth.tenantId,
@@ -581,8 +613,8 @@ export class OrganizationsService {
       action: 'organization.invitation_expiration_updated',
       entityType: 'Invitation',
       entityId: updated.id,
-      before: { expiresAt: invitation.expiresAt },
-      after: { expiresAt: parsed },
+      before: { expiresAt: invitation.expiresAt, usageLimit: invitation.usageLimit },
+      after: { expiresAt: nextExpiresAt, usageLimit: nextUsageLimit },
       correlationId: '',
     });
     return updated;
@@ -743,12 +775,19 @@ export class OrganizationsService {
       membershipCreated = true;
     }
 
-    await this.invitationRepository.markAccepted(invitation.id, user.id);
-    // Accepting one invitation invalidates the rest pending for that email.
-    await this.invitationRepository.revokePendingForEmail(
-      invitation.tenantId,
-      invitation.email,
-    );
+    // Handle usage limit: increment and conditionally mark accepted
+    if (invitation.usageLimit != null) {
+      const newCount = (invitation.usedCount ?? 0) + 1;
+      if (newCount >= invitation.usageLimit) {
+        await this.invitationRepository.markAccepted(invitation.id, user.id);
+        await this.invitationRepository.revokePendingForEmail(invitation.tenantId, invitation.email);
+      } else {
+        await this.invitationRepository.incrementUsedCount(invitation.id);
+      }
+    } else {
+      // Unlimited: keep pending, just increment count for tracking
+      await this.invitationRepository.incrementUsedCount(invitation.id);
+    }
 
     const result = await this.issueTokens(
       user.id,
@@ -799,6 +838,9 @@ export class OrganizationsService {
     }
     if (invitation.expiresAt.getTime() < Date.now()) {
       throw new DomainException(ErrorCode.INVITATION_EXPIRED, HttpStatus.GONE, 'This invitation has expired.');
+    }
+    if (invitation.usageLimit != null && (invitation.usedCount ?? 0) >= invitation.usageLimit) {
+      throw new DomainException(ErrorCode.INVITATION_ALREADY_ACCEPTED, HttpStatus.CONFLICT, 'This invitation has reached its usage limit.');
     }
     return invitation;
   }

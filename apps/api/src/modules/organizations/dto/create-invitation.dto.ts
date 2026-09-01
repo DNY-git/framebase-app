@@ -4,7 +4,7 @@
  * Inviting as OWNER is rejected in the service (only owners may grant
  * ownership, and only via promotion — never by link).
  */
-import { IsDateString, IsEmail, IsEnum, IsOptional, MaxLength } from 'class-validator';
+import { IsDateString, IsEmail, IsEnum, IsInt, IsOptional, Max, MaxLength, Min } from 'class-validator';
 import { Role } from '@constructtrack/types';
 
 export class CreateInvitationDto {
@@ -18,6 +18,12 @@ export class CreateInvitationDto {
   @IsDateString()
   @IsOptional()
   expiresAt?: string;
+
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  @IsOptional()
+  usageLimit?: number;
 }
 
 /** Roles that can be granted via invitation (OWNER is excluded). */

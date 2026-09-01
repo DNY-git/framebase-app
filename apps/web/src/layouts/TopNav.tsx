@@ -1,11 +1,13 @@
-import { Menu } from '../shared/components/icons';
+import { Bot, Menu } from '../shared/components/icons';
 import { NotificationBell } from '../shared/components/NotificationBell';
 import { UserProfileMenu } from '../shared/components/UserProfileMenu';
 import { usePageTitleStore } from '../stores/page-title-store';
 import { useSidebarStore } from '../stores/sidebar-store';
+import { useAiPanelStore } from '../stores/ai-panel-store';
 
 export function TopNav() {
   const { toggleMobile } = useSidebarStore();
+  const { togglePanel } = useAiPanelStore();
   const pageTitle = usePageTitleStore((s) => s.pageTitle);
 
   return (
@@ -28,6 +30,13 @@ export function TopNav() {
       )}
 
       <div className="ml-auto flex items-center gap-2">
+        <button
+          onClick={togglePanel}
+          aria-label="Open AI Assistant"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground"
+        >
+          <Bot className="h-5 w-5" />
+        </button>
         <NotificationBell />
         <UserProfileMenu />
       </div>

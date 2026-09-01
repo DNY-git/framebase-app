@@ -39,7 +39,22 @@ export function formatDate(date: string | Date): string {
 }
 
 export function formatCurrency(cents: number): string {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
+  return formatCompactCurrency(cents);
+}
+
+export function formatCompactCurrency(cents: number | null | undefined): string {
+  if (cents == null) return '—';
+  const dollars = cents / 100;
+  const sign = dollars < 0 ? '-' : '';
+  const abs = Math.abs(dollars);
+  if (abs < 1_000) return `${sign}$${abs.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  if (abs < 1_000_000) return `${sign}$${(abs / 1_000).toFixed(1)}K`;
+  if (abs < 1_000_000_000) return `${sign}$${(abs / 1_000_000).toFixed(1)}M`;
+  return `${sign}$${(abs / 1_000_000_000).toFixed(1)}Bn`;
+}
+
+export function formatCentsCompact(cents: number): string {
+  return formatCompactCurrency(cents);
 }
 
 /**

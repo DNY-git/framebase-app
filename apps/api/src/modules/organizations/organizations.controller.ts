@@ -147,6 +147,7 @@ export class OrganizationsController {
         dto.email,
         dto.role,
         dto.expiresAt,
+        dto.usageLimit ?? null,
       ),
     };
   }
@@ -165,7 +166,7 @@ export class OrganizationsController {
     @Body() dto: UpdateInvitationDto,
   ) {
     return {
-      data: await this.organizationsService.updateInvitation(user, invitationId, dto.expiresAt),
+      data: await this.organizationsService.updateInvitation(user, invitationId, dto.expiresAt, dto.usageLimit ?? null),
     };
   }
 

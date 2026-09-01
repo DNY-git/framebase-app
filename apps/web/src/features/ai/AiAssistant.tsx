@@ -3,6 +3,7 @@ import { Plus, Mic, ArrowUp, X } from '../../shared/components/icons';
 
 interface AiAssistantProps {
   token: string;
+  className?: string;
 }
 
 interface Attachment {
@@ -249,7 +250,7 @@ export function AiAssistant({ token }: AiAssistantProps): React.JSX.Element {
   };
 
   return (
-    <div className="flex h-[600px] flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+    <div className={`flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-sm ${className ?? 'h-[600px]'}`}>
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <h2 className="text-sm font-bold text-foreground">AI Assistant</h2>
         <div className="flex gap-2">

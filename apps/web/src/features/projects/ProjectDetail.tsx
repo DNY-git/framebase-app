@@ -19,6 +19,7 @@ import {
   UserPlus,
 } from '../../shared/components/icons';
 import { ConfirmDialog } from '../../shared/components/ConfirmDialog';
+import { formatCompactCurrency } from '../../utils';
 
 const STATUS_STYLES: Record<string, string> = {
   [ProjectStatus.PLANNING]: 'bg-info/10 text-info',
@@ -34,10 +35,7 @@ function formatDate(d?: Date | string | null): string {
 }
 
 function formatBudget(cents?: number): string {
-  if (!cents && cents !== 0) return '—';
-  if (cents >= 100_000_00) return `$${(cents / 100_000_00).toFixed(1)}M`;
-  if (cents >= 1_000_00) return `$${(cents / 1_000_00).toFixed(1)}M`;
-  return `$${(cents / 100).toLocaleString()}`;
+  return formatCompactCurrency(cents ?? null);
 }
 
 /** Organization member directory entry (GET /organizations/directory). */
@@ -86,9 +84,7 @@ function timeAgo(date: Date | string): string {
 }
 
 function formatCentsCompact(cents: number): string {
-  if (cents >= 100_000_00) return `$${(cents / 100_000_00).toFixed(1)}M`;
-  if (cents >= 1_000_00) return `$${(cents / 1_000_00).toFixed(1)}M`;
-  return `$${(cents / 100).toLocaleString()}`;
+  return formatCompactCurrency(cents);
 }
 
 function describeActivity(log: AuditLogDomain): string {

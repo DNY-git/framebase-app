@@ -10,7 +10,6 @@ import {
   Wrench,
   Package,
   FileText,
-  Bot,
   Shield,
   Settings as SettingsIcon,
 } from '../shared/components/icons';
@@ -25,7 +24,6 @@ const NAV_ITEMS = [
   { to: '/inventory', label: 'Inventory', icon: Package },
   { to: '/reports', label: 'Reports', icon: FileText },
   { to: '/documents', label: 'Documents', icon: FileText },
-  { to: '/ai', label: 'AI Assistant', icon: Bot },
   { to: '/audit', label: 'Audit Log', icon: Shield },
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
 ] as const;

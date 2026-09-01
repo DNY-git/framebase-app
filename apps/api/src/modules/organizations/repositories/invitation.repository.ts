@@ -23,6 +23,8 @@ export interface InvitationDomain {
   token: string;
   status: InvitationStatus;
   expiresAt: Date;
+  usageLimit: number | null;
+  usedCount: number;
   invitedBy: string;
   acceptedAt: Date | null;
   acceptedBy: string | null;
@@ -46,6 +48,7 @@ export class InvitationRepository {
     role: Role;
     token: string;
     expiresAt: Date;
+    usageLimit?: number | null;
     invitedBy: string;
   }): Promise<InvitationDomain> {
     const doc = await this.model.create({
@@ -55,6 +58,8 @@ export class InvitationRepository {
       token: data.token,
       status: InvitationStatus.PENDING,
       expiresAt: data.expiresAt,
+      usageLimit: data.usageLimit ?? null,
+      usedCount: 0,
       invitedBy: data.invitedBy,
     });
     return this.toDomain(doc);
@@ -126,6 +131,18 @@ export class InvitationRepository {
     return doc ? this.toDomain(doc) : null;
   }
 
+  async updateExpiryAndLimit(id: string, expiresAt: Date, usageLimit: number | null): Promise<InvitationDomain | null> {
+    const doc = await this.model
+      .findByIdAndUpdate(id, { $set: { expiresAt, usageLimit } }, { new: true })
+      .exec();
+    return doc ? this.toDomain(doc) : null;
+  }
+
+  async incrementUsedCount(id: string): Promise<InvitationDomain | null> {
+    const doc = await this.model.findByIdAndUpdate(id, { $inc: { usedCount: 1 } }, { new: true }).exec();
+    return doc ? this.toDomain(doc) : null;
+  }
+
   /** Invalidates other pending invitations for the same (tenant, email). */
   async revokePendingForEmail(tenantId: string, email: string): Promise<void> {
     await this.model
@@ -149,6 +166,8 @@ export class InvitationRepository {
       token: doc.token,
       status: doc.status,
       expiresAt: doc.expiresAt,
+      usageLimit: (doc as unknown as { usageLimit?: number | null }).usageLimit ?? null,
+      usedCount: (doc as unknown as { usedCount?: number }).usedCount ?? 0,
       invitedBy: doc.invitedBy.toString(),
       acceptedAt: doc.acceptedAt ?? null,
       acceptedBy: doc.acceptedBy ? doc.acceptedBy.toString() : null,

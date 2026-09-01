@@ -3,6 +3,7 @@ import { Sidebar } from './Sidebar';
 import { TopNav } from './TopNav';
 import { MobileNav } from './MobileNav';
 import { MobileSidebar } from './MobileSidebar';
+import { AiAssistantPanel } from '../features/ai/AiAssistantPanel';
 import { useAuthStore } from '../stores/auth-store';
 
 export function AppShell() {
@@ -21,6 +22,7 @@ export function AppShell() {
       </div>
 
       <MobileNav />
+      <AiAssistantPanel />
     </div>
   );
 }
