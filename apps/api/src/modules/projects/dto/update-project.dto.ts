@@ -17,7 +17,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { ProjectStatus } from '@constructtrack/types';
+import { NigeriaState, ProjectStatus } from '@constructtrack/types';
 
 export class UpdateProjectDto {
   @IsString()
@@ -61,4 +61,8 @@ export class UpdateProjectDto {
   @IsString()
   @IsOptional()
   managerId?: string;
+
+  @IsEnum(NigeriaState)
+  @IsOptional()
+  region?: NigeriaState;
 }

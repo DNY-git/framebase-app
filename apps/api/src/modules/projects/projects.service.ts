@@ -65,6 +65,7 @@ export class ProjectsService {
       endDate: data.endDate ? new Date(data.endDate) : undefined,
       budgetCents: data.budgetCents,
       location: data.location,
+      region: data.region,
       managerId: data.managerId,
       createdBy: auth.userId,
     };

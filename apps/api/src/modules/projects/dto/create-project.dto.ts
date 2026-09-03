@@ -9,6 +9,7 @@
  */
 import {
   IsDateString,
+  IsEnum,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -19,6 +20,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { NigeriaState } from '@constructtrack/types';
 
 export class CreateProjectDto {
   @IsString()
@@ -67,4 +69,8 @@ export class CreateProjectDto {
   @IsString()
   @IsOptional()
   managerId?: string;
+
+  @IsEnum(NigeriaState)
+  @IsOptional()
+  region?: NigeriaState;
 }

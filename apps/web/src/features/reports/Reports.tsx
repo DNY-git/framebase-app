@@ -7,12 +7,14 @@ import { FilterDropdown } from '@/shared/components/FilterDropdown';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { StatusStatRow } from '@/components/ui/status-stat-row';
+import { scaleSequential } from 'd3-scale';
+import { interpolateBlues } from 'd3-scale-chromatic';
+import nigeriaGeoJson from '@/assets/nigeria-states.json';
 import {
   ChoroplethChart,
   ChoroplethFeatureComponent,
   ChoroplethGraticule,
   ChoroplethTooltip,
-  defaultChoroplethColors,
   type ChoroplethFeatureProperties,
 } from '@bklitui/ui/charts';
 import {
@@ -35,50 +37,112 @@ type RegionFeatureCollection = FeatureCollection<
 >;
 
 /**
- * Regional spend choropleth. Data-ready: pass a GeoJSON `FeatureCollection`
- * (real boundaries) with a numeric `value` on each feature's properties to
- * render the map. Projects currently store only a free-text `location`
- * string, so no region/coordinates exist to aggregate — until that data is
- * added, this shows a clear empty state and NO fabricated geometry.
+ * Regional spend choropleth — real D3.js + React map of Nigeria states.
+ * Source: `so-dipe/GeoJSON` Nigeria states GeoJSON (MIT, 37 states incl. FCT) — `Nigeria and its States.geojson` with `properties.state` in caps (e.g. LAGOS, FCT, AKWA-IBOM).
+ * Shades by project count per state (more projects → darker), using d3.scaleSequential + interpolateBlues. States with no projects use neutral surface-muted.
  */
-function RegionalSpendMap({ features }: { features: RegionFeatureCollection | null }) {
+function RegionalSpendMap() {
+  const [features, setFeatures] = useState<RegionFeatureCollection | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        // Aggregate project counts per region
+        const res = await authFetch('/api/v1/projects?perPage=100');
+        const body = await res.json().catch(() => null);
+        const projects: Array<{ region?: string }> = body?.data ?? body?.items ?? [];
+        const countByState = new Map<string, number>();
+        for (const p of projects) {
+          if (!p.region) continue;
+          const key = String(p.region).toUpperCase().trim();
+          countByState.set(key, (countByState.get(key) ?? 0) + 1);
+        }
+
+        // Load GeoJSON and inject counts
+        // @ts-ignore - JSON import
+        const geo = (nigeriaGeoJson as unknown as { features: Array<{ properties: Record<string, unknown>; geometry: Geometry }> });
+        const enriched: RegionFeatureCollection = {
+          type: 'FeatureCollection',
+          features: geo.features.map((f) => {
+            const state = String((f.properties as Record<string, unknown>).state ?? '').toUpperCase();
+            const count = countByState.get(state) ?? 0;
+            return {
+              ...f,
+              properties: { ...(f.properties as Record<string, unknown>), value: count, state },
+            } as unknown as FeatureCollection<Geometry, ChoroplethFeatureProperties & { value?: number }>['features'][number];
+          }),
+        } as RegionFeatureCollection;
+
+        if (!cancelled) {
+          // If no project has region, still render map with neutral colors (not empty)
+          setFeatures(enriched);
+        }
+      } catch {
+        if (!cancelled) setFeatures(null);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }
+    void load();
+    return () => { cancelled = true; };
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-72 items-center justify-center rounded-lg border border-border bg-surface-muted/30">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary" />
+      </div>
+    );
+  }
+
   if (!features || features.features.length === 0) {
     return (
       <div className="flex h-72 flex-col items-center justify-center rounded-lg border border-border bg-surface-muted/30 px-6 text-center">
         <MapPin className="mb-2 h-8 w-8 text-foreground-muted/30" />
         <p className="text-sm font-medium text-foreground">No regional data available yet</p>
         <p className="mt-1 max-w-md text-xs text-foreground-muted">
-          The regional spend map needs structured geographic data. Projects currently store only a free-text{' '}
-          <code className="mx-1 rounded bg-surface-muted px-1 py-0.5">location</code> string — there is no
-          state/region field or coordinates to plot. To enable this map, add a region (e.g. ISO state code) or
-          geo-coordinates to the Project model and aggregate spend per region on the backend. No map geometry is
-          fabricated.
+          Projects have no region set yet. Add a region (state) to a project via the project form to see it on the map.
         </p>
       </div>
     );
   }
 
-  const max = Math.max(1, ...features.features.map((f) => Number(f.properties?.value ?? 0)));
+  const counts = features.features.map((f) => Number(f.properties?.value ?? 0));
+  const max = Math.max(1, ...counts);
+  const hasAnyData = counts.some((c) => c > 0);
+  const colorScale = scaleSequential(interpolateBlues).domain([0, max]);
+
   return (
-    <div className="h-96 w-full overflow-hidden rounded-lg">
-      <ChoroplethChart data={features} aspectRatio="16 / 9">
-        <ChoroplethFeatureComponent
-          getFeatureColor={(feature) => {
-            const v = Number(feature.properties?.value ?? 0);
-            const ratio = max > 0 ? v / max : 0;
-            const idx = Math.min(
-              defaultChoroplethColors.length - 1,
-              Math.floor(ratio * defaultChoroplethColors.length)
-            );
-            return defaultChoroplethColors[idx];
-          }}
-        />
-        <ChoroplethGraticule />
-        <ChoroplethTooltip
-          getFeatureValue={(f) => Number(f.properties?.value ?? 0)}
-          valueLabel="Spend"
-        />
-      </ChoroplethChart>
+    <div className="space-y-3">
+      <div className="h-96 w-full overflow-hidden rounded-lg border border-border">
+        <ChoroplethChart data={features} aspectRatio="16 / 9" center={[8, 10]} scale={850}>
+          <ChoroplethFeatureComponent
+            getFeatureColor={(feature) => {
+              const v = Number(feature.properties?.value ?? 0);
+              if (v === 0) return 'var(--surface-muted)';
+              return colorScale(v);
+            }}
+          />
+          <ChoroplethGraticule />
+          <ChoroplethTooltip
+            getFeatureValue={(f) => Number(f.properties?.value ?? 0)}
+            valueLabel="Projects"
+          />
+        </ChoroplethChart>
+      </div>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <div className="h-3 w-24 rounded-full bg-gradient-to-r from-[var(--surface-muted)] to-[#08519c]" style={{ background: `linear-gradient(to right, ${colorScale(0)}, ${colorScale(max)})` }} />
+          <span className="text-xs text-foreground-muted">0</span>
+          <span className="text-xs text-foreground-muted">—</span>
+          <span className="text-xs font-medium text-foreground">{max} projects</span>
+        </div>
+        <span className={`text-xs ${hasAnyData ? 'text-foreground-muted' : 'text-warning'}`}>
+          {hasAnyData ? 'Shaded by project count per state' : 'No projects with region yet'}
+        </span>
+      </div>
     </div>
   );
 }
@@ -409,15 +473,15 @@ export function Reports() {
         )}
       </section>
 
-      {/* Regional Spend — choropleth (data-ready; no geo data yet) */}
+      {/* Regional Spend — D3.js choropleth of Nigeria states by project count */}
       <div className="rounded-xl border border-border bg-surface p-5 shadow-sm">
         <div className="mb-5">
           <h3 className="text-sm font-semibold text-foreground">Regional Spend</h3>
           <p className="mt-0.5 text-xs text-foreground-muted">
-            Spend distribution across project regions — powered by the Bklit ChoroplethChart
+            Projects per state — darker blue = more projects. Nigeria states GeoJSON via so-dipe/GeoJSON (MIT).
           </p>
         </div>
-        <RegionalSpendMap features={null} />
+        <RegionalSpendMap />
       </div>
 
       {/* Create Template Modal */}

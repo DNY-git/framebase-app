@@ -64,6 +64,10 @@ export class Project {
   @Prop({ type: String, trim: true })
   location?: string;
 
+  /** Nigerian state/region for choropleth aggregation (optional, structured). */
+  @Prop({ type: String, trim: true })
+  region?: string;
+
   /** The team member assigned as this project's manager (org user id). */
   @Prop({
     type: MongooseSchema.Types.ObjectId,

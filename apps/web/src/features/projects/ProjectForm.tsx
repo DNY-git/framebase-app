@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { ProjectDomain } from '@constructtrack/types';
-import { ProjectStatus } from '@constructtrack/types';
+import { ProjectStatus, NigeriaState, NIGERIA_STATE_LABELS } from '@constructtrack/types';
 import { authFetch } from '../../auth-fetch';
 import { FilterDropdown } from '../../shared/components/FilterDropdown';
 import { DatePicker } from '../../components/ui';
@@ -41,6 +41,7 @@ export function ProjectForm({ project, onClose, onSaved }: ProjectFormProps) {
   const [endDate, setEndDate] = useState(project?.endDate ? String(project.endDate).slice(0, 10) : '');
   const [budgetCents, setBudgetCents] = useState(project?.budgetCents != null ? String(project.budgetCents) : '');
   const [location, setLocation] = useState(project?.location ?? '');
+  const [region, setRegion] = useState(project?.region ?? '');
   const [managerId, setManagerId] = useState(project?.managerId ?? '');
 
   const [directory, setDirectory] = useState<DirectoryEntry[]>([]);
@@ -85,6 +86,7 @@ export function ProjectForm({ project, onClose, onSaved }: ProjectFormProps) {
           ? Math.round(budgetMajorNum * 100)
           : undefined,
       location: location || undefined,
+      region: region || undefined,
       managerId: managerId || undefined,
     };
 
@@ -242,10 +244,29 @@ export function ProjectForm({ project, onClose, onSaved }: ProjectFormProps) {
                 onChange={(e) => setLocation(e.target.value)}
                 maxLength={300}
                 className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground placeholder:text-foreground-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                placeholder="City, State"
+                placeholder="City, address"
               />
             </div>
+          </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="p-region" className="mb-1.5 block text-sm font-medium text-foreground">Region (State)</label>
+              <select
+                id="p-region"
+                value={region}
+                onChange={(e) => setRegion(e.target.value)}
+                className="h-10 w-full rounded-lg appearance-none border-0 bg-surface px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="">No region selected</option>
+                {Object.values(NigeriaState).map((s) => (
+                  <option key={s} value={s}>
+                    {NIGERIA_STATE_LABELS[s as NigeriaState]}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-foreground-muted">For regional map</p>
+            </div>
             <div>
               <label htmlFor="p-manager" className="mb-1.5 block text-sm font-medium text-foreground">Manager</label>
               <select
