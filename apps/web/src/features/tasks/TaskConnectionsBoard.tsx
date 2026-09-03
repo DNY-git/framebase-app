@@ -179,8 +179,6 @@ export function TaskConnectionsBoard({
         setTimeout(() => setError(null), 3000);
         return;
       }
-      const predecessorId = isToCurrent ? connection.source : task.id;
-      const successorId = isToCurrent ? task.id : connection.target;
       // The API is POST /projects/:projectId/tasks/:taskId/dependencies/:predecessorId where taskId is the successor
       const targetId = isToCurrent ? task.id : connection.target!;
       const predId = isToCurrent ? connection.source! : task.id;
@@ -218,7 +216,6 @@ export function TaskConnectionsBoard({
 
   const handleDeleteEdge = async () => {
     if (!selectedEdge) return;
-    const [src, tgt] = selectedEdge.id.replace('e-', '').split('-');
     // Edge id is e-<pred>-<succ> or e-project-... ; only handle task dependency
     if (selectedEdge.id.startsWith('e-project')) {
       setSelectedEdge(null);
@@ -362,7 +359,8 @@ export function TaskConnectionsBoard({
               <p className="mt-2 text-xs text-foreground-muted">Select a node or connection to inspect.</p>
               <div className="mt-4 rounded-lg border border-border bg-surface-muted/30 p-3">
                 <p className="text-sm font-semibold text-foreground">{task.title}</p>
-                <p className="mt-1 text-xs text-foreground-muted">{TaskStatus[task.status as keyof typeof TaskStatus] ?? task.status}</p>
+                {/* @ts-ignore - TaskStatus enum string */}
+                <p className="mt-1 text-xs text-foreground-muted">{(TaskStatus as unknown as Record<string, string>)[task.status] ?? task.status}</p>
                 <Link to={`/projects/${projectId}`} className="mt-2 inline-block text-xs font-medium text-primary hover:underline">Open Project</Link>
               </div>
             </div>
@@ -370,9 +368,9 @@ export function TaskConnectionsBoard({
           {selectedNode && (
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-foreground-muted">Task</p>
-              <p className="mt-2 text-sm font-semibold text-foreground">{String(selectedNode.data.label)}</p>
-              {selectedNode.data.sublabel && <p className="mt-1 text-xs text-foreground-muted">{String(selectedNode.data.sublabel)}</p>}
-              {selectedNode.data.status && <p className="mt-2 text-xs"><span className="rounded-full bg-surface-muted px-2 py-0.5 text-xs">{String(selectedNode.data.status)}</span></p>}
+              <p className="mt-2 text-sm font-semibold text-foreground">{String((selectedNode.data as { label: unknown }).label)}</p>
+              {!!(selectedNode.data as { sublabel?: unknown }).sublabel && <p className="mt-1 text-xs text-foreground-muted">{String((selectedNode.data as { sublabel: unknown }).sublabel)}</p>}
+              {!!(selectedNode.data as { status?: unknown }).status && <p className="mt-2 text-xs"><span className="rounded-full bg-surface-muted px-2 py-0.5 text-xs">{String((selectedNode.data as { status: unknown }).status)}</span></p>}
               <Link to={`/tasks/${selectedNode.id}`} className="mt-3 inline-flex rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted">Open Task</Link>
               {selectedNode.id !== task.id && selectedNode.id !== `project-${projectId}` && (
                 <button onClick={() => { setNodes((nds) => nds.filter((n) => n.id !== selectedNode.id)); setSelectedNode(null); }} className="mt-2 block text-xs text-danger hover:underline">Remove from Board</button>

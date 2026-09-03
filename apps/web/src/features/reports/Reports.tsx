@@ -116,8 +116,8 @@ function RegionalSpendMap() {
 
   return (
     <div className="space-y-3">
-      <div className="h-96 w-full overflow-hidden rounded-lg border border-border">
-        <ChoroplethChart data={features} aspectRatio="16 / 9" center={[8, 10]} scale={850}>
+      <div className="w-full overflow-hidden rounded-lg border border-border" style={{ minHeight: '384px' }}>
+        <ChoroplethChart data={features} aspectRatio="16 / 9">
           <ChoroplethFeatureComponent
             getFeatureColor={(feature) => {
               const v = Number(feature.properties?.value ?? 0);
