@@ -67,10 +67,18 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       const res = await fetch('/api/v1/auth/me', {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (res.status === 401) {
+        clearTokens();
+        set({ token: '', refreshToken: '', user: null, isAuthenticated: false, isLoadingUser: false, organizations: null });
+        return;
+      }
       if (res.ok) {
         const body = await res.json();
         const user = body.data ?? body;
         set({ user: { id: user.id, email: user.email, name: user.name, role: user.role, tenantId: user.tenantId, avatarUrl: user.avatarUrl ?? null } });
+      } else {
+        // Non-401 error but still not successful — keep isAuthenticated true but user null, will retry on next load
+        // Do not clear token for transient errors
       }
     } catch {
       // silent — user will remain null, will be fetched on next app load

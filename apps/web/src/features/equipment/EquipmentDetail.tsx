@@ -478,7 +478,7 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
               value={current.status}
               onChange={(e) => handleStatusChange(e.target.value)}
               disabled={statusChanging}
-              className="mt-1 h-9 w-full rounded-lg border-0 bg-surface px-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+              className="mt-1 h-9 w-full rounded-lg appearance-none border-0 bg-surface px-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
             >
               <option value="available">Available</option>
               <option value="assigned">Assigned</option>
@@ -493,7 +493,7 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
                 value={assignProjectId}
                 onChange={(e) => setAssignProjectId(e.target.value)}
                 disabled={current.status === 'retired' || current.status === 'maintenance'}
-                className="h-9 flex-1 rounded-lg border-0 bg-surface px-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                className="h-9 flex-1 rounded-lg appearance-none border-0 bg-surface px-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
               >
                 <option value="">Select project</option>
                 {projectOptions.map((p) => (
@@ -631,7 +631,7 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
                       <select
                         value={maintenanceDraft.type}
                         onChange={(e) => setMaintenanceDraft((d) => ({ ...d, type: e.target.value }))}
-                        className="mt-1 h-9 w-full rounded-lg border-0 bg-surface px-2 text-sm font-normal text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        className="mt-1 h-9 w-full rounded-lg appearance-none border-0 bg-surface px-2 text-sm font-normal text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                       >
                         <option value="scheduled">Scheduled</option>
                         <option value="repair">Repair</option>
@@ -644,7 +644,7 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
                       <select
                         value={maintenanceDraft.status}
                         onChange={(e) => setMaintenanceDraft((d) => ({ ...d, status: e.target.value }))}
-                        className="mt-1 h-9 w-full rounded-lg border-0 bg-surface px-2 text-sm font-normal text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        className="mt-1 h-9 w-full rounded-lg appearance-none border-0 bg-surface px-2 text-sm font-normal text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                       >
                         <option value="pending">Pending</option>
                         <option value="completed">Completed</option>
@@ -918,7 +918,7 @@ export function EquipmentDetail({ token, equipment, onUpdated }: EquipmentDetail
                       <select
                       value={downtimeDraft.reason}
                       onChange={(e) => setDowntimeDraft((d) => ({ ...d, reason: e.target.value }))}
-                      className="mt-1 h-9 w-full rounded-lg border-0 bg-surface px-2 text-sm font-normal text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="mt-1 h-9 w-full rounded-lg appearance-none border-0 bg-surface px-2 text-sm font-normal text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                     >
                       <option value="breakdown">Breakdown</option>
                       <option value="weather">Weather</option>

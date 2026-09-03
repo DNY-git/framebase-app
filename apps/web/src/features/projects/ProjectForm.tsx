@@ -252,7 +252,7 @@ export function ProjectForm({ project, onClose, onSaved }: ProjectFormProps) {
                 id="p-manager"
                 value={managerId}
                 onChange={(e) => setManagerId(e.target.value)}
-                className="h-10 w-full rounded-lg border-0 bg-surface px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                className="h-10 w-full rounded-lg appearance-none border-0 bg-surface px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               >
                 <option value="">No manager assigned</option>
                 {directory.map((d) => (

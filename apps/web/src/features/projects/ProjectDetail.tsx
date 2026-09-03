@@ -494,7 +494,7 @@ export function ProjectDetail() {
                   value={assignUserId}
                   onChange={(e) => setAssignUserId(e.target.value)}
                   required
-                  className="h-10 w-full rounded-lg border-0 bg-surface px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary sm:w-64"
+                  className="h-10 w-full rounded-lg appearance-none border-0 bg-surface px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary sm:w-64"
                 >
                   <option value="" disabled>
                     {assignableMembers.length > 0
@@ -516,7 +516,7 @@ export function ProjectDetail() {
                   id="assign-role"
                   value={assignRole}
                   onChange={(e) => setAssignRole(e.target.value)}
-                  className="h-10 rounded-lg border-0 bg-surface px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary sm:w-44"
+                  className="h-10 rounded-lg appearance-none border-0 bg-surface px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary sm:w-44"
                 >
                   {Object.values(ProjectRole).map((r) => (
                     <option key={r} value={r}>

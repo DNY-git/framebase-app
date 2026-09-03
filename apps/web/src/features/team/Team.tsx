@@ -28,6 +28,7 @@ import {
 import { Role } from '@constructtrack/types';
 import { DeleteMinusButton } from '../../shared/components/DeleteMinusButton';
 import { ConfirmDialog } from '../../shared/components/ConfirmDialog';
+import { FilterDropdown } from '../../shared/components/FilterDropdown';
 
 interface TeamMember {
   id: string;
@@ -417,18 +418,13 @@ export function Team() {
                             </span>
                           ) : (
                             <div className="flex items-center gap-2">
-                              <select
+                              <FilterDropdown
                                 value={member.role}
-                                onChange={(e) => handleRoleChange(member.id, e.target.value)}
+                                onChange={(v) => handleRoleChange(member.id, v)}
+                                options={ROLE_OPTIONS}
                                 disabled={savingMember === member.id}
-                                className="h-8 rounded-lg border-0 bg-surface px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
-                              >
-                                {ROLE_OPTIONS.map((opt) => (
-                                  <option key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                  </option>
-                                ))}
-                              </select>
+                                className="w-40"
+                              />
                               {savingMember === member.id && (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin text-foreground-muted" />
                               )}
@@ -478,17 +474,12 @@ export function Team() {
                   className="h-10 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm text-foreground placeholder:text-foreground-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
-              <select
+              <FilterDropdown
                 value={inviteRole}
-                onChange={(e) => setInviteRole(e.target.value)}
-                className="h-10 rounded-lg border-0 bg-surface px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary sm:w-52"
-              >
-                {INVITABLE_ROLES.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                onChange={setInviteRole}
+                options={INVITABLE_ROLES}
+                className="h-10 sm:w-52"
+              />
               <div className="relative flex items-center gap-2">
                 <button
                   type="button"

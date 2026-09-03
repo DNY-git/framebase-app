@@ -233,7 +233,7 @@ export function EquipmentForm({ onClose, onSaved, equipment, inline = false }: E
             onChange={(e) => selectCatalogItem(e.target.value)}
             required
             disabled={catalogLoading}
-            className="h-10 w-full rounded-lg border-0 bg-surface px-3 text-sm text-foreground placeholder:text-foreground-muted focus:outline-none focus:ring-1 focus:ring-primary"
+            className="h-10 w-full rounded-lg appearance-none border-0 bg-surface px-3 text-sm text-foreground placeholder:text-foreground-muted focus:outline-none focus:ring-1 focus:ring-primary"
           >
             <option value="" disabled>
               {catalogLoading ? 'Loading catalog…' : 'Choose from predefined items'}
@@ -281,7 +281,7 @@ export function EquipmentForm({ onClose, onSaved, equipment, inline = false }: E
           onChange={(e) => setCategory(e.target.value as EquipmentCategory)}
           required
           disabled={source === 'catalog' && !isEdit && !!selectedCatalogItem}
-          className="h-10 w-full rounded-lg border-0 bg-surface px-3 text-sm text-foreground placeholder:text-foreground-muted focus:outline-none focus:ring-1 focus:ring-primary"
+          className="h-10 w-full rounded-lg appearance-none border-0 bg-surface px-3 text-sm text-foreground placeholder:text-foreground-muted focus:outline-none focus:ring-1 focus:ring-primary"
         >
           <option value="" disabled>
             Select a category

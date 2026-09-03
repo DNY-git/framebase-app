@@ -40,7 +40,7 @@ async function readApiError(res: Response): Promise<string> {
   return `Request failed (${res.status})`;
 }
 
-export function AiAssistant({ token }: AiAssistantProps): React.JSX.Element {
+export function AiAssistant({ token, className }: AiAssistantProps): React.JSX.Element {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',

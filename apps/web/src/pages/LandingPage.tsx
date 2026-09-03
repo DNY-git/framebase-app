@@ -59,9 +59,20 @@ const FEATURES = [
 ] as const;
 
 export function LandingPage(): React.JSX.Element {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user, isLoadingUser } = useAuthStore();
 
-  if (isAuthenticated) {
+  // Only redirect to dashboard when we have a verified session (user loaded).
+  // A stale token in localStorage alone should not be considered authenticated
+  // — fetchUser will validate it and clear isAuthenticated on 401.
+  if (isLoadingUser) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary" aria-label="Loading" />
+      </div>
+    );
+  }
+
+  if (isAuthenticated && user) {
     return <Navigate to="/dashboard" replace />;
   }
 
