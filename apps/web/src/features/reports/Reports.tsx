@@ -7,16 +7,9 @@ import { FilterDropdown } from '@/shared/components/FilterDropdown';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { StatusStatRow } from '@/components/ui/status-stat-row';
-import { scaleSequential } from 'd3-scale';
-import { interpolateBlues } from 'd3-scale-chromatic';
 import nigeriaGeoJson from '@/assets/nigeria-states.json';
-import {
-  ChoroplethChart,
-  ChoroplethFeatureComponent,
-  ChoroplethGraticule,
-  ChoroplethTooltip,
-  type ChoroplethFeatureProperties,
-} from '@bklitui/ui/charts';
+import { SimpleNigeriaMap } from './SimpleNigeriaMap';
+import type { ChoroplethFeatureProperties } from '@bklitui/ui/charts';
 import {
   FileText,
   Plus,
@@ -110,38 +103,16 @@ function RegionalSpendMap() {
   }
 
   const counts = features.features.map((f) => Number(f.properties?.value ?? 0));
-  const max = Math.max(1, ...counts);
   const hasAnyData = counts.some((c) => c > 0);
-  const colorScale = scaleSequential(interpolateBlues).domain([0, max]);
 
   return (
     <div className="space-y-3">
-      <div className="w-full overflow-hidden rounded-lg border border-border" style={{ minHeight: '384px' }}>
-        <ChoroplethChart data={features} aspectRatio="16 / 9">
-          <ChoroplethFeatureComponent
-            getFeatureColor={(feature) => {
-              const v = Number(feature.properties?.value ?? 0);
-              if (v === 0) return 'var(--surface-muted)';
-              return colorScale(v);
-            }}
-          />
-          <ChoroplethGraticule />
-          <ChoroplethTooltip
-            getFeatureValue={(f) => Number(f.properties?.value ?? 0)}
-            valueLabel="Projects"
-          />
-        </ChoroplethChart>
-      </div>
+      <SimpleNigeriaMap data={features} />
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <div className="h-3 w-24 rounded-full bg-gradient-to-r from-[var(--surface-muted)] to-[#08519c]" style={{ background: `linear-gradient(to right, ${colorScale(0)}, ${colorScale(max)})` }} />
-          <span className="text-xs text-foreground-muted">0</span>
-          <span className="text-xs text-foreground-muted">—</span>
-          <span className="text-xs font-medium text-foreground">{max} projects</span>
-        </div>
         <span className={`text-xs ${hasAnyData ? 'text-foreground-muted' : 'text-warning'}`}>
           {hasAnyData ? 'Shaded by project count per state' : 'No projects with region yet'}
         </span>
+        <span className="text-xs text-foreground-muted">Hover for counts</span>
       </div>
     </div>
   );
