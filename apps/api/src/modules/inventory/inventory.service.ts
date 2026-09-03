@@ -275,6 +275,13 @@ export class InventoryService {
     return this.transactionRepository.sumCostCentsByProjectAndMonth(auth.tenantId, options);
   }
 
+  async sumCostCentsByProjectAndDay(
+    auth: AuthContext,
+    options: { since?: Date } = {},
+  ): Promise<Array<{ projectId: string | null; dayKey: string; total: number }>> {
+    return this.transactionRepository.sumCostCentsByProjectAndDay(auth.tenantId, options);
+  }
+
   async getTransactionsByTask(
     auth: AuthContext,
     taskId: string,

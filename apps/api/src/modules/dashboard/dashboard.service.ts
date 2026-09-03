@@ -45,7 +45,7 @@ export class DashboardService {
     @Inject(AuditService) private readonly auditService: AuditService,
   ) {}
 
-  async getOverview(auth: AuthContext): Promise<DashboardOverview> {
+  async getOverview(auth: AuthContext, trendDays?: number): Promise<DashboardOverview> {
     const accessibleProjectIds = await this.authzService.accessibleProjectIds(
       auth.tenantId,
       auth.userId,
@@ -69,7 +69,12 @@ export class DashboardService {
       taskProjectFilter.projectId = { $in: accessibleProjectIds };
     }
 
-    const trendStart = this.trendStart(now);
+    const normalizedDays = trendDays && Number.isFinite(trendDays) && trendDays >= 1 && trendDays <= 365 ? Math.floor(trendDays) : TREND_MONTHS * 30;
+    // Use daily granularity for <=90 days, monthly for longer
+    const useDaily = normalizedDays <= 90;
+    const trendStart = useDaily
+      ? new Date(now.getFullYear(), now.getMonth(), now.getDate() - normalizedDays + 1)
+      : this.trendStart(now);
     const heatmapStart = new Date(now.getTime() - HEATMAP_DAYS * 24 * 3600 * 1000);
     const [
       activeProjects, onHoldProjects, completingSoonProjects,
@@ -110,7 +115,9 @@ export class DashboardService {
       this.loadInventoryKpis(auth),
       this.loadProjects(auth, projectFilter),
       this.projectRepo.sumBudgetCents(auth.tenantId, projectFilter),
-      this.inventoryService.sumCostCentsByProjectAndMonth(auth, { since: trendStart }),
+      useDaily
+        ? this.inventoryService.sumCostCentsByProjectAndDay(auth, { since: trendStart }).then((rows) => rows.map((r) => ({ projectId: r.projectId, monthKey: r.dayKey, total: r.total })))
+        : this.inventoryService.sumCostCentsByProjectAndMonth(auth, { since: trendStart }),
       this.inventoryService.sumCostCentsByProjectAndMonth(auth),
       this.loadRecentTransactions(auth),
       this.loadMaterials(auth),
@@ -144,7 +151,7 @@ export class DashboardService {
         totalSpentCents,
         remainingBudgetCents: totalBudgetCents - totalSpentCents,
       },
-      spendingTrend: this.buildSpendingTrend(projects, spendRows, trendStart),
+      spendingTrend: this.buildSpendingTrend(projects, spendRows, trendStart, normalizedDays),
       projectProgress: this.buildProjectProgress(projects, spendByProject),
       recentExpenses: this.buildRecentExpenses(recentTransactions, projects, materials),
       recentActivity: this.buildRecentActivity(activity.items),
@@ -178,20 +185,50 @@ export class DashboardService {
   }
 
   /**
-   * Monthly trend over the last 6 months:
-   * - `spent`  = real purchase spend per month (aggregated from transactions)
-   * - `budget` = project budget allocated linearly across each project's
-   *   active months (startDate→endDate). Nothing fabricated — a documented
-   *   allocation of real budgets.
+   * Spending trend over variable range:
+   * - `spent`  = real purchase spend per bucket (daily for ≤90d, monthly for longer)
+   * - `budget` = project budget allocated linearly across project's active buckets
    */
   private buildSpendingTrend(
     projects: ProjectDomain[],
     spendRows: Array<{ projectId: string | null; monthKey: string; total: number }>,
-    _trendStart: Date,
+    trendStart: Date,
+    trendDays?: number,
   ): DashboardOverview['spendingTrend'] {
     const now = new Date();
+    const days = trendDays && trendDays >= 1 && trendDays <= 365 ? trendDays : TREND_MONTHS * 30;
+    const useDaily = days <= 90;
+
+    if (useDaily) {
+      const buckets: Array<{ key: string; label: string; start: number; end: number }> = [];
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const start = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+        const end = start + 24 * 3600 * 1000;
+        buckets.push({ key, label, start, end });
+      }
+      const spentByKey = new Map<string, number>();
+      for (const r of spendRows) spentByKey.set(r.monthKey, (spentByKey.get(r.monthKey) ?? 0) + r.total);
+      const budgetByKey = new Map<string, number>();
+      for (const p of projects) {
+        const budget = p.budgetCents ?? 0;
+        if (budget <= 0) continue;
+        const start = p.startDate ? new Date(p.startDate).getTime() : new Date(p.createdAt).getTime();
+        let end = p.endDate ? new Date(p.endDate).getTime() : Date.now();
+        if (end < start) end = start;
+        const totalDays = Math.max(1, Math.round((end - start) / (24 * 3600 * 1000)));
+        const daily = Math.round(budget / totalDays);
+        for (const b of buckets) if (b.end > start && b.start <= end) budgetByKey.set(b.key, (budgetByKey.get(b.key) ?? 0) + daily);
+      }
+      return buckets.map((b) => ({ month: b.label, monthKey: b.key, budget: budgetByKey.get(b.key) ?? 0, spent: spentByKey.get(b.key) ?? 0 }));
+    }
+
+    // Monthly for longer ranges
     const months: Array<{ key: string; label: string; start: number; end: number }> = [];
-    for (let i = TREND_MONTHS - 1; i >= 0; i--) {
+    const monthCount = days <= 180 ? 6 : 12;
+    for (let i = monthCount - 1; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       months.push({
         key: monthKeyOf(d),
@@ -200,12 +237,8 @@ export class DashboardService {
         end: new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime(),
       });
     }
-
     const spentByMonth = new Map<string, number>();
-    for (const r of spendRows) {
-      spentByMonth.set(r.monthKey, (spentByMonth.get(r.monthKey) ?? 0) + r.total);
-    }
-
+    for (const r of spendRows) spentByMonth.set(r.monthKey, (spentByMonth.get(r.monthKey) ?? 0) + r.total);
     const budgetByMonth = new Map<string, number>();
     for (const p of projects) {
       const budget = p.budgetCents ?? 0;
@@ -213,21 +246,11 @@ export class DashboardService {
       const start = p.startDate ? new Date(p.startDate).getTime() : new Date(p.createdAt).getTime();
       let end = p.endDate ? new Date(p.endDate).getTime() : Date.now();
       if (end < start) end = start;
-      const monthCount = Math.max(1, Math.round((end - start) / (30.44 * 24 * 3600 * 1000)));
-      const monthlyAllocation = Math.round(budget / monthCount);
-      for (const m of months) {
-        if (m.end > start && m.start <= end) {
-          budgetByMonth.set(m.key, (budgetByMonth.get(m.key) ?? 0) + monthlyAllocation);
-        }
-      }
+      const mCount = Math.max(1, Math.round((end - start) / (30.44 * 24 * 3600 * 1000)));
+      const monthlyAllocation = Math.round(budget / mCount);
+      for (const m of months) if (m.end > start && m.start <= end) budgetByMonth.set(m.key, (budgetByMonth.get(m.key) ?? 0) + monthlyAllocation);
     }
-
-    return months.map((m) => ({
-      month: m.label,
-      monthKey: m.key,
-      budget: budgetByMonth.get(m.key) ?? 0,
-      spent: spentByMonth.get(m.key) ?? 0,
-    }));
+    return months.map((m) => ({ month: m.label, monthKey: m.key, budget: budgetByMonth.get(m.key) ?? 0, spent: spentByMonth.get(m.key) ?? 0 }));
   }
 
   private buildProjectProgress(

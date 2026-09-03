@@ -490,9 +490,6 @@ export function Team() {
                 ))}
               </select>
               <div className="relative flex items-center gap-2">
-                <span className="hidden text-xs text-foreground-muted sm:inline">
-                  {inviteExpiryDays}d • {inviteUsageLimit == null ? 'No limit' : `Limit ${inviteUsageLimit}`}
-                </span>
                 <button
                   type="button"
                   onClick={() => setShowInvitePopover((v) => !v)}
@@ -660,24 +657,20 @@ export function Team() {
                         >
                           <Copy className="h-3.5 w-3.5" /> Copy link
                         </button>
-                        {!expired && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const diffDays = Math.round((new Date(inv.expiresAt).getTime() - Date.now()) / (24 * 3600 * 1000));
-                              const snap = [1, 3, 7, 30].reduce((a, b) => Math.abs(b - diffDays) < Math.abs(a - diffDays) ? b : a, 3);
-                              setEditingExpiryDays(snap);
-                              setEditingUsageLimit(inv.usageLimit ?? null);
-                              setEditingExpiresId((prev) => (prev === inv.id ? null : inv.id));
-                            }}
-                            className="inline-flex items-center gap-1.5 rounded-lg border-0 bg-surface px-2.5 py-1.5 text-xs font-medium text-primary hover:underline"
-                          >
-                            Edit expiry
-                          </button>
-                        )}
-                        {!expired && (
-                            <DeleteMinusButton label="Revoke invitation" onClick={() => setPendingDelete({ kind: 'revoke', id: inv.id })} />
-                          )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const diffDays = Math.round((new Date(inv.expiresAt).getTime() - Date.now()) / (24 * 3600 * 1000));
+                            const snap = [1, 3, 7, 30].reduce((a, b) => Math.abs(b - diffDays) < Math.abs(a - diffDays) ? b : a, 3);
+                            setEditingExpiryDays(snap);
+                            setEditingUsageLimit(inv.usageLimit ?? null);
+                            setEditingExpiresId((prev) => (prev === inv.id ? null : inv.id));
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-lg border-0 bg-surface px-2.5 py-1.5 text-xs font-medium text-primary hover:underline"
+                        >
+                          Edit expiry
+                        </button>
+                        <DeleteMinusButton label="Revoke invitation" onClick={() => setPendingDelete({ kind: 'revoke', id: inv.id })} />
                       </div>
                     );
                   })}

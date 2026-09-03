@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import type { ProjectDomain } from '@constructtrack/types';
 import { authFetch } from '../../auth-fetch';
 import { formatCompactCurrency } from '../../utils';
-import { X, MapPin, Calendar, Building, FolderKanban } from '../../shared/components/icons';
+import { X, MapPin, Calendar, Building, FolderKanban, ExternalLink } from '../../shared/components/icons';
 
 interface TaskCountResponse {
   meta?: { totalItems?: number };
@@ -71,13 +71,21 @@ export function ProjectPreviewPanel({
       <div className="relative flex h-dvh w-[420px] max-w-[92vw] flex-col border-l border-border bg-surface shadow-2xl">
         <div className="flex h-16 shrink-0 items-center justify-between border-b border-border px-5">
           <p className="text-xs font-semibold uppercase tracking-widest text-foreground-muted">Project</p>
-          <button
-            onClick={onClose}
-            aria-label="Close preview"
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-foreground-muted hover:bg-surface-muted hover:text-foreground"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate(`/projects/${project.id}`)}
+              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+            >
+              <ExternalLink className="h-3 w-3" /> Expand
+            </button>
+            <button
+              onClick={onClose}
+              aria-label="Close preview"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-foreground-muted hover:bg-surface-muted hover:text-foreground"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-5">
@@ -136,14 +144,7 @@ export function ProjectPreviewPanel({
             )}
           </div>
 
-          <div className="mt-8 border-t border-border pt-6">
-            <button
-              onClick={() => navigate(`/projects/${project.id}`)}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-action px-4 py-2.5 text-sm font-medium text-action-foreground hover:bg-action/90"
-            >
-              Expand Project →
-            </button>
-          </div>
+
         </div>
       </div>
     </div>

@@ -20,7 +20,7 @@ import {
   HardHat,
 } from '../../shared/components/icons';
 
-function useDashboard() {
+function useDashboard(days: number) {
   const [data, setData] = useState<DashboardOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -29,7 +29,7 @@ function useDashboard() {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await authFetch('/api/v1/dashboard/overview');
+      const res = await authFetch(`/api/v1/dashboard/overview?days=${days}`);
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         throw new Error(body?.message ?? `Failed to load dashboard (${res.status})`);
@@ -41,7 +41,7 @@ function useDashboard() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [days]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
   return { data, error, isLoading, refetch: fetchData };
@@ -94,7 +94,7 @@ function SectionCard({
   children,
   className,
 }: {
-  title: string;
+  title: React.ReactNode;
   description?: string;
   action?: React.ReactNode;
   children: React.ReactNode;
@@ -157,16 +157,33 @@ function DashboardLoading() {
 }
 
 export function Dashboard(): React.JSX.Element {
-  const { data, error, isLoading, refetch } = useDashboard();
+  const [rangeDays, setRangeDays] = useState<number>(180);
+  const [showRangePopover, setShowRangePopover] = useState(false);
+  const { data, error, isLoading, refetch } = useDashboard(rangeDays);
 
   const areaData = useMemo(
     () =>
       (data?.spendingTrend ?? []).map((m) => {
-        const [year, month] = m.monthKey.split('-').map(Number);
+        const parts = m.monthKey.split('-').map(Number);
+        if (parts.length === 3) {
+          const [year, month, day] = parts;
+          return { ...m, date: new Date(year, month - 1, day) };
+        }
+        const [year, month] = parts;
         return { ...m, date: new Date(year, month - 1, 1) };
       }),
     [data?.spendingTrend]
   );
+
+  const rangeLabel = useMemo(() => {
+    if (rangeDays === 1) return 'Last 1 day';
+    if (rangeDays === 7) return 'Last 7 days';
+    if (rangeDays === 30) return 'Last 30 days';
+    if (rangeDays === 90) return 'Last 90 days';
+    if (rangeDays === 180) return 'Last 6 months';
+    if (rangeDays === 365) return 'Last 1 year';
+    return `Last ${rangeDays} days`;
+  }, [rangeDays]);
 
   if (error) {
     return (
@@ -261,8 +278,45 @@ export function Dashboard(): React.JSX.Element {
           {/* Spending / Budget chart */}
           <SectionCard
             className="lg:col-span-3 min-w-0"
-            title="Spending vs Budget"
-            description="Last 6 months — budget is allocated across project timelines"
+            title={
+              <span className="inline-flex items-center gap-2">
+                Spending vs Budget
+                <span className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowRangePopover((v) => !v)}
+                    className="text-xs font-medium text-primary hover:underline"
+                  >
+                    Edit range
+                  </button>
+                  {showRangePopover && (
+                    <div className="absolute left-0 top-full z-20 mt-2 w-48 rounded-xl border border-border bg-surface p-2 shadow-xl">
+                      {[
+                        { label: '1 day', days: 1 },
+                        { label: '7 days', days: 7 },
+                        { label: '30 days', days: 30 },
+                        { label: '90 days', days: 90 },
+                        { label: '6 months', days: 180 },
+                        { label: '1 year', days: 365 },
+                      ].map((opt) => (
+                        <button
+                          key={opt.days}
+                          type="button"
+                          onClick={() => {
+                            setRangeDays(opt.days);
+                            setShowRangePopover(false);
+                          }}
+                          className={`flex w-full rounded-lg px-3 py-2 text-left text-xs font-medium ${rangeDays === opt.days ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-surface-muted'}`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </span>
+              </span>
+            }
+            description={`${rangeLabel} — budget is allocated across project timelines`}
             action={
               <div className="flex items-center gap-4 text-xs text-foreground-muted">
                 <span className="flex items-center gap-1.5">

@@ -175,4 +175,38 @@ export class InventoryTransactionRepository extends BaseRepository<
       total: r.total,
     }));
   }
+
+  async sumCostCentsByProjectAndDay(
+    tenantId: string,
+    options: { since?: Date } = {},
+  ): Promise<Array<{ projectId: string | null; dayKey: string; total: number }>> {
+    const tenantObjectId = new Types.ObjectId(tenantId);
+    const rows = await this.model.aggregate<{
+      _id: { projectId: string | null; day: string };
+      total: number;
+    }>([
+      {
+        $match: {
+          tenantId: tenantObjectId,
+          type: TransactionType.RECEIVE,
+          costCents: { $gt: 0 },
+          ...(options.since ? { createdAt: { $gte: options.since } } : {}),
+        },
+      },
+      {
+        $group: {
+          _id: {
+            projectId: { $ifNull: ['$projectId', null] },
+            day: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          },
+          total: { $sum: '$costCents' },
+        },
+      },
+    ]);
+    return rows.map((r) => ({
+      projectId: r._id.projectId,
+      dayKey: r._id.day,
+      total: r.total,
+    }));
+  }
 }
