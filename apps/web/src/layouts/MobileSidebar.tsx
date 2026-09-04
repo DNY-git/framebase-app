@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
-  HardHat,
   X,
   LayoutDashboard,
   FolderKanban,
@@ -14,6 +13,7 @@ import {
   Settings as SettingsIcon,
 } from '../shared/components/icons';
 import { useSidebarStore } from '../stores/sidebar-store';
+import { Logo } from '../shared/components/Logo';
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -52,11 +52,8 @@ export function MobileSidebar() {
 
       <div className="fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-sidebar shadow-xl transition-transform">
         <div className="flex h-16 items-center justify-between px-5">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <HardHat className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="text-lg font-bold text-sidebar-foreground">FrameBase</span>
+          <div className="flex items-center">
+            <Logo className="h-8 w-auto max-w-full" />
           </div>
           <button
             onClick={closeMobile}

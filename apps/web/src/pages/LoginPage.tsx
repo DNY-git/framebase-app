@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Google, HardHat, Loader2 } from '../shared/components/icons';
+import { Google, Loader2 } from '../shared/components/icons';
+import { Logo } from '../shared/components/Logo';
 import { useAuthStore } from '../stores/auth-store';
 import type { User } from '../stores/auth-store';
 
@@ -61,10 +62,9 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-            <HardHat className="h-7 w-7 text-primary-foreground" />
+          <div className="mb-4 flex justify-center">
+            <Logo className="h-10 w-auto" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">FrameBase</h1>
           <p className="mt-1 text-sm text-foreground-muted">Sign in to your account</p>
         </div>
 

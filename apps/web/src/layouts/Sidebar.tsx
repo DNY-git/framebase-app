@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
-import { HardHat, Settings as SettingsIcon } from '../shared/components/icons';
+import { Settings as SettingsIcon } from '../shared/components/icons';
+import { Logo } from '../shared/components/Logo';
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard' },
@@ -21,11 +22,8 @@ export function Sidebar() {
   return (
     <aside className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:flex lg:w-64 lg:flex-col">
       <div className="flex h-full flex-col border-r border-sidebar-border bg-sidebar">
-        <div className="flex h-16 items-center gap-2.5 px-5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <HardHat className="h-5 w-5 text-primary-foreground" />
-          </div>
-          <span className="text-lg font-bold text-sidebar-foreground">FrameBase</span>
+        <div className="flex h-16 items-center px-5">
+          <Logo className="h-8 w-auto max-w-full" />
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-2 scrollbar-thin">

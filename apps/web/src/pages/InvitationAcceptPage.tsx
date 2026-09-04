@@ -10,7 +10,8 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { HardHat, Loader2, AlertCircle, CheckCircle, Building, Shield, ArrowRight, Clock } from '../shared/components/icons';
+import { Loader2, AlertCircle, CheckCircle, Building, Shield, ArrowRight, Clock } from '../shared/components/icons';
+import { Logo } from '../shared/components/Logo';
 import { useAuthStore } from '../stores/auth-store';
 
 interface InvitationInfo {
@@ -179,8 +180,8 @@ export function InvitationAcceptPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-            <HardHat className="h-7 w-7 text-primary-foreground" />
+          <div className="mb-3 flex justify-center">
+            <Logo className="h-10 w-auto" />
           </div>
           <h1 className="text-xl font-bold text-foreground">You've been invited</h1>
         </div>

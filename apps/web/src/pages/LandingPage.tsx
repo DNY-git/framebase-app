@@ -1,8 +1,8 @@
 import { Link, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth-store';
 import { ThemeSwitcher } from '../shared/components/ThemeSwitcher';
+import { Logo } from '../shared/components/Logo';
 import {
-  HardHat,
   FolderKanban,
   Users,
   CheckSquare,
@@ -81,11 +81,8 @@ export function LandingPage(): React.JSX.Element {
       {/* Top navigation */}
       <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-sm">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-          <Link to="/" className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <HardHat className="h-5 w-5 text-primary-foreground" />
-            </span>
-            <span className="text-lg font-bold tracking-tight">FrameBase</span>
+          <Link to="/" className="flex items-center">
+            <Logo className="h-8 w-auto" />
           </Link>
 
           <div className="flex items-center gap-2 sm:gap-3">
@@ -109,8 +106,8 @@ export function LandingPage(): React.JSX.Element {
       {/* Hero */}
       <section className="mx-auto max-w-6xl px-4 pb-12 pt-12 sm:px-6 sm:pt-16 lg:pt-20">
         <div className="mx-auto max-w-3xl text-center">
-          <div className="mx-auto mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-sm">
-            <HardHat className="h-7 w-7 text-primary-foreground" />
+          <div className="mb-6 flex justify-center">
+            <Logo className="h-12 w-auto" />
           </div>
           <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-primary">
             Construction tracking platform
@@ -217,10 +214,7 @@ export function LandingPage(): React.JSX.Element {
         <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary">
-                <HardHat className="h-4 w-4 text-primary-foreground" />
-              </span>
-              <span className="text-sm font-bold">FrameBase</span>
+              <Logo className="h-7 w-auto" />
               <span className="text-xs text-foreground-muted">© {new Date().getFullYear()}</span>
             </div>
 

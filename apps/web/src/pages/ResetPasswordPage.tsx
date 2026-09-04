@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { HardHat, Loader2, CheckCircle } from '../shared/components/icons';
+import { Loader2, CheckCircle } from '../shared/components/icons';
+import { Logo } from '../shared/components/Logo';
 
 export function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
@@ -52,8 +53,8 @@ export function ResetPasswordPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-4">
         <div className="w-full max-w-sm text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-            <HardHat className="h-7 w-7 text-primary-foreground" />
+          <div className="mb-4 flex justify-center">
+            <Logo className="h-10 w-auto" />
           </div>
           <h1 className="mb-2 text-2xl font-bold text-foreground">Invalid Link</h1>
           <p className="mb-6 text-sm text-foreground-muted">
@@ -74,8 +75,8 @@ export function ResetPasswordPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-            <HardHat className="h-7 w-7 text-primary-foreground" />
+          <div className="mb-4 flex justify-center">
+            <Logo className="h-10 w-auto" />
           </div>
           <h1 className="text-2xl font-bold text-foreground">Set New Password</h1>
           <p className="mt-1 text-sm text-foreground-muted">
