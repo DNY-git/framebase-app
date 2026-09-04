@@ -106,9 +106,6 @@ export function LandingPage(): React.JSX.Element {
       {/* Hero */}
       <section className="mx-auto max-w-6xl px-4 pb-12 pt-12 sm:px-6 sm:pt-16 lg:pt-20">
         <div className="mx-auto max-w-3xl text-center">
-          <div className="mb-6 flex justify-center">
-            <Logo className="h-12 w-auto" />
-          </div>
           <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-primary">
             Construction tracking platform
           </p>
