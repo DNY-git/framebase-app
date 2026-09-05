@@ -89,7 +89,7 @@ export function BlueprintBackdrop({ tone = 'light', className }: { tone?: 'light
       <circle cx="88%" cy="12%" r="90" fill="none" stroke="#2563EB" strokeWidth="1" opacity="0.25" strokeDasharray="6 6" />
       <circle cx="6%" cy="88%" r="110" fill="none" stroke="#F97316" strokeWidth="1.5" opacity="0.3" />
       <line x1="0" y1="22%" x2="100%" y2="22%" stroke="#2563EB" strokeWidth="1" opacity="0.18" strokeDasharray="12 8" />
-      <rect x="72%" y="68%" width="120" height="120" fill="none" stroke="#F97316" strokeWidth="1" opacity="0.25" transform="rotate(12 72% 68%)" />
+      <rect x="72%" y="68%" width="120" height="120" fill="none" stroke="#F97316" strokeWidth="1" opacity="0.25" />
     </svg>
   );
 }

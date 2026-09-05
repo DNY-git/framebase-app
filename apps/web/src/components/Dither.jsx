@@ -243,14 +243,21 @@ function DitheredWaves({
     mouseRef.current.set((e.clientX - rect.left) * dpr, (e.clientY - rect.top) * dpr);
   };
 
+  // NOTE (FrameBase fix): @react-three/fiber v9 `applyProps` spread-clones
+  // ShaderMaterial `uniforms` passed as a prop, so per-frame mutations to
+  // `waveUniformsRef.current` would never reach the GPU (frozen `time`).
+  // Assigning the uniforms object imperatively via ref keeps the live
+  // reference that `useFrame` updates. Shaders, loop and API unchanged.
   return (
     <>
       <mesh ref={mesh} scale={[viewport.width, viewport.height, 1]}>
         <planeGeometry args={[1, 1]} />
         <shaderMaterial
+          ref={(mat) => {
+            if (mat) mat.uniforms = waveUniformsRef.current;
+          }}
           vertexShader={waveVertexShader}
           fragmentShader={waveFragmentShader}
-          uniforms={waveUniformsRef.current}
         />
       </mesh>
 
