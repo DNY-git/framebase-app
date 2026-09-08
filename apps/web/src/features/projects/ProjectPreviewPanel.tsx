@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ProjectDomain } from '@constructtrack/types';
+import GradualBlur from '../../components/GradualBlur';
 import { authFetch } from '../../auth-fetch';
 import { formatCompactCurrency } from '../../utils';
 import { X, MapPin, Calendar, Building, FolderKanban, ExternalLink } from '../../shared/components/icons';
@@ -88,7 +89,8 @@ export function ProjectPreviewPanel({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className="relative min-h-0 flex-1">
+          <div className="h-full overflow-y-auto p-5 pb-24">
           <h2 className="text-lg font-bold text-foreground">{project.name}</h2>
           <p className="mt-1 font-mono text-xs text-foreground-muted">{project.code}</p>
 
@@ -145,6 +147,17 @@ export function ProjectPreviewPanel({
           </div>
 
 
+          </div>
+          <GradualBlur
+            target="parent"
+            position="bottom"
+            height="6rem"
+            strength={2}
+            divCount={5}
+            curve="bezier"
+            exponential={true}
+            opacity={1}
+          />
         </div>
       </div>
     </div>

@@ -2,9 +2,9 @@ import { Package, Wrench, ClipboardList } from '../../shared/components/icons';
 import { SectionHeading, Reveal } from './shared';
 
 const MATERIALS = [
-  { name: 'Cement', detail: '240 bags · Dangote 50kg', pct: 62 },
-  { name: 'Steel', detail: '12 t · 12mm rebar', pct: 45 },
-  { name: 'Blocks', detail: '800 units · 9-inch', pct: 28 },
+  { name: 'Cement', detail: '240 bags · Dangote 50kg', pct: 62, low: false },
+  { name: 'Steel', detail: '12 t · 12mm rebar', pct: 45, low: false },
+  { name: 'Blocks', detail: '800 units · 9-inch', pct: 28, low: false },
   { name: 'Sand', detail: 'Low stock · reorder', pct: 12, low: true },
 ] as const;
 

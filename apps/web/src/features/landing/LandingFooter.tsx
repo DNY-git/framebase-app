@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import ParticleText from '../../components/ParticleText';
 import { Logo } from '../../shared/components/Logo';
 
 function Soon({ children }: { children: string }) {
@@ -56,6 +57,30 @@ export function LandingFooter() {
               <li><Soon>Security</Soon></li>
             </ul>
           </nav>
+        </div>
+
+        <div className="mt-10 max-w-full overflow-hidden" aria-label="FrameBase branding">
+          <ParticleText
+            text="FRAMEBASE"
+            particleSize={1.5}
+            density={6}
+            color="#2563EB"
+            highlightColor="#F97316"
+            scatter={60}
+            gatherDuration={1200}
+            stagger={150}
+            pointerRepel={0}
+            repelRadius={0}
+            idleDrift={0.3}
+            trigger="mount"
+            fontSize="clamp(2.5rem, 8vw, 6rem)"
+            fontWeight={800}
+            glow={false}
+            className="pointer-events-none h-36 w-full max-w-full sm:h-44"
+          />
+          <noscript>
+            <p className="text-center text-2xl font-extrabold tracking-tight text-foreground">FRAMEBASE</p>
+          </noscript>
         </div>
 
         <div className="mt-10 flex flex-col items-center justify-between gap-3 border-t border-border pt-6 sm:flex-row">

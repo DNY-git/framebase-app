@@ -1,335 +1,90 @@
-# ConstructTrack — Fix Equipment Detail, Reports KPIs, Material Transactions, and Dashboard Layout Issues
+# Hosting FrameBase for Free
 
-You are continuing work on my existing **ConstructTrack** application (NestJS + MongoDB Atlas backend, Vite/React frontend, monorepo).
+Your stack: **NestJS API** (`apps/api`) + **Vite/React frontend** (`apps/web`) + **MongoDB Atlas** (already set up, cluster `uix4zly`). This guide uses three free services, one per piece:
 
-Do NOT rebuild the project or replace existing architecture. Work with the current codebase, existing API contracts, database models, UI components, theme, and Bklit UI/chart implementation — the same rules as the previous task apply.
+| Piece | Service | Why |
+|---|---|---|
+| Database | MongoDB Atlas (you already have this) | Free M0 tier, no change needed |
+| Backend API | Render (free Web Service) | Free tier runs a real Node process, unlike static-only hosts |
+| Frontend | Vercel or Netlify | Free static hosting, great for Vite builds, instant deploys from GitHub |
 
-Before changing anything, inspect the relevant frontend and backend files and understand how the current implementation works.
-
-The screenshots I provided show the current problems.
-
----
-
-## 1. REMOVE THE UTILISATION COLUMN FROM THE EQUIPMENT LIST
-
-Current UI (equipment list row):
-
-```text
-EQUIPMENT | TYPE | STATUS | PURCHASE DATE | PURCHASE COST | UTILISATION
-```
-
-The `UTILISATION` column is not needed in the list view.
-
-### What I need
-
-* Remove the `UTILISATION` column from the equipment list table.
-* Do not remove utilization data from the backend/model — only stop showing it in this list view, unless it is unused elsewhere, in which case leave the underlying data/computation alone regardless.
-* Confirm whether utilization is still shown on the equipment detail screen and leave that as-is unless it's broken (see Section 2).
+This is genuinely $0/month, with one real caveat: Render's free tier **spins the server down after ~15 minutes of no traffic**, so the first request after a quiet period takes 30–60 seconds to "wake up." Fine for a capstone demo/portfolio project; not something you'd want for a paying customer.
 
 ---
 
-## 2. FIX THE EQUIPMENT DETAIL SCREEN VALIDATION ERROR + MAKE IT THE EDIT SCREEN
+## 1. Prep the repo before deploying
 
-Opening an equipment item currently shows a themed detail screen (dark background, equipment name, cost, serial, utilization/hours/downtime stats, maintenance timeline, usage timeline, downtime section) — but it also shows a raw error banner:
+A few things need to be true first:
 
-```json
-{"statusCode":400,"errorCode":"VALIDATION_ERROR","message":"Validation failed","errors":[{"field":"property","constraint":"INVALID","message":"property perPage should not exist"}],"requestId":"...","timestamp":"..."}
-```
-
-### What I need
-
-Trace the complete request that populates this screen (likely usage/maintenance/downtime timeline queries):
-
-```text
-Equipment Detail Screen
-        ↓
-Frontend API request (query params, e.g. perPage)
-        ↓
-Controller
-        ↓
-Query DTO / class-validator decorators
-        ↓
-Service
-        ↓
-MongoDB / Mongoose
-```
-
-Determine exactly why `perPage` is rejected — most likely the global `ValidationPipe` has `whitelist`/`forbidNonWhitelisted` enabled and the query DTO for this endpoint does not declare a `perPage` field, while the frontend is still sending it.
-
-### Important
-
-Do NOT just remove validation or strip the param client-side to silence the error without understanding it.
-
-* If `perPage` is a real, intended parameter (e.g. for paginating the usage/maintenance/downtime timelines), add it properly to the query DTO with correct validation decorators.
-* If `perPage` is a leftover/unused parameter the frontend shouldn't be sending, remove it from the frontend request instead.
-* Never show raw JSON error payloads in the UI — display a proper themed error state consistent with the rest of the app if a real error occurs.
-
-### Also: make this the edit screen, not a popup
-
-Currently there appears to be a separate pop-up/modal used for editing equipment that does not match the app's theme (looks unstyled/out of place, like a generic editing form).
-
-* Instead of that modal popping out, tapping/clicking an equipment row in the list (Section 1) should navigate to this existing Equipment Detail screen.
-* Add editing capability to the Equipment Detail screen itself (e.g. an "Edit" action that lets the user update name, serial number, category, purchase date, purchase cost, etc., using the same validated contract from the previous Equipment task).
-* Remove or retire the mismatched popup once the detail screen covers editing, unless it's used elsewhere for a legitimately different purpose — investigate before deleting anything.
-* Keep the existing dark theme, layout, typography, and card structure of the detail screen; do not redesign it.
-
-### Acceptance criteria
-
-* Opening any equipment item shows the detail screen with no validation error banner.
-* Tapping an equipment row navigates to the detail screen (no themed-inconsistent popup).
-* The detail screen supports editing equipment fields using the existing validated contract.
-* List/detail/edit/delete equipment functionality continues working end-to-end.
+- **CORS**: your NestJS `main.ts` needs to allow requests from your frontend's deployed URL (not just `localhost`). Something like:
+  ```ts
+  app.enableCors({
+    origin: [
+      'http://localhost:5173',
+      'https://your-frontend.vercel.app',
+    ],
+    credentials: true,
+  });
+  ```
+- **Environment variables**: make sure your API reads `MONGODB_URI`, `JWT_SECRET`, `SMTP_*`, `PORT`, etc. from `process.env` — nothing hardcoded.
+- **Build scripts**: confirm `apps/api` has a working `build` script (`nest build`) and a `start:prod` script (`node dist/main.js`), and `apps/web` has `build` (`vite build`) producing a `dist/` folder.
+- **Atlas network access**: in Atlas → Network Access, add `0.0.0.0/0` (allow from anywhere) — otherwise Render's servers will get the same TLS/connection rejection you saw before, since they're not IP-whitelisted.
+- Push all of this to GitHub — both Render and Vercel deploy by connecting to a GitHub repo.
 
 ---
 
-## 3. REPLACE THE REPORTS SECTION KPI CARDS WITH A COMPACT STAT ROW
+## 2. Deploy the backend (NestJS) to Render
 
-The Reports section currently shows four large KPI cards:
-
-```text
-[icon] 2   Report templates
-[icon] 2   Report runs
-[icon] 2   Succeeded
-[icon] 0   Failed
-```
-
-I want this replaced with a compact horizontal stat style, like this existing pattern elsewhere in the app:
-
-```text
-(1) In Progress     (0) Blocked     (0) Done
-```
-
-### What I need
-
-* Find where this compact stat-row pattern (small numbered badge + bold label, inline, no large cards) is already implemented elsewhere in the app and reuse that existing component/style — do not build a new one from scratch if a reusable component already exists.
-* Apply this same compact pattern to the Reports section's existing metrics: Report templates, Report runs, Succeeded, Failed.
-* Keep the underlying data/counts as they are — this is a visual/layout change, not a data change.
-* Match existing theme (dark/light), spacing, and typography conventions used by the compact stat row elsewhere.
-
-### Acceptance criteria
-
-* The Reports section shows the four existing metrics in the compact horizontal style instead of the large card grid.
-* Counts are still accurate and pulled from the same existing data source.
-* No other report functionality (templates, runs, etc.) is broken.
+1. Go to [render.com](https://render.com) and sign up (GitHub login is easiest).
+2. **New → Web Service** → connect your GitHub repo.
+3. Since this is a monorepo, set:
+   - **Root Directory**: `apps/api` (or wherever your NestJS app lives)
+   - **Build Command**: `npm install && npm run build`
+   - **Start Command**: `node dist/main.js` (or `npm run start:prod`)
+   - **Environment**: Node
+   - **Instance Type**: Free
+4. Add your environment variables under the **Environment** tab: `MONGODB_URI`, `JWT_SECRET`, `SMTP_*`, `INVITATION_TTL`, and anything else your `.env` has locally. Never commit real secrets to GitHub — only add them here.
+5. Deploy. Render gives you a URL like `https://framebase-api.onrender.com`. Note it — you'll need it for the frontend.
+6. Test it directly: visit `https://framebase-api.onrender.com/api/v1/health` (or whatever health-check/simple GET route you have) and confirm you get a response, not an error.
 
 ---
 
-## 4. ADD THE MATERIAL CATALOG TO THE TRANSACTION LEDGER + FIX THE ERROR
+## 3. Deploy the frontend (Vite/React) to Vercel
 
-The "Record Transaction" section (material ledger) currently has:
-
-* A "Select material" dropdown with no predefined options apparent
-* A red banner: `An unexpected error occurred. Retry`
-* "No transactions found" below it
-
-### What I need
-
-**A. Apply the same catalog concept already built for Equipment** (from the previous task: seeded catalog collection, `GET` catalog endpoint, "select existing item" + "+ Add new" UX) to Materials in this transaction form:
-
-* Investigate the existing Materials/Inventory domain (should already exist per the previous task's catalog work) and reuse it — do not create a duplicate model.
-* The "Material" dropdown in "Record Transaction" should let the user pick from the existing seeded material catalog, with an option to add a new material if it's not in the catalog, following the same pattern as the equipment catalog picker.
-* Keep the distinction between a catalog item/type and an actual transaction record (type, quantity, project ID, cost, note) — same architecture pattern used for Equipment (catalog item → actual asset/instance).
-
-**B. Fix the "An unexpected error occurred" banner:**
-
-Trace the request that loads this transaction ledger view:
-
-```text
-Transaction Ledger UI
-        ↓
-Frontend API request (materials list / transactions list, filters)
-        ↓
-Controller
-        ↓
-Service
-        ↓
-MongoDB / Mongoose
-```
-
-Find and fix the actual root cause — do not just swallow the error or replace the message. If it's a genuinely empty dataset, that should render as "No transactions found" without an error banner, not both at once.
-
-### Important
-
-Do not hardcode fake materials or fake transactions. Do not bypass validation. Do not hide the underlying error instead of fixing it.
-
-### Acceptance criteria
-
-* The Material dropdown in Record Transaction offers the seeded catalog + "add new material" option.
-* The red "unexpected error occurred" banner no longer appears under normal operation.
-* An empty transaction list renders as a clean "No transactions found" state only.
-* Recording a transaction (receive/issue/etc.) against a catalog material works end-to-end.
+1. Go to [vercel.com](https://vercel.com) and sign up with GitHub.
+2. **Add New → Project** → import the same repo.
+3. Set:
+   - **Root Directory**: `apps/web`
+   - **Framework Preset**: Vite (Vercel usually auto-detects this)
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+4. Add an environment variable for your API's base URL, e.g. `VITE_API_URL=https://framebase-api.onrender.com`, and make sure your frontend's API client actually reads from `import.meta.env.VITE_API_URL` instead of a hardcoded `localhost:3000`.
+5. Deploy. Vercel gives you a URL like `https://framebase.vercel.app`.
+6. Go back to your Render backend's CORS config and add this real Vercel URL to the allowed origins (Section 1) if you didn't already know it in advance — redeploy the backend after.
 
 ---
 
-## 5. DASHBOARD — VERIFY SPENDING LINE, CONVERT PROJECT PROGRESS TO A BAR CHART, FIX OVERLAP
+## 4. Connect a custom domain (optional, still free)
 
-### A. Verify the previously implemented spending line
-
-The "Spending vs Budget" chart should already have both a `Budget` and `Spent` line from the previous task. I don't need it rebuilt — I need you to **verify it is actually working** (real data, correct legend, correct tooltip) and report back on its current state as part of your final report. Do not change this chart unless you find it's genuinely broken.
-
-### B. Convert "Project Progress" to a bar chart
-
-"Project Progress" currently shows only an empty state:
-
-```text
-Project Progress
-Active projects by timeline progress
-
-[icon]
-No active projects
-Projects will appear here when started.
-```
-
-* Investigate how "Project Progress by timeline" data is computed/retrieved elsewhere in the app (it's referenced in the dashboard already, so the aggregation likely exists or is planned).
-* Replace the panel's populated-state rendering with a **bar chart** showing active projects' timeline progress (e.g. one bar per active project, percentage complete).
-* Use an existing shadcn/ui chart component for this (the app already uses shadcn/ui elsewhere per the existing stack) — do not introduce an unrelated charting library if shadcn's chart primitives can do this.
-* **Keep the existing empty state** ("No active projects" / "Projects will appear here when started.") when there genuinely are no active projects — only replace what renders when there is data to show.
-* Match the existing dashboard's dark theme, card style, and typography.
-
-### C. Fix the overlapping layout issue
-
-The "Spending vs Budget" card and the "Project Progress" card currently overlap/collide at certain viewport sizes (visible in the screenshot). Find the root cause in the grid/flex layout (likely a fixed width/height, missing responsive breakpoint, or z-index/positioning issue) and fix the underlying layout, not just visually nudge one element.
-
-### Acceptance criteria
-
-* Spending vs Budget chart confirmed working (or, if actually broken, fixed) and reported on.
-* Project Progress renders as a bar chart when active projects exist, using shadcn/ui.
-* Project Progress still shows the correct empty state when there are no active projects.
-* The two dashboard cards no longer overlap at any normal viewport size.
-* No other dashboard sections (Project Activity, other widgets) are removed or redesigned.
+- Vercel and Render both let you attach a custom domain for free — you only pay if you buy the domain itself (e.g. via Namecheap, ~$10/year, or use a free subdomain provider).
+- If you just want something nicer than the default `*.vercel.app` / `*.onrender.com` URLs for your capstone submission, this step is optional — the default URLs work fine and cost nothing.
 
 ---
 
-## 6. IMPLEMENTATION REQUIREMENTS
+## 5. Known limitations of this free setup
 
-Before making changes:
-
-1. Inspect the repository.
-2. Identify the existing Equipment list/detail/edit components and API.
-3. Identify the existing Materials/Inventory catalog domain built in the previous task.
-4. Identify the existing Reports section and its KPI components, and the existing compact stat-row component used elsewhere (e.g. Tasks status row).
-5. Identify the Transaction Ledger frontend and backend (materials, transactions, list/create endpoints).
-6. Identify the Dashboard implementation, the Bklit UI Spending vs Budget chart, and the Project Progress panel.
-7. Identify existing shadcn/ui chart components already available in the project.
-8. Identify existing DTOs, schemas, enums, and validation relevant to each area above.
-9. Identify existing tests.
-
-Do not create duplicate functionality that already exists.
+- **Cold starts**: Render's free web service sleeps after ~15 min idle. First request after that takes 30–60s. If you're demoing live (e.g. to Dr. Ugwu), hit the API URL a minute or two before your demo to "wake it up."
+- **Atlas M0 free tier**: 512MB storage cap, shared CPU — fine for a capstone project's data volume, not for production traffic.
+- **No background jobs**: if anything in your app relies on scheduled/cron jobs, Render's free tier doesn't run background workers continuously the way a paid instance would — the free web service only runs while it's awake and handling requests.
+- **Build minutes/bandwidth**: both Render and Vercel free tiers have generous but finite monthly build minutes and bandwidth — won't matter for a capstone project's traffic level.
 
 ---
 
-## 7. TEST EVERYTHING
+## 6. Alternatives if you want to compare
 
-After implementation, run the appropriate project checks:
+- **Railway** — good developer experience, but no longer has an unlimited free tier (small monthly credit, then billed) — worth knowing if you're avoiding any card-on-file requirement.
+- **Fly.io** — has a free allowance for small apps, but the setup is more involved (Dockerfile-based, CLI-driven) than Render's git-connect flow.
+- **Netlify** — essentially equivalent to Vercel for the frontend piece, pick whichever you find easier.
+- **Cloudflare Pages** — another solid free static-frontend option with excellent global CDN performance.
 
-```bash
-npm run typecheck
-npm test
-npm run lint
-```
-
-Use the actual scripts defined in the repository if the names differ.
-
-Also manually test through the API/UI where appropriate.
-
-### Equipment
-
-```text
-List equipment (no UTILISATION column)
-Open equipment detail (no validation error banner)
-Edit equipment from the detail screen
-Confirm popup-based editing is gone or no longer the primary path
-```
-
-### Reports
-
-```text
-Reports section shows compact stat row with correct counts
-```
-
-### Materials / Transactions
-
-```text
-Material dropdown shows catalog items + "add new material"
-Record a transaction against a catalog material
-Confirm no "unexpected error occurred" banner on load
-Empty state renders cleanly when there are no transactions
-```
-
-### Dashboard
-
-```text
-Spending vs Budget — confirm real Budget + Spent data (report status)
-Project Progress — bar chart renders for active projects
-Project Progress — empty state still correct with no active projects
-No overlap between Spending vs Budget and Project Progress cards
-```
-
----
-
-## 8. IMPORTANT CODING RULES
-
-Do not:
-
-* rewrite the application
-* replace the existing architecture
-* remove validation
-* hardcode fake materials, transactions, or dashboard data
-* create duplicate catalog/domain models unnecessarily
-* replace Bklit UI or introduce a new charting library for the Spending vs Budget chart
-* remove existing functionality
-* modify unrelated pages
-* hide errors instead of fixing them
-* show raw JSON error payloads in the UI
-
-Prefer:
-
-* existing components (especially the compact stat-row and the equipment/material catalog pattern)
-* existing services and API patterns
-* existing DTOs and database models
-* existing design tokens and theme
-* existing shadcn/ui components for the new Project Progress bar chart
-* existing testing patterns
-
----
-
-## 9. FINAL DELIVERABLE
-
-When finished, give me a concise implementation report containing:
-
-### Fixed
-
-* Utilisation column removed from equipment list
-* Equipment detail validation error (`perPage should not exist`)
-* Equipment editing moved from popup to detail screen
-* Reports KPI cards replaced with compact stat row
-* Material catalog added to Record Transaction
-* Transaction ledger "unexpected error occurred" issue
-* Project Progress converted to bar chart (shadcn/ui)
-* Dashboard card overlap issue
-
-### Status check
-
-* Confirmation (with evidence, not assumption) of whether the Spending vs Budget "Spent" line from the previous task is actually working with real data.
-
-### Files changed
-
-List the important files changed and explain what each change does.
-
-### Tests
-
-Show the commands run and their results.
-
-### Remaining issues
-
-Only list genuine remaining issues. Do not claim something is fixed unless you actually tested it.
-
-Finally, create a git commit for these changes using a clear conventional commit message, for example:
-
-```text
-fix: equipment detail screen, reports KPIs, material catalog, and dashboard layout
-```
-
-Use the repository's existing git conventions if they differ.
-
-Do not stop after identifying the problem. **Implement the fixes, test them, and commit the completed work.**
+For your situation (NestJS API + Vite SPA + MongoDB Atlas), **Render + Vercel** is the least fiddly combination to set up and keep running for free.

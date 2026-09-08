@@ -1,7 +1,5 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight, Clock } from '../../shared/components/icons';
-import { useThemeStore } from '../../stores/theme-store';
-import Dither from '../../components/Dither';
 import { BrowserFrame, Reveal } from './shared';
 
 /** Static SVG spending visual echoing the real dashboard chart (demo values). */
@@ -108,23 +106,8 @@ function DashboardPreview() {
 }
 
 export function HeroSection() {
-  const resolved = useThemeStore((s) => s.resolved);
-
   return (
     <section className="relative overflow-hidden">
-      <div aria-hidden="true" className="absolute inset-0">
-        <Dither
-          waveColor={[0.5, 0.5, 0.5]}
-          disableAnimation={false}
-          enableMouseInteraction={true}
-          mouseRadius={0.3}
-          colorNum={4}
-          waveAmplitude={0.3}
-          waveFrequency={3}
-          waveSpeed={0.05}
-          backgroundColor={resolved === 'dark' ? [0, 0, 0] : [0.98, 0.98, 0.98]}
-        />
-      </div>
       <div className="relative z-10 mx-auto max-w-7xl px-4 pb-14 pt-12 sm:px-6 sm:pt-16 lg:pb-20 lg:pt-24">
         <div className="mx-auto max-w-3xl text-center">
           <Reveal>
