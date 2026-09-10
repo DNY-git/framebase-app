@@ -54,7 +54,6 @@ function RegionalSpendMap() {
         }
 
         // Load GeoJSON and inject counts
-        // @ts-ignore - JSON import
         const geo = (nigeriaGeoJson as unknown as { features: Array<{ properties: Record<string, unknown>; geometry: Geometry }> });
         const enriched: RegionFeatureCollection = {
           type: 'FeatureCollection',

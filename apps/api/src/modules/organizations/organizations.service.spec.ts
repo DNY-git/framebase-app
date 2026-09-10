@@ -84,6 +84,8 @@ function makeInvitation(overrides: Record<string, unknown> = {}): InvitationDoma
     token: 'a'.repeat(64),
     status: InvitationStatus.PENDING,
     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    usageLimit: null,
+    usedCount: 0,
     invitedBy: 'user-1',
     acceptedAt: null,
     acceptedBy: null,
@@ -160,6 +162,8 @@ function mockRepositories() {
       markAccepted: vi.fn().mockResolvedValue(makeInvitation()),
       revoke: vi.fn().mockResolvedValue(makeInvitation()),
       revokePendingForEmail: vi.fn().mockResolvedValue(undefined),
+      updateExpiryAndLimit: vi.fn().mockResolvedValue(makeInvitation()),
+      incrementUsedCount: vi.fn().mockResolvedValue(makeInvitation()),
     },
     audit: { record: vi.fn().mockResolvedValue(undefined) },
   };
@@ -617,9 +621,33 @@ describe('OrganizationsService', () => {
         tenantId: 'tenant-buildright',
         role: Role.SITE_ENGINEER,
       });
-      expect(repos.invitation.markAccepted).toHaveBeenCalledWith('inv-1', 'user-1');
+      expect(repos.invitation.incrementUsedCount).toHaveBeenCalledWith('inv-1');
       expect(result.membershipCreated).toBe(true);
       expect(result.user?.tenantId).toBe('tenant-buildright');
+    });
+
+    it('single-use invitation — marks accepted and revokes pending on final use', async () => {
+      repos.invitation.findByToken.mockResolvedValue(
+        makeInvitation({ usageLimit: 1, usedCount: 0 }),
+      );
+      repos.user.findByEmail.mockResolvedValue(null);
+      repos.user.create.mockResolvedValue(makeUser());
+      repos.membership.findByUserAndTenant.mockResolvedValue(null);
+      repos.membership.create.mockResolvedValue(makeMembership());
+
+      const result = await service.acceptInvitation(
+        'a'.repeat(64),
+        null,
+        { name: 'David Smith', password: 'Password1' },
+        { userAgent: 'vitest', ipAddress: '127.0.0.1' },
+      );
+
+      expect(repos.invitation.markAccepted).toHaveBeenCalledWith('inv-1', 'user-1');
+      expect(repos.invitation.revokePendingForEmail).toHaveBeenCalledWith(
+        'tenant-buildright',
+        'david@gmail.com',
+      );
+      expect(result.membershipCreated).toBe(true);
     });
 
     it('CASE B — existing user accepts with an authenticated session', async () => {

@@ -359,7 +359,6 @@ export function TaskConnectionsBoard({
               <p className="mt-2 text-xs text-foreground-muted">Select a node or connection to inspect.</p>
               <div className="mt-4 rounded-lg border border-border bg-surface-muted/30 p-3">
                 <p className="text-sm font-semibold text-foreground">{task.title}</p>
-                {/* @ts-ignore - TaskStatus enum string */}
                 <p className="mt-1 text-xs text-foreground-muted">{(TaskStatus as unknown as Record<string, string>)[task.status] ?? task.status}</p>
                 <Link to={`/projects/${projectId}`} className="mt-2 inline-block text-xs font-medium text-primary hover:underline">Open Project</Link>
               </div>

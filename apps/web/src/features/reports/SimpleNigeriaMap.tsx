@@ -46,10 +46,6 @@ export function SimpleNigeriaMap({ data, width = 800, height = 400 }: SimpleNige
       const props = feature.properties as { state?: string; value?: number };
       const state = String(props.state ?? `feature-${idx}`);
       const value = Number(props.value ?? 0);
-      // Debug log for first feature
-      if (idx === 0) {
-        console.log('[SimpleNigeriaMap] first feature', state, 'd length', d?.length, 'd snippet', d?.slice(0,120), 'value', value, 'dims', dims);
-      }
       return {
         d: d ?? '',
         state,
@@ -59,9 +55,8 @@ export function SimpleNigeriaMap({ data, width = 800, height = 400 }: SimpleNige
         feature,
       };
     }).filter(p => p.d && p.d.length > 10); // filter out degenerate paths
-    console.log('[SimpleNigeriaMap] generated paths', paths.length, 'out of', data.features.length, 'dims', dims, 'max', maxVal);
     return { paths, colorScale: sc, max: maxVal };
-  }, [data, dims.width, dims.height]);
+  }, [data, dims]);
 
   if (!data || !data.features.length) {
     return <div className="flex h-full items-center justify-center text-xs text-foreground-muted">No geo data</div>;
