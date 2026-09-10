@@ -1,90 +1,110 @@
-# Hosting FrameBase for Free
+# FrameBase — Fix Render Deploy: Port Binding and Google OAuth Callback URL
 
-Your stack: **NestJS API** (`apps/api`) + **Vite/React frontend** (`apps/web`) + **MongoDB Atlas** (already set up, cluster `uix4zly`). This guide uses three free services, one per piece:
+You are continuing work on the existing FrameBase application. Do NOT rebuild the project or replace existing architecture.
 
-| Piece | Service | Why |
-|---|---|---|
-| Database | MongoDB Atlas (you already have this) | Free M0 tier, no change needed |
-| Backend API | Render (free Web Service) | Free tier runs a real Node process, unlike static-only hosts |
-| Frontend | Vercel or Netlify | Free static hosting, great for Vite builds, instant deploys from GitHub |
+The app builds successfully on Render but fails to actually come up as a live service, for two separate reasons visible in the deploy logs:
 
-This is genuinely $0/month, with one real caveat: Render's free tier **spins the server down after ~15 minutes of no traffic**, so the first request after a quiet period takes 30–60 seconds to "wake up." Fine for a capstone demo/portfolio project; not something you'd want for a paying customer.
+```text
+==> No open ports detected, continuing to scan...
+==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+```
+
+and
+
+```text
+[GOOGLE-DIAG] callbackUrl = http://localhost:4000/api/v1/auth/google/callback
+```
+
+(Atlas's TLS connection rejection is being handled separately by adding Render's IP to Atlas Network Access — you don't need to touch that part.)
 
 ---
 
-## 1. Prep the repo before deploying
+## 1. BIND TO RENDER'S ASSIGNED PORT, NOT A HARDCODED ONE
 
-A few things need to be true first:
+Render assigns a port dynamically via the `PORT` environment variable at runtime and expects the app to bind to it. Right now the app appears to be listening on a hardcoded port (implied to be `4000`, based on the OAuth callback URL), which means Render never detects the service as "up," even if everything else works.
 
-- **CORS**: your NestJS `main.ts` needs to allow requests from your frontend's deployed URL (not just `localhost`). Something like:
+### What I need
+
+* Find where the NestJS app calls `app.listen(...)` (in `apps/api/src/main.ts` or equivalent).
+* Make sure it reads the port from `process.env.PORT`, falling back to a sensible local-dev default only when `PORT` isn't set, e.g.:
   ```ts
-  app.enableCors({
-    origin: [
-      'http://localhost:5173',
-      'https://your-frontend.vercel.app',
-    ],
-    credentials: true,
-  });
+  const port = process.env.PORT ? Number(process.env.PORT) : 4000;
+  await app.listen(port);
   ```
-- **Environment variables**: make sure your API reads `MONGODB_URI`, `JWT_SECRET`, `SMTP_*`, `PORT`, etc. from `process.env` — nothing hardcoded.
-- **Build scripts**: confirm `apps/api` has a working `build` script (`nest build`) and a `start:prod` script (`node dist/main.js`), and `apps/web` has `build` (`vite build`) producing a `dist/` folder.
-- **Atlas network access**: in Atlas → Network Access, add `0.0.0.0/0` (allow from anywhere) — otherwise Render's servers will get the same TLS/connection rejection you saw before, since they're not IP-whitelisted.
-- Push all of this to GitHub — both Render and Vercel deploy by connecting to a GitHub repo.
+* Confirm this doesn't break local development — locally, `PORT` typically isn't set, so it should still fall back to whatever port (`4000` or otherwise) the app currently uses for local dev.
+* Search the codebase for any other place that might hardcode a port (e.g. a separate health-check server, a WebSocket gateway, CORS config referencing a specific port) and fix those too if found.
+
+### Acceptance criteria
+
+* The app binds to `process.env.PORT` when it's set (as it will be on Render), and to the existing local default when it isn't.
+* No other part of the app assumes a fixed port that would conflict with this.
 
 ---
 
-## 2. Deploy the backend (NestJS) to Render
+## 2. FIX THE GOOGLE OAUTH CALLBACK URL FOR PRODUCTION
 
-1. Go to [render.com](https://render.com) and sign up (GitHub login is easiest).
-2. **New → Web Service** → connect your GitHub repo.
-3. Since this is a monorepo, set:
-   - **Root Directory**: `apps/api` (or wherever your NestJS app lives)
-   - **Build Command**: `npm install && npm run build`
-   - **Start Command**: `node dist/main.js` (or `npm run start:prod`)
-   - **Environment**: Node
-   - **Instance Type**: Free
-4. Add your environment variables under the **Environment** tab: `MONGODB_URI`, `JWT_SECRET`, `SMTP_*`, `INVITATION_TTL`, and anything else your `.env` has locally. Never commit real secrets to GitHub — only add them here.
-5. Deploy. Render gives you a URL like `https://framebase-api.onrender.com`. Note it — you'll need it for the frontend.
-6. Test it directly: visit `https://framebase-api.onrender.com/api/v1/health` (or whatever health-check/simple GET route you have) and confirm you get a response, not an error.
+The Google OAuth strategy is currently using a hardcoded `http://localhost:4000/api/v1/auth/google/callback` callback URL, which will not work once deployed (Google will redirect to a URL that doesn't exist in production, and Google's OAuth client also needs to have the exact production URL authorized).
 
----
+### What I need
 
-## 3. Deploy the frontend (Vite/React) to Vercel
+* Find the Google OAuth strategy setup (likely `GoogleStrategy` in a Passport config file) and confirm where `callbackURL` is currently being set.
+* Change it to read from an environment variable instead of a hardcoded value, e.g.:
+  ```ts
+  callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:4000/api/v1/auth/google/callback',
+  ```
+  (keep the localhost value only as the local-dev fallback default, matching whatever the app currently uses for local dev).
+* Confirm the app reads `GOOGLE_CALLBACK_URL` (or whatever name fits the existing env var naming convention in this project — check for consistency with other `GOOGLE_*` vars already in use) cleanly, with no trailing typos/slashes.
+* Do not commit any real production URL into the code — it should come entirely from the environment variable, since I'll set the actual value in Render's dashboard.
 
-1. Go to [vercel.com](https://vercel.com) and sign up with GitHub.
-2. **Add New → Project** → import the same repo.
-3. Set:
-   - **Root Directory**: `apps/web`
-   - **Framework Preset**: Vite (Vercel usually auto-detects this)
-   - **Build Command**: `npm run build`
-   - **Output Directory**: `dist`
-4. Add an environment variable for your API's base URL, e.g. `VITE_API_URL=https://framebase-api.onrender.com`, and make sure your frontend's API client actually reads from `import.meta.env.VITE_API_URL` instead of a hardcoded `localhost:3000`.
-5. Deploy. Vercel gives you a URL like `https://framebase.vercel.app`.
-6. Go back to your Render backend's CORS config and add this real Vercel URL to the allowed origins (Section 1) if you didn't already know it in advance — redeploy the backend after.
+### Acceptance criteria
+
+* The Google OAuth callback URL is driven by an environment variable in production, with the existing localhost URL preserved as the local-dev default.
+* Local development continues to work unchanged.
 
 ---
 
-## 4. Connect a custom domain (optional, still free)
+## 3. VERIFICATION
 
-- Vercel and Render both let you attach a custom domain for free — you only pay if you buy the domain itself (e.g. via Namecheap, ~$10/year, or use a free subdomain provider).
-- If you just want something nicer than the default `*.vercel.app` / `*.onrender.com` URLs for your capstone submission, this step is optional — the default URLs work fine and cost nothing.
+```bash
+npm run typecheck
+npm test
+npm run lint
+```
 
----
+Confirm the app still starts correctly in local dev after these changes (i.e. `PORT` unset locally still results in the app listening on its usual local port, and Google login still works locally against the unchanged localhost callback URL).
 
-## 5. Known limitations of this free setup
-
-- **Cold starts**: Render's free web service sleeps after ~15 min idle. First request after that takes 30–60s. If you're demoing live (e.g. to Dr. Ugwu), hit the API URL a minute or two before your demo to "wake it up."
-- **Atlas M0 free tier**: 512MB storage cap, shared CPU — fine for a capstone project's data volume, not for production traffic.
-- **No background jobs**: if anything in your app relies on scheduled/cron jobs, Render's free tier doesn't run background workers continuously the way a paid instance would — the free web service only runs while it's awake and handling requests.
-- **Build minutes/bandwidth**: both Render and Vercel free tiers have generous but finite monthly build minutes and bandwidth — won't matter for a capstone project's traffic level.
+Since actually confirming this fixes the Render deploy requires re-deploying (which I'll do myself after you push these changes), be explicit in your report about exactly what you changed and why you're confident it addresses both log errors.
 
 ---
 
-## 6. Alternatives if you want to compare
+## 4. FINAL DELIVERABLE
 
-- **Railway** — good developer experience, but no longer has an unlimited free tier (small monthly credit, then billed) — worth knowing if you're avoiding any card-on-file requirement.
-- **Fly.io** — has a free allowance for small apps, but the setup is more involved (Dockerfile-based, CLI-driven) than Render's git-connect flow.
-- **Netlify** — essentially equivalent to Vercel for the frontend piece, pick whichever you find easier.
-- **Cloudflare Pages** — another solid free static-frontend option with excellent global CDN performance.
+Give me a concise report containing:
 
-For your situation (NestJS API + Vite SPA + MongoDB Atlas), **Render + Vercel** is the least fiddly combination to set up and keep running for free.
+### Fixed
+
+* App now binds to `process.env.PORT` in production, with local-dev fallback preserved
+* Google OAuth callback URL now driven by an environment variable, with local-dev fallback preserved
+* Any other hardcoded port/URL references found and fixed
+
+### Files changed
+
+List the important files changed and what each change does.
+
+### What I still need to do manually
+
+* Set `GOOGLE_CALLBACK_URL` (or the actual variable name used) in Render's environment variables to the real production URL
+* Add that same production callback URL to the Google Cloud Console OAuth client's authorized redirect URIs
+* Confirm Render's IP is allowed in MongoDB Atlas Network Access (0.0.0.0/0)
+
+### Tests
+
+Commands run and results.
+
+Commit the completed work with a clear conventional commit message, e.g.:
+
+```text
+fix: bind to Render's dynamic port and use env-driven Google OAuth callback URL
+```
+
+Do not stop after identifying the problem. **Implement the fixes and commit the completed work.**

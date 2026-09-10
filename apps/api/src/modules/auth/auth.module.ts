@@ -62,53 +62,6 @@ import { SessionRepository } from './repositories/session.repository';
         const clientSecret = configService.get<string>('googleClientSecret', { infer: true });
         const callbackUrl = configService.get<string>('googleCallbackUrl', { infer: true });
 
-         // === TEMP GOOGLE OAUTH DIAGNOSTIC (safe: never prints the secret) ===
-         try {
-           // eslint-disable-next-line @typescript-eslint/no-require-imports
-           const crypto = require('crypto');
-           // eslint-disable-next-line @typescript-eslint/no-require-imports
-           const fs = require('fs');
-           // eslint-disable-next-line @typescript-eslint/no-require-imports
-           const path = require('path');
-          const fp = (s: string) => (s ? crypto.createHash('sha256').update(s).digest('hex').slice(0, 16) : 'EMPTY');
-          const hasWS = (s: string) => /^\s|\s$/.test(s);
-          const hasQuote = (s: string) => /['"]/.test(s);
-          const runtimeSecret = clientSecret ?? '';
-          const dotEnvPaths = [
-            path.resolve(process.cwd(), '.env'),
-            path.resolve(process.cwd(), 'apps/api/.env'),
-            path.resolve(__dirname, '../../../.env'),
-            path.resolve(__dirname, '../../.env'),
-          ];
-          // eslint-disable-next-line no-console
-          console.error('[GOOGLE-DIAG] clientId        =', clientId);
-          console.error('[GOOGLE-DIAG] callbackUrl     =', callbackUrl);
-          console.error('[GOOGLE-DIAG] secret.length   =', runtimeSecret.length);
-          console.error('[GOOGLE-DIAG] secret.fp       =', fp(runtimeSecret));
-          console.error('[GOOGLE-DIAG] secret.hasWS    =', hasWS(runtimeSecret));
-          console.error('[GOOGLE-DIAG] secret.hasQuote =', hasQuote(runtimeSecret));
-          for (const p of dotEnvPaths) {
-            try {
-              const txt = fs.readFileSync(p, 'utf8');
-              const line = txt.split('\n').find((l: string) => l.startsWith('GOOGLE_CLIENT_SECRET='));
-              if (line) {
-                const raw = line.slice('GOOGLE_CLIENT_SECRET='.length).trim();
-                console.error(
-                  `[GOOGLE-DIAG] .env[${p}] secret.fp=${fp(raw)} hasWS=${hasWS(raw)} hasQuote=${hasQuote(raw)} MATCHES_RUNTIME=${fp(raw) === fp(runtimeSecret)}`,
-                );
-              }
-            } catch {
-              /* file absent */
-            }
-          }
-          console.error(
-            '[GOOGLE-DIAG] -> GoogleStrategy({ clientID:', clientId, ', callbackURL:', callbackUrl, ', clientSecret.fp:', fp(runtimeSecret), '})',
-          );
-        } catch (diagErr) {
-          console.error('[GOOGLE-DIAG] diagnostic error', diagErr);
-        }
-        // === END TEMP GOOGLE OAUTH DIAGNOSTIC ===
-
         if (!clientId || !clientSecret) {
           GoogleStrategy.configured = false;
           return null;
@@ -117,7 +70,7 @@ import { SessionRepository } from './repositories/session.repository';
           authService,
           clientId,
           clientSecret,
-          configService.get<string>('googleCallbackUrl', { infer: true }),
+          callbackUrl,
         );
       },
     },
