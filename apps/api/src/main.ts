@@ -36,6 +36,7 @@ async function bootstrap(): Promise<void> {
   const nodeEnv = configService.get<string>('nodeEnv', { infer: true });
   const logLevel = configService.get<string>('logLevel', { infer: true });
   const port = configService.get<number>('port', { infer: true });
+  const appName = configService.get<string>('appName', { infer: true });
   const corsOrigins = configService.get<string[]>('corsAllowedOrigins', { infer: true });
 
   // Replace default logger with Winston.
@@ -73,8 +74,8 @@ async function bootstrap(): Promise<void> {
   await app.listen(port);
 
   const logger = new Logger('Bootstrap');
-  logger.log(`ConstructTrack API running on http://localhost:${port} [${nodeEnv}]`);
-  logger.log(`Health check: http://localhost:${port}/api/v1/health`);
+  logger.log(`${appName} API running on port ${port} [${nodeEnv}]`);
+  logger.log(`Health check: GET /api/v1/health on port ${port}`);
 }
 
 void bootstrap().catch((err: unknown) => {

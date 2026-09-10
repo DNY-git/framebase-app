@@ -46,7 +46,7 @@ export const configuration = (): AppConfig => ({
   nodeEnv: process.env.NODE_ENV ?? 'development',
   port: parseInt(process.env.PORT ?? '4000', 10),
   logLevel: process.env.LOG_LEVEL ?? 'info',
-  appName: process.env.APP_NAME ?? 'ConstructTrack',
+  appName: process.env.APP_NAME ?? 'FrameBase',
   appUrl: process.env.APP_URL ?? 'http://localhost:5173',
   apiUrl: process.env.API_URL ?? 'http://localhost:4000',
   // MongoDB Atlas is optional — app degrades gracefully if not configured.

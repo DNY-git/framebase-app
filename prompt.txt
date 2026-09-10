@@ -1,65 +1,56 @@
-# FrameBase — Fix Render Deploy: Port Binding and Google OAuth Callback URL
+# FrameBase — Enforce Real Secrets in Production, Fix Stale Bootstrap Log
 
 You are continuing work on the existing FrameBase application. Do NOT rebuild the project or replace existing architecture.
 
-The app builds successfully on Render but fails to actually come up as a live service, for two separate reasons visible in the deploy logs:
+The app is now successfully deployed and live on Render. Two things stood out in the production startup logs:
 
 ```text
-==> No open ports detected, continuing to scan...
-==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+warn: Insecure default secrets detected: JWT_ACCESS_SECRET, JWT_REFRESH_SECRET, PASSWORD_PEPPER, COOKIE_SECRET. Acceptable in development only. {"context":"ConfigValidationService"}
+...
+info: ConstructTrack API running on http://localhost:4000 [development] {"context":"Bootstrap"}
 ```
-
-and
-
-```text
-[GOOGLE-DIAG] callbackUrl = http://localhost:4000/api/v1/auth/google/callback
-```
-
-(Atlas's TLS connection rejection is being handled separately by adding Render's IP to Atlas Network Access — you don't need to touch that part.)
 
 ---
 
-## 1. BIND TO RENDER'S ASSIGNED PORT, NOT A HARDCODED ONE
+## 1. CONFIRM/ENFORCE THAT PRODUCTION CANNOT RUN WITH DEFAULT SECRETS
 
-Render assigns a port dynamically via the `PORT` environment variable at runtime and expects the app to bind to it. Right now the app appears to be listening on a hardcoded port (implied to be `4000`, based on the OAuth callback URL), which means Render never detects the service as "up," even if everything else works.
+There's already a `ConfigValidationService` that detects insecure default secrets (`JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `PASSWORD_PEPPER`, `COOKIE_SECRET`) and logs a warning saying this is "acceptable in development only" — but it currently only warns, it doesn't appear to block startup in production.
 
 ### What I need
 
-* Find where the NestJS app calls `app.listen(...)` (in `apps/api/src/main.ts` or equivalent).
-* Make sure it reads the port from `process.env.PORT`, falling back to a sensible local-dev default only when `PORT` isn't set, e.g.:
-  ```ts
-  const port = process.env.PORT ? Number(process.env.PORT) : 4000;
-  await app.listen(port);
-  ```
-* Confirm this doesn't break local development — locally, `PORT` typically isn't set, so it should still fall back to whatever port (`4000` or otherwise) the app currently uses for local dev.
-* Search the codebase for any other place that might hardcode a port (e.g. a separate health-check server, a WebSocket gateway, CORS config referencing a specific port) and fix those too if found.
+* Find `ConfigValidationService` and see exactly what it currently does when it detects a default/insecure secret, and how it determines the current environment (`NODE_ENV` or equivalent).
+* Confirm: does it currently just log a warning in every environment, or does it already throw/exit when `NODE_ENV=production` and a default secret is detected? Report which of these is actually true right now.
+* If it does NOT currently block startup in production, add that enforcement: when running in production with any of these four secrets still set to their known default/placeholder value, the app should refuse to start and throw a clear, actionable error (e.g. "Refusing to start in production with a default JWT_ACCESS_SECRET. Set a real value in your environment.") rather than just logging a warning and continuing.
+* Do not change this behavior for non-production environments (development/test should keep working with default secrets, unchanged).
+* Do not weaken or remove the existing warning for non-production — only add the production-blocking behavior.
 
 ### Acceptance criteria
 
-* The app binds to `process.env.PORT` when it's set (as it will be on Render), and to the existing local default when it isn't.
-* No other part of the app assumes a fixed port that would conflict with this.
+* Running with `NODE_ENV=production` and any of the four default secrets still in place causes the app to fail to start with a clear error message, instead of just logging a warning and continuing to run insecurely.
+* Development/test behavior is unchanged.
 
 ---
 
-## 2. FIX THE GOOGLE OAUTH CALLBACK URL FOR PRODUCTION
+## 2. FIX THE BOOTSTRAP LOG MESSAGE
 
-The Google OAuth strategy is currently using a hardcoded `http://localhost:4000/api/v1/auth/google/callback` callback URL, which will not work once deployed (Google will redirect to a URL that doesn't exist in production, and Google's OAuth client also needs to have the exact production URL authorized).
+The startup log currently prints:
+
+```text
+ConstructTrack API running on http://localhost:4000 [development]
+```
+
+even when actually running in production on Render. This is misleading on two counts: the old "ConstructTrack" name (the app was renamed to FrameBase), and it always says `localhost:4000` and `[development]` regardless of the real environment/port.
 
 ### What I need
 
-* Find the Google OAuth strategy setup (likely `GoogleStrategy` in a Passport config file) and confirm where `callbackURL` is currently being set.
-* Change it to read from an environment variable instead of a hardcoded value, e.g.:
-  ```ts
-  callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:4000/api/v1/auth/google/callback',
-  ```
-  (keep the localhost value only as the local-dev fallback default, matching whatever the app currently uses for local dev).
-* Confirm the app reads `GOOGLE_CALLBACK_URL` (or whatever name fits the existing env var naming convention in this project — check for consistency with other `GOOGLE_*` vars already in use) cleanly, with no trailing typos/slashes.
-* Do not commit any real production URL into the code — it should come entirely from the environment variable, since I'll set the actual value in Render's dashboard.
+* Find this log line (likely in `main.ts`'s `Bootstrap` logger call) and:
+  * Update "ConstructTrack API" to "FrameBase API" (or whatever the app's actual current name/branding is — check for a shared app-name constant/config value used elsewhere, e.g. in the frontend's `APP_NAME`, and reuse it here if one already exists, rather than hardcoding a second copy of the name).
+  * Make the printed URL and environment label reflect reality: use the actual bound port (`process.env.PORT` when set, matching the earlier port-binding fix) and the actual `NODE_ENV` value, rather than hardcoded `localhost:4000` and `[development]`.
+* Confirm this still makes sense for local development (i.e. it should still correctly print `localhost:<port> [development]` when running locally with no `PORT`/`NODE_ENV=production` set).
 
 ### Acceptance criteria
 
-* The Google OAuth callback URL is driven by an environment variable in production, with the existing localhost URL preserved as the local-dev default.
-* Local development continues to work unchanged.
+* The bootstrap log line says "FrameBase API" (or the correct current app name), and accurately reflects the real port and environment the app is actually running in, both locally and in production.
 
 ---
 
@@ -71,9 +62,9 @@ npm test
 npm run lint
 ```
 
-Confirm the app still starts correctly in local dev after these changes (i.e. `PORT` unset locally still results in the app listening on its usual local port, and Google login still works locally against the unchanged localhost callback URL).
-
-Since actually confirming this fixes the Render deploy requires re-deploying (which I'll do myself after you push these changes), be explicit in your report about exactly what you changed and why you're confident it addresses both log errors.
+Also confirm locally that:
+* Running with `NODE_ENV=production` and default secrets still in place causes a clear startup failure (test this locally by temporarily setting `NODE_ENV=production` in your sandbox, if your sandbox can run the app at all — otherwise describe exactly how I should test this myself before redeploying).
+* Running normally in development still starts up fine with the existing default secrets and correct log output.
 
 ---
 
@@ -83,28 +74,25 @@ Give me a concise report containing:
 
 ### Fixed
 
-* App now binds to `process.env.PORT` in production, with local-dev fallback preserved
-* Google OAuth callback URL now driven by an environment variable, with local-dev fallback preserved
-* Any other hardcoded port/URL references found and fixed
+* Production startup now refuses to run with default/insecure secrets (or confirmation that this was already enforced, if it turns out it was)
+* Bootstrap log message now shows the correct app name, real port, and real environment
 
 ### Files changed
 
 List the important files changed and what each change does.
 
-### What I still need to do manually
-
-* Set `GOOGLE_CALLBACK_URL` (or the actual variable name used) in Render's environment variables to the real production URL
-* Add that same production callback URL to the Google Cloud Console OAuth client's authorized redirect URIs
-* Confirm Render's IP is allowed in MongoDB Atlas Network Access (0.0.0.0/0)
-
 ### Tests
 
-Commands run and results.
+Commands run and results, including how you verified the production-secret-blocking behavior.
+
+### Important — before I redeploy
+
+Remind me explicitly: if this now blocks production startup on default secrets, I must set real values for `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `PASSWORD_PEPPER`, and `COOKIE_SECRET` in Render's environment variables **before** redeploying, or the next deploy will fail to start on purpose.
 
 Commit the completed work with a clear conventional commit message, e.g.:
 
 ```text
-fix: bind to Render's dynamic port and use env-driven Google OAuth callback URL
+fix: enforce real secrets in production, correct bootstrap log message
 ```
 
 Do not stop after identifying the problem. **Implement the fixes and commit the completed work.**
