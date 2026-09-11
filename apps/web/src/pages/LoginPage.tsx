@@ -4,6 +4,7 @@ import { Google, Loader2 } from '../shared/components/icons';
 import { Logo } from '../shared/components/Logo';
 import { useAuthStore } from '../stores/auth-store';
 import type { User } from '../stores/auth-store';
+import { apiUrl } from '../api-base';
 
 interface LoginApiResponse {
   data?: {
@@ -54,7 +55,7 @@ export function LoginPage() {
   };
 
   const startGoogle = () => {
-    const base = '/api/v1/auth/google';
+    const base = apiUrl('/api/v1/auth/google');
     window.location.href = next !== '/dashboard' ? `${base}?next=${encodeURIComponent(next)}` : base;
   };
 

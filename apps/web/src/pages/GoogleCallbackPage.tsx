@@ -10,6 +10,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2 } from '../shared/components/icons';
 import { Logo } from '../shared/components/Logo';
 import { useAuthStore } from '../stores/auth-store';
+import { apiUrl } from '../api-base';
 
 export function GoogleCallbackPage() {
   const navigate = useNavigate();
@@ -39,7 +40,7 @@ export function GoogleCallbackPage() {
 
     (async () => {
       try {
-        const res = await fetch('/api/v1/auth/google/exchange', {
+        const res = await fetch(apiUrl('/api/v1/auth/google/exchange'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code }),

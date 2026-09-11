@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Google, Loader2 } from '../shared/components/icons';
 import { Logo } from '../shared/components/Logo';
 import { useAuthStore } from '../stores/auth-store';
+import { apiUrl } from '../api-base';
 
 interface RegisterApiResponse {
   data?: {
@@ -62,7 +63,7 @@ export function RegisterPage() {
   };
 
   const startGoogle = () => {
-    const base = '/api/v1/auth/google';
+    const base = apiUrl('/api/v1/auth/google');
     window.location.href = next !== '/dashboard' ? `${base}?next=${encodeURIComponent(next)}` : base;
   };
 

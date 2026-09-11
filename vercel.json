@@ -3,5 +3,11 @@
   "installCommand": "npm install",
   "buildCommand": "npm run build --workspace=packages/types && npm run build --workspace=apps/web",
   "outputDirectory": "apps/web/dist",
-  "framework": "vite"
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://framebase-app.onrender.com/api/:path*"
+    }
+  ]
 }
