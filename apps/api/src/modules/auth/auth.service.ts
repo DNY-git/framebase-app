@@ -350,8 +350,8 @@ export class AuthService {
 
   /** Redirect target for failed callbacks (access denied, bad state). */
   googleErrorRedirect(reason: string): string {
-    const webUrl = this.configService.get<string>('webUrl', { infer: true });
-    return `${webUrl.replace(/\/$/, '')}/auth/google/callback?error=${encodeURIComponent(reason)}`;
+    const appUrl = this.configService.get<string>('appUrl', { infer: true });
+    return `${appUrl.replace(/\/$/, '')}/auth/google/callback?error=${encodeURIComponent(reason)}`;
   }
 
   /**

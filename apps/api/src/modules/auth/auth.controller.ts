@@ -143,8 +143,8 @@ export class AuthController {
       principal.tenantId,
       principal.role,
     );
-    const webUrl = this.configService.get<string>('webUrl', { infer: true });
-    const redirect = `${webUrl.replace(/\/$/, '')}/auth/google/callback?code=${encodeURIComponent(code)}&next=${encodeURIComponent(payload.next)}`;
+    const appUrl = this.configService.get<string>('appUrl', { infer: true });
+    const redirect = `${appUrl.replace(/\/$/, '')}/auth/google/callback?code=${encodeURIComponent(code)}&next=${encodeURIComponent(payload.next)}`;
     res.redirect(redirect);
   }
 

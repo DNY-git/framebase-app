@@ -23,7 +23,6 @@ export interface AppConfig {
   googleClientId: string;
   googleClientSecret: string;
   googleCallbackUrl: string;
-  webUrl: string;
   aiProvider: string;
   aiMaxTokens: number;
   aiRequestTimeoutMs: number;
@@ -71,7 +70,6 @@ export const configuration = (): AppConfig => ({
   googleCallbackUrl:
     process.env.GOOGLE_CALLBACK_URL ??
     'http://localhost:4000/api/v1/auth/google/callback',
-  webUrl: process.env.WEB_URL ?? 'http://localhost:5173',
   aiProvider: process.env.AI_PROVIDER ?? 'none',
   aiMaxTokens: parseInt(process.env.AI_MAX_TOKENS ?? '1000', 10),
   aiRequestTimeoutMs: parseInt(process.env.AI_REQUEST_TIMEOUT_MS ?? '15000', 10),

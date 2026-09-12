@@ -94,7 +94,7 @@ describe('Google OAuth 500 reproduction', () => {
       jwtRefreshSecret: 'test-refresh-secret',
       jwtAccessTtl: '15m',
       jwtRefreshTtl: '7d',
-      webUrl: 'http://localhost:5173',
+      appUrl: 'http://localhost:5173',
       passwordPepper: 'test-pepper',
       bcryptRounds: '10',
     };
