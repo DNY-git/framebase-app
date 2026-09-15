@@ -51,9 +51,24 @@ async function bootstrap(): Promise<void> {
   // Global API prefix — all routes live under /api/v1.
   app.setGlobalPrefix('api/v1');
 
-  // CORS — configured origins only.
+  // CORS — configured origins only (credentials require explicit origins, not "*").
+  // Allow the configured list plus Vercel preview deployments for this project
+  // (e.g. https://framebase-app-web-abc123.vercel.app) so preview testing
+  // works without updating the allow-list on every preview deploy. Keep the
+  // match tight to this project's Vercel domain — not a blanket *.vercel.app.
+  const vercelPreviewPattern = /^https:\/\/framebase-app(-web)?(-[a-z0-9-]+)?\.vercel\.app$/;
   app.enableCors({
-    origin: corsOrigins,
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
+      // Non-browser clients (curl, health checks) send no Origin — allow.
+      if (!origin) return callback(null, true);
+      if (corsOrigins.includes(origin) || vercelPreviewPattern.test(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error(`Origin ${origin} not allowed by CORS`), false);
+    },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: true,
   });

@@ -61,7 +61,10 @@ export const configuration = (): AppConfig => ({
   bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS ?? '12', 10),
   cookieSecret: process.env.COOKIE_SECRET ?? 'change-me-cookie-secret',
   cookieSecure: process.env.COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production',
-  corsAllowedOrigins: (process.env.CORS_ALLOWED_ORIGINS ?? 'http://localhost:5173')
+  corsAllowedOrigins: (
+    process.env.CORS_ALLOWED_ORIGINS ??
+    'http://localhost:5173,https://framebase-app-web.vercel.app'
+  )
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean),
