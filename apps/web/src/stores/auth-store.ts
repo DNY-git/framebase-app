@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { authFetch } from '../auth-fetch';
 import {
   getStoredToken,
   getStoredRefreshToken,
@@ -43,7 +44,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   refreshToken: getStoredRefreshToken() ?? '',
   user: null,
   isAuthenticated: !!getStoredToken(),
-  isLoadingUser: false,
+  // On fresh page load user is always null, so if we have a stored token
+  // we must start in loading state — otherwise ProtectedRoute sees
+  // isAuthenticated=true + user=null + isLoadingUser=false and immediately
+  // redirects to /login before fetchUser() has a chance to run.
+  isLoadingUser: !!getStoredToken(),
   organizations: null,
 
   login: (token, refreshToken, user) => {
@@ -64,24 +69,22 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
     set({ isLoadingUser: true });
     try {
-      const res = await fetch('/api/v1/auth/me', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.status === 401) {
-        clearTokens();
-        set({ token: '', refreshToken: '', user: null, isAuthenticated: false, isLoadingUser: false, organizations: null });
-        return;
-      }
+      // Use authFetch so a 401 triggers an automatic refresh + retry before
+      // giving up — the previous raw fetch() cleared the session immediately
+      // on any 401, which broke page reloads when the access token had expired.
+      const res = await authFetch('/api/v1/auth/me');
       if (res.ok) {
         const body = await res.json();
         const user = body.data ?? body;
         set({ user: { id: user.id, email: user.email, name: user.name, role: user.role, tenantId: user.tenantId, avatarUrl: user.avatarUrl ?? null } });
       } else {
-        // Non-401 error but still not successful — keep isAuthenticated true but user null, will retry on next load
-        // Do not clear token for transient errors
+        // authFetch already attempted refresh on 401 — if we're still here,
+        // the refresh failed and tokens were cleared by authFetch.
+        clearTokens();
+        set({ token: '', refreshToken: '', user: null, isAuthenticated: false, isLoadingUser: false, organizations: null });
       }
     } catch {
-      // silent — user will remain null, will be fetched on next app load
+      // Network error — keep isAuthenticated true, user will be fetched on next load
     } finally {
       set({ isLoadingUser: false });
     }
