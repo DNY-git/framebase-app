@@ -89,6 +89,26 @@ export class MailerService {
         `<p style="color:#71717a;font-size:12px">This link expires on ${expiry}. If you weren't expecting this invitation, you can ignore this email.</p>`,
     });
   }
+
+  async sendPasswordResetEmail(options: {
+    to: string;
+    resetUrl: string;
+    expiresAt: Date;
+  }): Promise<SendMailResult> {
+    const expiry = options.expiresAt.toISOString().slice(0, 10);
+    return this.sendMail({
+      to: options.to,
+      subject: 'Reset your FrameBase password',
+      text:
+        `We received a request to reset your password.\n\n` +
+        `Click the link below to set a new password (expires ${expiry}):\n${options.resetUrl}\n\n` +
+        `If you didn't request this, you can safely ignore this email.`,
+      html:
+        `<p>We received a request to reset your password.</p>` +
+        `<p><a href="${options.resetUrl}">Reset your password</a></p>` +
+        `<p style="color:#71717a;font-size:12px">This link expires on ${expiry}. If you didn't request this, you can safely ignore this email.</p>`,
+    });
+  }
 }
 
 function escapeHtml(value: string): string {

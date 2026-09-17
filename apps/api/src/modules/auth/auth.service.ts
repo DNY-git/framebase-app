@@ -18,7 +18,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createHmac, timingSafeEqual } from 'crypto';
+import { createHmac, timingSafeEqual, randomBytes, createHash } from 'crypto';
 import * as path from 'path';
 import * as fsp from 'fs/promises';
 import { ErrorCode, Role } from '@constructtrack/types';
@@ -37,6 +37,8 @@ import { TenantRepository } from './repositories/tenant.repository';
 import { UserRepository } from './repositories/user.repository';
 import { MembershipRepository } from './repositories/membership.repository';
 import { SessionRepository } from './repositories/session.repository';
+import { PasswordResetTokenRepository } from './repositories/password-reset-token.repository';
+import { MailerService } from '../../common/mailer/mailer.service';
 
 /** Client metadata captured at auth time for session tracking. */
 export interface RequestMeta {
@@ -86,6 +88,8 @@ export class AuthService {
     private readonly userRepository: UserRepository,
     private readonly membershipRepository: MembershipRepository,
     private readonly sessionRepository: SessionRepository,
+    private readonly passwordResetTokenRepository: PasswordResetTokenRepository,
+    private readonly mailerService: MailerService,
     private readonly auditService: AuditService,
     private readonly configService: ConfigService<AppConfig, true>,
   ) {}
@@ -352,6 +356,105 @@ export class AuthService {
   googleErrorRedirect(reason: string): string {
     const appUrl = this.configService.get<string>('appUrl', { infer: true });
     return `${appUrl.replace(/\/$/, '')}/auth/google/callback?error=${encodeURIComponent(reason)}`;
+  }
+
+  /**
+   * Sends a password reset email if an account exists for the given email.
+   * Always returns the same response regardless of whether the email is
+   * registered — prevents account enumeration.
+   */
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    const normalizedEmail = email.toLowerCase().trim();
+    const user = await this.userRepository.findByEmail(normalizedEmail);
+
+    if (user && user.passwordHash) {
+      // Generate a cryptographically random token.
+      const rawToken = randomBytes(32).toString('hex');
+      const tokenHash = createHash('sha256').update(rawToken).digest('hex');
+
+      // Invalidate any pending reset tokens for this user.
+      await this.passwordResetTokenRepository.invalidatePendingForUser(user.id);
+
+      // Create a new token with configured expiry.
+      const ttlSeconds = this.ttlToSeconds(
+        this.configService.get('passwordResetTtl', { infer: true }),
+      );
+      const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
+
+      await this.passwordResetTokenRepository.create({
+        userId: user.id,
+        tokenHash,
+        expiresAt,
+      });
+
+      // Send the email with the raw token in the link.
+      const appUrl = this.configService.get<string>('appUrl', { infer: true });
+      const resetUrl = `${appUrl.replace(/\/$/, '')}/reset-password?token=${rawToken}`;
+
+      await this.mailerService.sendPasswordResetEmail({
+        to: user.email,
+        resetUrl,
+        expiresAt,
+      });
+    }
+
+    // Always return the same message — no enumeration.
+    return {
+      message: 'If an account exists for this email, a reset link has been sent.',
+    };
+  }
+
+  /**
+   * Resets a user's password using a valid, unexpired, unused reset token.
+   */
+  async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+    // Hash the raw token to look it up.
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+
+    const resetToken = await this.passwordResetTokenRepository.findPendingByHash(tokenHash);
+
+    if (!resetToken) {
+      throw new DomainException(
+        ErrorCode.AUTH_PASSWORD_RESET_INVALID,
+        HttpStatus.BAD_REQUEST,
+        'Invalid or expired reset token.',
+      );
+    }
+
+    if (new Date(resetToken.expiresAt).getTime() < Date.now()) {
+      throw new DomainException(
+        ErrorCode.AUTH_PASSWORD_RESET_EXPIRED,
+        HttpStatus.BAD_REQUEST,
+        'Reset token has expired. Please request a new one.',
+      );
+    }
+
+    // Validate password strength (defense-in-depth).
+    const strength = this.passwordService.validateStrength(newPassword);
+    if (!strength.valid) {
+      throw new DomainException(
+        ErrorCode.AUTH_WEAK_PASSWORD,
+        HttpStatus.CONFLICT,
+        strength.errors.join(' '),
+      );
+    }
+
+    // Hash the new password and update the user.
+    const passwordHash = await this.passwordService.hash(newPassword);
+    await this.userRepository.updatePasswordHash(resetToken.userId, passwordHash);
+
+    // Mark the token as used.
+    await this.passwordResetTokenRepository.markUsed(resetToken.id);
+
+    // Invalidate all pending reset tokens for this user.
+    await this.passwordResetTokenRepository.invalidatePendingForUser(resetToken.userId);
+
+    // Revoke all existing sessions for this user (security best practice).
+    await this.sessionRepository.revokeAllUserSessions(resetToken.userId);
+
+    this.logger.log(`Password reset completed for user ${resetToken.userId}`);
+
+    return { message: 'Password has been reset. You can now sign in with your new password.' };
   }
 
   /**

@@ -72,6 +72,7 @@ function mockRepositories() {
       findByGoogleId: vi.fn(),
       linkGoogleId: vi.fn(),
       updateLastLogin: vi.fn().mockResolvedValue(undefined),
+      updatePasswordHash: vi.fn().mockResolvedValue(undefined),
     },
     membership: {
       create: vi.fn().mockResolvedValue(undefined),
@@ -84,6 +85,24 @@ function mockRepositories() {
       revokeSession: vi.fn().mockResolvedValue(undefined),
       revokeSessionByToken: vi.fn().mockResolvedValue(true),
       revokeAllUserSessions: vi.fn().mockResolvedValue(0),
+    },
+    passwordResetToken: {
+      create: vi.fn().mockResolvedValue({
+        id: 'token-1',
+        userId: 'user-1',
+        tokenHash: 'hash',
+        status: 'pending',
+        expiresAt: new Date(Date.now() + 3600000),
+        usedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+      findPendingByHash: vi.fn(),
+      markUsed: vi.fn().mockResolvedValue(undefined),
+      invalidatePendingForUser: vi.fn().mockResolvedValue(undefined),
+    },
+    mailer: {
+      sendPasswordResetEmail: vi.fn().mockResolvedValue({ sent: true }),
     },
     audit: { record: vi.fn().mockResolvedValue(undefined) },
   };
@@ -109,6 +128,8 @@ describe('AuthService', () => {
       repos.user as never,
       repos.membership as never,
       repos.session as never,
+      repos.passwordResetToken as never,
+      repos.mailer as never,
       repos.audit as never,
       mockConfigService(),
     );
@@ -483,6 +504,83 @@ describe('AuthService', () => {
       await service.logout('user-1', 'tenant-1', undefined, {});
       expect(repos.session.revokeSessionByToken).not.toHaveBeenCalled();
       expect(repos.audit.record).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe('forgotPassword', () => {
+    it('returns the same message regardless of whether the email exists', async () => {
+      repos.user.findByEmail.mockResolvedValue(null);
+      const result = await service.forgotPassword('nonexistent@example.com');
+      expect(result.message).toContain('If an account exists');
+      expect(repos.passwordResetToken.create).not.toHaveBeenCalled();
+    });
+
+    it('creates a reset token and sends email for existing user with password', async () => {
+      repos.user.findByEmail.mockResolvedValue({
+        id: 'user-1',
+        email: 'test@example.com',
+        passwordHash: 'hashed-password',
+      });
+      const result = await service.forgotPassword('test@example.com');
+      expect(result.message).toContain('If an account exists');
+      expect(repos.passwordResetToken.invalidatePendingForUser).toHaveBeenCalledWith('user-1');
+      expect(repos.passwordResetToken.create).toHaveBeenCalledOnce();
+      expect(repos.mailer.sendPasswordResetEmail).toHaveBeenCalledOnce();
+    });
+
+    it('does not send email for Google-only accounts (no passwordHash)', async () => {
+      repos.user.findByEmail.mockResolvedValue({
+        id: 'user-2',
+        email: 'google@example.com',
+        passwordHash: null,
+      });
+      await service.forgotPassword('google@example.com');
+      expect(repos.passwordResetToken.create).not.toHaveBeenCalled();
+      expect(repos.mailer.sendPasswordResetEmail).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('throws on invalid token hash', async () => {
+      repos.passwordResetToken.findPendingByHash.mockResolvedValue(null);
+      await expect(
+        service.resetPassword('invalid-token', 'NewPassword1'),
+      ).rejects.toThrow(DomainException);
+    });
+
+    it('throws on expired token', async () => {
+      repos.passwordResetToken.findPendingByHash.mockResolvedValue({
+        id: 'token-1',
+        userId: 'user-1',
+        tokenHash: 'hash',
+        status: 'pending',
+        expiresAt: new Date(Date.now() - 1000), // expired
+        usedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      await expect(
+        service.resetPassword('expired-token', 'NewPassword1'),
+      ).rejects.toThrow(DomainException);
+    });
+
+    it('updates password hash, marks token used, and revokes sessions on success', async () => {
+      repos.passwordResetToken.findPendingByHash.mockResolvedValue({
+        id: 'token-1',
+        userId: 'user-1',
+        tokenHash: 'hash',
+        status: 'pending',
+        expiresAt: new Date(Date.now() + 3600000),
+        usedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      const result = await service.resetPassword('valid-token', 'NewPassword1');
+      expect(repos.user.updatePasswordHash).toHaveBeenCalledWith('user-1', 'hashed-password');
+      expect(repos.passwordResetToken.markUsed).toHaveBeenCalledWith('token-1');
+      expect(repos.passwordResetToken.invalidatePendingForUser).toHaveBeenCalledWith('user-1');
+      expect(repos.session.revokeAllUserSessions).toHaveBeenCalledWith('user-1');
+      expect(result.message).toContain('Password has been reset');
     });
   });
 });

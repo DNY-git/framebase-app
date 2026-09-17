@@ -39,6 +39,7 @@ export interface AppConfig {
   smtpPass: string;
   mailFrom: string;
   invitationTtl: string;
+  passwordResetTtl: string;
 }
 
 export const configuration = (): AppConfig => ({
@@ -91,4 +92,5 @@ export const configuration = (): AppConfig => ({
   smtpPass: process.env.SMTP_PASS ?? '',
   mailFrom: process.env.MAIL_FROM ?? 'FrameBase <no-reply@framebase.local>',
   invitationTtl: process.env.INVITATION_TTL ?? '72h',
+  passwordResetTtl: process.env.PASSWORD_RESET_TTL ?? '1h',
 });

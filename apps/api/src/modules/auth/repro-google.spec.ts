@@ -115,6 +115,8 @@ describe('Google OAuth 500 reproduction', () => {
       userRepo,
       membershipRepo,
       sessionRepo,
+      {} as never, // passwordResetTokenRepository
+      {} as never, // mailerService
       auditService,
       configService,
     );

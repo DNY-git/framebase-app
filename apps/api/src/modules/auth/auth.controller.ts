@@ -35,6 +35,8 @@ import { RefreshDto } from './dto/refresh.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { GoogleExchangeDto } from './dto/google-exchange.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { RateLimit } from '../../common/decorators/rate-limit.decorator';
 import {
@@ -85,6 +87,34 @@ export class AuthController {
   @HttpCode(200)
   async login(@Body() dto: LoginDto, @Req() req: Request): Promise<AuthResult> {
     return this.authService.login(dto, this.extractMeta(req));
+  }
+
+  /**
+   * Forgot password — sends a reset email if an account exists for the given
+   * email. Always returns the same response to prevent account enumeration.
+   */
+  @Public()
+  @RateLimit({ limit: 5, ttl: 60000 })
+  @Post('forgot-password')
+  @HttpCode(200)
+  async forgotPassword(
+    @Body() dto: ForgotPasswordDto,
+  ): Promise<{ message: string }> {
+    return this.authService.forgotPassword(dto.email);
+  }
+
+  /**
+   * Reset password — accepts a token (from the emailed link) and a new
+   * password, then invalidates all sessions and updates the password.
+   */
+  @Public()
+  @RateLimit({ limit: 5, ttl: 60000 })
+  @Post('reset-password')
+  @HttpCode(200)
+  async resetPassword(
+    @Body() dto: ResetPasswordDto,
+  ): Promise<{ message: string }> {
+    return this.authService.resetPassword(dto.token, dto.password);
   }
 
   /**

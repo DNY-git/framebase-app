@@ -112,6 +112,12 @@ export class UserRepository {
     return doc !== null;
   }
 
+  async updatePasswordHash(id: string, passwordHash: string): Promise<void> {
+    await this.model
+      .updateOne({ _id: id }, { $set: { passwordHash } })
+      .exec();
+  }
+
   /**
    * Finds multiple users by id — used to hydrate team member names/emails.
    */

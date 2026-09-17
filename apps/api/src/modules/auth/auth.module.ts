@@ -17,6 +17,11 @@ import { Tenant, TenantSchema } from '../../schemas/tenant.schema';
 import { User, UserSchema } from '../../schemas/user.schema';
 import { Membership, MembershipSchema } from '../../schemas/membership.schema';
 import { Session, SessionSchema } from '../../schemas/session.schema';
+import {
+  PasswordResetToken,
+  PasswordResetTokenSchema,
+} from '../../schemas/password-reset-token.schema';
+import { MailerModule } from '../../common/mailer/mailer.module';
 import type { AppConfig } from '../../config/configuration';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -29,6 +34,7 @@ import { TenantRepository } from './repositories/tenant.repository';
 import { UserRepository } from './repositories/user.repository';
 import { MembershipRepository } from './repositories/membership.repository';
 import { SessionRepository } from './repositories/session.repository';
+import { PasswordResetTokenRepository } from './repositories/password-reset-token.repository';
 
 @Module({
   imports: [
@@ -42,7 +48,9 @@ import { SessionRepository } from './repositories/session.repository';
       { name: User.name, schema: UserSchema },
       { name: Membership.name, schema: MembershipSchema },
       { name: Session.name, schema: SessionSchema },
+      { name: PasswordResetToken.name, schema: PasswordResetTokenSchema },
     ]),
+    MailerModule,
   ],
   controllers: [AuthController],
   providers: [
@@ -78,6 +86,7 @@ import { SessionRepository } from './repositories/session.repository';
     UserRepository,
     MembershipRepository,
     SessionRepository,
+    PasswordResetTokenRepository,
   ],
   exports: [AuthService, TokenService],
 })
