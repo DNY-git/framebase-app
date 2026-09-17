@@ -1,14 +1,16 @@
 /**
- * MailerService — optional SMTP email delivery via nodemailer.
+ * MailerService — optional email delivery via Resend's HTTP API.
  *
- * When SMTP_HOST is not configured the service reports `sent: false` instead
- * of pretending an email went out; callers surface a copyable link fallback.
- * See .env.example for the SMTP_* / MAIL_FROM variable contract.
+ * Resend sends over HTTPS (port 443), which Render's free tier does not
+ * block — unlike SMTP on ports 25/465/587.
+ *
+ * When RESEND_API_KEY is not configured the service reports `sent: false`
+ * instead of pretending an email went out; callers surface a copyable
+ * link fallback. See .env.example for the RESEND_API_KEY variable.
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
-import type { Transporter } from 'nodemailer';
+import { Resend } from 'resend';
 import type { AppConfig } from '../../config/configuration';
 
 export interface SendMailResult {
@@ -21,32 +23,25 @@ export interface SendMailResult {
 @Injectable()
 export class MailerService {
   private readonly logger = new Logger(MailerService.name);
-  private readonly transporter: Transporter | null;
+  private readonly resend: Resend | null;
   private readonly from: string;
 
   constructor(configService: ConfigService<AppConfig, true>) {
     this.from = configService.get('mailFrom', { infer: true });
-    const host = configService.get('smtpHost', { infer: true });
-    if (!host) {
-      this.transporter = null;
+    const apiKey = configService.get('resendApiKey', { infer: true });
+    if (!apiKey) {
+      this.resend = null;
+      this.logger.warn(
+        'RESEND_API_KEY not configured — email delivery disabled. ' +
+        'Set RESEND_API_KEY in your environment to enable email.',
+      );
       return;
     }
-    this.transporter = nodemailer.createTransport({
-      host,
-      port: configService.get('smtpPort', { infer: true }),
-      secure: configService.get('smtpSecure', { infer: true }),
-      auth:
-        configService.get('smtpUser', { infer: true })
-          ? {
-              user: configService.get('smtpUser', { infer: true }),
-              pass: configService.get('smtpPass', { infer: true }),
-            }
-          : undefined,
-    });
+    this.resend = new Resend(apiKey);
   }
 
   get isConfigured(): boolean {
-    return this.transporter !== null;
+    return this.resend !== null;
   }
 
   async sendMail(options: {
@@ -55,11 +50,23 @@ export class MailerService {
     html: string;
     text: string;
   }): Promise<SendMailResult> {
-    if (!this.transporter) {
+    if (!this.resend) {
       return { sent: false, reason: 'not_configured' };
     }
     try {
-      await this.transporter.sendMail({ from: this.from, ...options });
+      const { error } = await this.resend.emails.send({
+        from: this.from,
+        to: [options.to],
+        subject: options.subject,
+        html: options.html,
+        text: options.text,
+      });
+
+      if (error) {
+        this.logger.error(`Resend API error for ${options.to}: ${error.message}`);
+        return { sent: false, reason: 'error', error: error.message };
+      }
+
       return { sent: true };
     } catch (err) {
       this.logger.error(`Failed to send mail to ${options.to}: ${(err as Error).message}`);
