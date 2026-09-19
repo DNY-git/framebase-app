@@ -159,6 +159,27 @@ export const ChevronRight = createPathsWithElements([
   <path key="1" d="m9 18 6-6-6-6" />,
 ]);
 
+/* --- Added for the 2026-09-19 collapsible sidebar + dashboard header controls --- */
+
+export const LayoutGrid = createPathsWithElements([
+  <rect key="1" x="3" y="3" width="7" height="7" rx="1" />,
+  <rect key="2" x="14" y="3" width="7" height="7" rx="1" />,
+  <rect key="3" x="14" y="14" width="7" height="7" rx="1" />,
+  <rect key="4" x="3" y="14" width="7" height="7" rx="1" />,
+]);
+
+export const Briefcase = createPathsWithElements([
+  <path key="1" d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />,
+  <rect key="2" x="2" y="6" width="20" height="14" rx="2" />,
+]);
+
+export const BarChart3 = createMultiPathIcon([
+  'M3 3v18h18',
+  'M18 17V9',
+  'M13 17V5',
+  'M8 17v-3',
+]);
+
 export const ChevronDown = createPathsWithElements([
   <path key="1" d="m6 9 6 6 6-6" />,
 ]);
@@ -354,6 +375,33 @@ export const Building2 = createPathsWithElements([
   <path key="5" d="M10 10h4" />,
   <path key="6" d="M10 14h4" />,
   <path key="7" d="M10 18h4" />,
+]);
+
+/* --- Added for the 2026-09-18 landing redesign (ProblemSection scattered-tools diagram) --- */
+
+export const MessageCircle = createPathsWithElements([
+  <path key="1" d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />,
+]);
+
+export const FileSpreadsheet = createPathsWithElements([
+  <path key="1" d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />,
+  <polyline key="2" points="14 2 14 8 20 8" />,
+  <path key="3" d="M8 13h2" />,
+  <path key="4" d="M14 13h2" />,
+  <path key="5" d="M8 17h2" />,
+  <path key="6" d="M14 17h2" />,
+]);
+
+export const ReceiptText = createPathsWithElements([
+  <path key="1" d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1z" />,
+  <path key="2" d="M16 8H8" />,
+  <path key="3" d="M16 12H8" />,
+  <path key="4" d="M13 16H8" />,
+]);
+
+export const StickyNote = createPathsWithElements([
+  <path key="1" d="M16 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10l4-4V5a2 2 0 0 0-2-2Z" />,
+  <path key="2" d="M15 21v-4a2 2 0 0 1 2-2h4" />,
 ]);
 
 export const Crop = createMultiPathIcon([

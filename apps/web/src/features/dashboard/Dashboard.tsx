@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Area,
@@ -18,7 +18,126 @@ import {
   Clock,
   ArrowRight,
   HardHat,
+  Check,
+  ChevronDown,
 } from '../../shared/components/icons';
+
+/**
+ * Time spans offered by the chart header — the single source of truth shared by
+ * the quick-segment pills and the existing "Edit range" popover, so both drive
+ * the same `rangeDays` state (and therefore the same dashboard fetch).
+ */
+const RANGE_OPTIONS = [
+  { label: '1 day', days: 1 },
+  { label: '7 days', days: 7 },
+  { label: '30 days', days: 30 },
+  { label: '90 days', days: 90 },
+  { label: '6 months', days: 180 },
+  { label: '1 year', days: 365 },
+] as const;
+
+/** Subset surfaced as one-tap segments in the dashboard header. */
+const QUICK_RANGE_DAYS = [30, 180, 365] as const;
+
+function rangeOptionLabel(days: number): string {
+  return RANGE_OPTIONS.find((option) => option.days === days)?.label ?? `${days} days`;
+}
+
+/**
+ * Display-currency selector. Every amount in the API is stored and formatted in
+ * USD (`formatCompactCurrency`), so this is a visual stub with a single
+ * supported option — no multi-currency data support is implied.
+ */
+const SUPPORTED_CURRENCY = { code: 'USD', symbol: '$', name: 'US Dollar' } as const;
+
+function CurrencySelect() {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handlePointerDown(event: MouseEvent) {
+      if (ref.current && !ref.current.contains(event.target as Node)) setOpen(false);
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label="Display currency"
+        className="flex h-9 items-center gap-1 rounded-full border border-border bg-surface px-3 text-sm font-semibold text-foreground transition-colors hover:bg-surface-muted"
+      >
+        {SUPPORTED_CURRENCY.symbol}
+        <ChevronDown
+          className={`h-3.5 w-3.5 text-foreground-muted transition-transform ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+
+      {open && (
+        <ul
+          role="listbox"
+          aria-label="Display currency"
+          className="absolute right-0 top-full z-20 mt-2 w-56 rounded-xl border border-border bg-surface p-2 shadow-xl"
+        >
+          <li
+            role="option"
+            aria-selected="true"
+            className="flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-foreground"
+          >
+            {SUPPORTED_CURRENCY.name} ({SUPPORTED_CURRENCY.symbol})
+            <Check className="h-4 w-4 text-primary" />
+          </li>
+          <li className="px-3 py-1 text-[11px] leading-snug text-foreground-muted">
+            Base currency — {SUPPORTED_CURRENCY.code} is the only supported currency.
+          </li>
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** Quick-access severity pills; each one calls the same range setter as the popover. */
+function RangeSegments({ value, onChange }: { value: number; onChange: (days: number) => void }) {
+  return (
+    <div
+      role="group"
+      aria-label="Chart range"
+      className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-muted/60 p-1"
+    >
+      {QUICK_RANGE_DAYS.map((days) => {
+        const isActive = value === days;
+        return (
+          <button
+            key={days}
+            type="button"
+            onClick={() => onChange(days)}
+            aria-pressed={isActive}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              isActive
+                ? 'bg-surface text-foreground shadow-sm'
+                : 'text-foreground-muted hover:text-foreground'
+            }`}
+          >
+            {rangeOptionLabel(days)}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 function useDashboard(days: number) {
   const [data, setData] = useState<DashboardOverview | null>(null);
@@ -198,7 +317,16 @@ export function Dashboard(): React.JSX.Element {
 
   if (isLoading || !data) {
     return (
-      <PageLayout title="Dashboard" subtitle="Overview of your construction projects">
+      <PageLayout
+        title="Dashboard"
+        subtitle="Overview of your construction projects"
+        actions={
+          <>
+            <CurrencySelect />
+            <RangeSegments value={rangeDays} onChange={setRangeDays} />
+          </>
+        }
+      >
         <DashboardLoading />
       </PageLayout>
     );
@@ -215,6 +343,12 @@ export function Dashboard(): React.JSX.Element {
     <PageLayout
       title="Dashboard"
       subtitle="Overview of your construction projects"
+      actions={
+        <>
+          <CurrencySelect />
+          <RangeSegments value={rangeDays} onChange={setRangeDays} />
+        </>
+      }
     >
       <div className="space-y-6">
         {/* KPI row */}
@@ -291,14 +425,7 @@ export function Dashboard(): React.JSX.Element {
                   </button>
                   {showRangePopover && (
                     <div className="absolute left-0 top-full z-20 mt-2 w-48 rounded-xl border border-border bg-surface p-2 shadow-xl">
-                      {[
-                        { label: '1 day', days: 1 },
-                        { label: '7 days', days: 7 },
-                        { label: '30 days', days: 30 },
-                        { label: '90 days', days: 90 },
-                        { label: '6 months', days: 180 },
-                        { label: '1 year', days: 365 },
-                      ].map((opt) => (
+                      {RANGE_OPTIONS.map((opt) => (
                         <button
                           key={opt.days}
                           type="button"

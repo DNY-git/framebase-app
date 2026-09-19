@@ -1,32 +1,12 @@
 import { useEffect } from 'react';
+import type { ComponentType, SVGProps } from 'react';
 import { NavLink } from 'react-router-dom';
-import {
-  X,
-  LayoutDashboard,
-  FolderKanban,
-  Users,
-  CheckSquare,
-  Wrench,
-  Package,
-  FileText,
-  Shield,
-  Settings as SettingsIcon,
-} from '../shared/components/icons';
+import { X } from '../shared/components/icons';
 import { useSidebarStore } from '../stores/sidebar-store';
 import { Logo } from '../shared/components/Logo';
+import { NAV_ITEMS, BOTTOM_ITEMS } from './nav-items';
 
-const NAV_ITEMS = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/projects', label: 'Projects', icon: FolderKanban },
-  { to: '/team', label: 'Team', icon: Users },
-  { to: '/tasks', label: 'Tasks', icon: CheckSquare },
-  { to: '/equipment', label: 'Equipment', icon: Wrench },
-  { to: '/inventory', label: 'Inventory', icon: Package },
-  { to: '/reports', label: 'Reports', icon: FileText },
-  { to: '/documents', label: 'Documents', icon: FileText },
-  { to: '/audit', label: 'Audit Log', icon: Shield },
-  { to: '/settings', label: 'Settings', icon: SettingsIcon },
-] as const;
+type NavIcon = ComponentType<SVGProps<SVGSVGElement>>;
 
 export function MobileSidebar() {
   const { mobileOpen, closeMobile } = useSidebarStore();
@@ -39,6 +19,26 @@ export function MobileSidebar() {
     }
     return () => { document.body.style.overflow = ''; };
   }, [mobileOpen]);
+
+  const renderLink = ({ to, label, icon: Icon }: { to: string; label: string; icon: NavIcon }) => (
+    <li key={to}>
+      <NavLink
+        to={to}
+        end={to === '/dashboard'}
+        onClick={closeMobile}
+        className={({ isActive }) =>
+          `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+            isActive
+              ? 'bg-sidebar-active/10 text-sidebar-active'
+              : 'text-sidebar-foreground/70 hover:bg-sidebar-hover hover:text-sidebar-foreground'
+          }`
+        }
+      >
+        <Icon className="h-4 w-4" />
+        {label}
+      </NavLink>
+    </li>
+  );
 
   if (!mobileOpen) return null;
 
@@ -65,27 +65,11 @@ export function MobileSidebar() {
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-2">
-          <ul className="space-y-0.5">
-            {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
-              <li key={to}>
-                <NavLink
-                  to={to}
-                  end={to === '/dashboard'}
-                  onClick={closeMobile}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                      isActive
-                        ? 'bg-sidebar-active/10 text-sidebar-active'
-                        : 'text-sidebar-foreground/70 hover:bg-sidebar-hover hover:text-sidebar-foreground'
-                    }`
-                  }
-                >
-                  {Icon && <Icon className="h-4 w-4" />}
-                  {label}
-                </NavLink>
-              </li>
-            ))}
-          </ul>
+          <ul className="space-y-0.5">{NAV_ITEMS.map(renderLink)}</ul>
+
+          <div className="mt-2 border-t border-sidebar-border pt-2">
+            <ul className="space-y-0.5">{BOTTOM_ITEMS.map(renderLink)}</ul>
+          </div>
         </nav>
       </div>
     </div>
