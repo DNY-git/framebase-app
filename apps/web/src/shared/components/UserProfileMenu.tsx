@@ -16,8 +16,14 @@ export function UserProfileMenu() {
   const [open, setOpen] = useState(false);
   const [orgsLoading, setOrgsLoading] = useState(false);
   const [switching, setSwitching] = useState<string | null>(null);
+  /** Set when the avatar image cannot be loaded (missing file / remote URL). */
+  const [avatarFailed, setAvatarFailed] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    setAvatarFailed(false);
+  }, [user?.avatarUrl]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -74,11 +80,12 @@ export function UserProfileMenu() {
         aria-haspopup="true"
       >
         <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-          {user?.avatarUrl ? (
+          {user?.avatarUrl && !avatarFailed ? (
             <img
               src={`/api/v1/auth/${user.id}/avatar?v=${encodeURIComponent(user.avatarUrl)}`}
               alt=""
               className="h-full w-full object-cover"
+              onError={() => setAvatarFailed(true)}
             />
           ) : (
             initials

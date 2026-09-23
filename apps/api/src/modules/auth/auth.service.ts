@@ -49,6 +49,14 @@ export interface RequestMeta {
 
 const AVATAR_MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 
+/**
+ * Largest photo that is *also* mirrored into MongoDB. Real uploads come from
+ * the crop editor as a 512 px square (tens of KB); the cap simply keeps an
+ * unusually large original from bloating a user document (MongoDB's limit is
+ * 16 MB per document). Anything larger stays disk-only.
+ */
+const AVATAR_DB_MAX_BYTES = 4 * 1024 * 1024; // 4 MB
+
 const AVATAR_EXT_BY_MIME: Record<string, string> = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
@@ -61,6 +69,14 @@ const AVATAR_MIME_BY_EXT: Record<string, string> = {
   png: 'image/png',
   webp: 'image/webp',
 };
+
+/**
+ * Where an avatar's bytes came from — MongoDB (durable, preferred) or the
+ * legacy on-disk file.
+ */
+export type ResolvedAvatar =
+  | { source: 'db'; data: Buffer; mimeType: string }
+  | { source: 'disk'; absPath: string; mimeType: string };
 
 /** Response shape for register/login/refresh — the token pair + profile. */
 export interface AuthResult {
@@ -559,14 +575,27 @@ export class AuthService {
     // Revoke the old session (rotation).
     await this.sessionRepository.revokeSession(session.id);
 
-    // Load membership to get tenant + role for the access token.
-    const membership = await this.membershipRepository.findByUserId(
+    // Load memberships to get tenant + role for the access token.
+    const memberships = await this.membershipRepository.findByUserId(
       refreshPayload.sub,
     );
-    if (!membership || membership.length === 0) {
+    if (!memberships || memberships.length === 0) {
       throw new DomainException(ErrorCode.AUTH_NO_MEMBERSHIP, HttpStatus.UNAUTHORIZED, 'No tenant membership found.');
     }
-    const active = membership[0];
+    // Keep the organization the session was issued for — the refresh token
+    // carries it as a claim. Tokens minted before that claim existed, or
+    // tokens whose organization has since been left, fall back to the user's
+    // first membership (the pre-existing behaviour).
+    const claimedTenantId = refreshPayload.tenantId;
+    const claimed = claimedTenantId
+      ? memberships.find((m) => m.tenantId === claimedTenantId)
+      : undefined;
+    if (claimedTenantId && !claimed) {
+      this.logger.warn(
+        `Refresh for user ${refreshPayload.sub} names tenant ${claimedTenantId}, which is no longer among their memberships — falling back to ${memberships[0].tenantId}.`,
+      );
+    }
+    const active = claimed ?? memberships[0];
     const user = await this.userRepository.findById(refreshPayload.sub);
     if (!user || user.status !== 'active') {
       throw new DomainException(ErrorCode.AUTH_DISABLED_ACCOUNT, HttpStatus.UNAUTHORIZED, 'Account is disabled or not found.');
@@ -726,8 +755,14 @@ export class AuthService {
     // replaced — otherwise a re-upload with the same extension keeps the
     // old cached image forever (same URL, same `?v=`).
     const avatarUrl = `${storageKey}?v=${Date.now()}`;
+    // Mirror the bytes into the document as well. Serving prefers this copy,
+    // so the photo survives a restart of the API process (the hosted
+    // filesystem is ephemeral) instead of 404ing after a reload.
+    const keepInDb = buffer.length <= AVATAR_DB_MAX_BYTES;
     const updated = await this.userRepository.updateProfile(userId, {
       avatarUrl,
+      avatarData: keepInDb ? buffer : null,
+      avatarMimeType: keepInDb ? mimeType : null,
     });
     if (!updated) {
       throw new DomainException(ErrorCode.AUTH_USER_NOT_FOUND, HttpStatus.UNAUTHORIZED, 'User not found.');
@@ -741,28 +776,42 @@ export class AuthService {
     return avatarUrl;
   }
 
-  /** Removes the user's avatar (file + DB record). */
+  /** Removes the user's avatar (database copy, file, and DB reference). */
   async removeAvatar(userId: string): Promise<void> {
     const user = await this.userRepository.findById(userId);
     if (!user || !user.avatarUrl) return;
-    await this.userRepository.updateProfile(userId, { avatarUrl: null });
+    await this.userRepository.updateProfile(userId, {
+      avatarUrl: null,
+      avatarData: null,
+      avatarMimeType: null,
+    });
     await fsp.unlink(this.avatarAbsPath(this.stripAvatarVersion(user.avatarUrl))).catch(() => {});
   }
 
   /**
-   * Resolves an avatar's absolute path + MIME type for serving.
-   * Returns null when the user has no avatar.
+   * Resolves an avatar for serving.
    *
-   * Deliberately DB-free: the storage key is deterministic
-   * (`avatars/<userId>.<ext>`), so this only probes the three supported
-   * extensions on disk. Avoids a database round trip on every `<img>` tag.
+   * The MongoDB copy is preferred because it is durable — the hosted
+   * filesystem is ephemeral, so a disk-only photo can point at a file that no
+   * longer exists after a restart. Photos uploaded before the mirror existed
+   * (and oversized ones) still resolve from disk, and a database error falls
+   * back to disk as well so avatars keep serving while Mongo is unreachable.
    */
-  async resolveAvatar(userId: string): Promise<{ absPath: string; mimeType: string } | null> {
+  async resolveAvatar(userId: string): Promise<ResolvedAvatar | null> {
+    const stored = await this.userRepository
+      .findAvatar(userId)
+      .catch(() => null);
+    if (stored) {
+      return { source: 'db', data: stored.data, mimeType: stored.mimeType };
+    }
+
+    // Legacy / oversized / Mongo-unreachable fallback: probe the three
+    // supported extensions on disk.
     for (const ext of ['jpg', 'png', 'webp']) {
       const absPath = this.avatarAbsPath(`avatars/${userId}.${ext}`);
       try {
         await fsp.access(absPath);
-        return { absPath, mimeType: AVATAR_MIME_BY_EXT[ext] };
+        return { source: 'disk', absPath, mimeType: AVATAR_MIME_BY_EXT[ext] };
       } catch {
         // Try the next extension.
       }
@@ -804,10 +853,11 @@ export class AuthService {
     const ttlSeconds = this.ttlToSeconds(refreshTtl);
 
     // Issue the token pair once. The refresh token references a placeholder
-    // session id initially.
+    // session id initially; the tenant claim is what lets `refresh()` keep the
+    // user in the organization they were actually working in.
     const tokenPair = await this.tokenService.generateTokenPair(
       { sub: userId, tenantId, role },
-      { sub: userId, sid: 'pending' },
+      { sub: userId, sid: 'pending', tenantId },
     );
 
     // Store a hash of the refresh token in a new session. The session id

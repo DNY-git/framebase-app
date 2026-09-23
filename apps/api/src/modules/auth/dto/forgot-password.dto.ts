@@ -4,7 +4,7 @@
  * Accepts an email address. The service always returns the same success
  * response regardless of whether the email is registered (no enumeration).
  */
-import { IsEmail, IsString, MaxLength, Matches } from 'class-validator';
+import { IsEmail, MaxLength, Matches } from 'class-validator';
 
 export class ForgotPasswordDto {
   @IsEmail()

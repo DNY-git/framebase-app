@@ -48,6 +48,24 @@ export class User {
   @Prop({ type: String })
   avatarUrl?: string;
 
+  /**
+   * Uploaded photo bytes, mirrored into the document so a profile photo
+   * survives a restart of the API process. The hosted filesystem is
+   * ephemeral, so a disk-only avatar (the legacy behaviour) could reference
+   * a file that no longer exists after a redeploy — the photo then vanished
+   * on the next page load.
+   *
+   * Deliberately excluded from the standard repository mapping: only
+   * `UserRepository.findAvatar()` loads it, so login/refresh/`getMe` never
+   * drag the image through a query.
+   */
+  @Prop({ type: Buffer })
+  avatarData?: Buffer;
+
+  /** MIME type of `avatarData` (`image/jpeg` | `image/png` | `image/webp`). */
+  @Prop({ type: String })
+  avatarMimeType?: string;
+
   @Prop({
     type: String,
     required: true,

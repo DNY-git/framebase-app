@@ -118,6 +118,14 @@ function ProfileTab({ user, setUser }: { user: User | null; setUser: (u: User) =
   const [editorSrc, setEditorSrc] = useState<string | null>(null);
   const editorUrlRef = useRef<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  /**
+   * Set when the avatar <img> fails to load — the file can be missing even
+   * though `avatarUrl` is set (e.g. an ephemeral server disk, or a remote
+   * Google photo URL that this API does not proxy). Rendering the initials
+   * instead of a broken image means a refresh can never leave the profile
+   * photo blank.
+   */
+  const [avatarFailed, setAvatarFailed] = useState(false);
 
   const closeEditor = useCallback(() => {
     setEditorSrc(null);
@@ -128,6 +136,19 @@ function ProfileTab({ user, setUser }: { user: User | null; setUser: (u: User) =
   }, []);
 
   useEffect(() => closeEditor, [closeEditor]);
+
+  // After a page refresh the profile arrives asynchronously (`fetchUser`) and
+  // an organization switch replaces it — re-seed the name field so the form
+  // never sits on an empty value that a save would then push to the server.
+  const userId = user?.id ?? null;
+  const userName = user?.name ?? '';
+  useEffect(() => {
+    setName(userName);
+  }, [userId, userName]);
+
+  useEffect(() => {
+    setAvatarFailed(false);
+  }, [user?.avatarUrl]);
 
   const uploadAvatar = async (file: File) => {
     setIsAvatarUploading(true);
@@ -198,21 +219,28 @@ function ProfileTab({ user, setUser }: { user: User | null; setUser: (u: User) =
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setError('Name cannot be empty');
+      setSuccess(false);
+      return;
+    }
     setIsLoading(true);
     setError(null);
     setSuccess(false);
     try {
       const res = await authFetch('/api/v1/auth/me', {
         method: 'PATCH',
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name: trimmed }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         throw new Error(body?.message ?? 'Failed to update profile');
       }
       if (user) {
-        setUser({ ...user, name });
+        setUser({ ...user, name: trimmed });
       }
+      setName(trimmed);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
@@ -238,11 +266,12 @@ function ProfileTab({ user, setUser }: { user: User | null; setUser: (u: User) =
       <div className="mb-6 flex items-center gap-4">
         <div className="relative">
           <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-primary text-lg font-semibold text-primary-foreground">
-            {user?.avatarUrl ? (
+            {user?.avatarUrl && !avatarFailed ? (
               <img
                 src={`/api/v1/auth/${user.id}/avatar?v=${encodeURIComponent(user.avatarUrl)}`}
                 alt="Profile photo"
                 className="h-full w-full object-cover"
+                onError={() => setAvatarFailed(true)}
               />
             ) : (
               user?.name

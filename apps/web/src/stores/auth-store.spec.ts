@@ -1,21 +1,46 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock auth module before importing the store
-const mockGetStoredToken = vi.fn(() => null);
-const mockGetStoredRefreshToken = vi.fn(() => null);
-const mockStoreTokens = vi.fn();
-const mockClearTokens = vi.fn();
+/**
+ * `vi.mock` factories are hoisted above the imports and declarations of this
+ * module, so everything they reference has to be created inside `vi.hoisted`
+ * — a plain top-level `const` is still in its temporal dead zone when the
+ * factory runs ("Cannot access 'mockGetStoredToken' before initialization").
+ */
+const {
+  mockGetStoredToken,
+  mockGetStoredRefreshToken,
+  mockStoreTokens,
+  mockClearTokens,
+  mockAuthFetch,
+  sessionListeners,
+} = vi.hoisted(() => ({
+  mockGetStoredToken: vi.fn((): string | null => null),
+  mockGetStoredRefreshToken: vi.fn((): string | null => null),
+  mockStoreTokens: vi.fn(),
+  mockClearTokens: vi.fn(),
+  mockAuthFetch: vi.fn(),
+  sessionListeners: new Set<
+    (session: { accessToken: string | null; refreshToken: string | null }) => void
+  >(),
+}));
 
+// Mock the auth (storage) module before importing the store
 vi.mock('../auth', () => ({
   getStoredToken: () => mockGetStoredToken(),
   getStoredRefreshToken: () => mockGetStoredRefreshToken(),
   storeTokens: (...args: unknown[]) => mockStoreTokens(...args),
   clearTokens: (...args: unknown[]) => mockClearTokens(...args),
+  subscribeToSession: (
+    listener: (session: { accessToken: string | null; refreshToken: string | null }) => void,
+  ) => {
+    sessionListeners.add(listener);
+    return () => {
+      sessionListeners.delete(listener);
+    };
+  },
 }));
 
 // Mock authFetch — we'll control its return value per-test
-const mockAuthFetch = vi.fn();
-
 vi.mock('../auth-fetch', () => ({
   authFetch: (...args: unknown[]) => mockAuthFetch(...args),
 }));

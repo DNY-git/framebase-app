@@ -90,17 +90,44 @@ export class UserRepository {
 
   async updateProfile(
     id: string,
-    data: { name?: string; avatarUrl?: string | null },
+    data: {
+      name?: string;
+      avatarUrl?: string | null;
+      avatarData?: Buffer | null;
+      avatarMimeType?: string | null;
+    },
   ): Promise<UserDomain | null> {
     const set: Record<string, unknown> = {};
     if (data.name !== undefined) set.name = data.name;
     // Only touch avatarUrl when explicitly provided — an unconditional
     // `?? null` here wiped the stored reference on every profile save.
     if (data.avatarUrl !== undefined) set.avatarUrl = data.avatarUrl;
+    // Same discipline for the mirrored bytes: `null` clears them (photo
+    // removed / oversized upload), `undefined` leaves them alone.
+    if (data.avatarData !== undefined) set.avatarData = data.avatarData;
+    if (data.avatarMimeType !== undefined) set.avatarMimeType = data.avatarMimeType;
     const doc = await this.model
       .findByIdAndUpdate(id, { $set: set }, { new: true })
       .exec();
     return doc ? this.toDomain(doc) : null;
+  }
+
+  /**
+   * Loads only the stored avatar bytes + MIME type for serving.
+   *
+   * Separate from `findById` on purpose: the image must not travel with every
+   * login / refresh / `getMe` lookup. Returns null when the user has no
+   * database copy (legacy disk-only avatar).
+   */
+  async findAvatar(
+    id: string,
+  ): Promise<{ data: Buffer; mimeType: string } | null> {
+    const doc = await this.model
+      .findById(id)
+      .select('avatarData avatarMimeType')
+      .exec();
+    if (!doc?.avatarData || !doc.avatarMimeType) return null;
+    return { data: Buffer.from(doc.avatarData), mimeType: doc.avatarMimeType };
   }
 
   async existsByEmail(email: string): Promise<boolean> {

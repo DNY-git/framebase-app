@@ -54,6 +54,26 @@ describe('TokenService', () => {
       expect(refreshPayload.sid).toBe('session-1');
     });
 
+    it('carries the active tenant in the refresh token when provided', async () => {
+      const pair = await tokenService.generateTokenPair(
+        { sub: 'user-1', tenantId: 'tenant-1', role: 'admin' as Role },
+        { sub: 'user-1', sid: 'session-1', tenantId: 'tenant-2' },
+      );
+
+      const refreshPayload = await tokenService.verifyRefreshToken(pair.refreshToken);
+      expect(refreshPayload.tenantId).toBe('tenant-2');
+    });
+
+    it('omits the tenant claim when not provided (tokens minted before the claim existed)', async () => {
+      const pair = await tokenService.generateTokenPair(
+        { sub: 'user-1', tenantId: 'tenant-1', role: 'admin' as Role },
+        { sub: 'user-1', sid: 'session-1' },
+      );
+
+      const refreshPayload = await tokenService.verifyRefreshToken(pair.refreshToken);
+      expect(refreshPayload.tenantId).toBeUndefined();
+    });
+
     it('uses distinct secrets — access token fails refresh verification', async () => {
       const pair = await tokenService.generateTokenPair(
         { sub: 'user-1', tenantId: 'tenant-1', role: 'admin' as Role },

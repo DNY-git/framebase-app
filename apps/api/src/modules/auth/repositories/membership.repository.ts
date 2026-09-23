@@ -52,9 +52,16 @@ export class MembershipRepository {
   /**
    * Finds all memberships for a user across all tenants.
    * Used for multi-tenant context switching (future).
+   *
+   * Sorted by creation time so callers that fall back to "the first
+   * membership" (login, refresh) get a deterministic organization instead
+   * of whichever the driver happens to return first.
    */
   async findByUserId(userId: string): Promise<MembershipDomain[]> {
-    const docs = await this.model.find({ userId }).exec();
+    const docs = await this.model
+      .find({ userId })
+      .sort({ createdAt: 1 })
+      .exec();
     return docs.map((doc) => this.toDomain(doc));
   }
 

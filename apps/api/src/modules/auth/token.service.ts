@@ -23,6 +23,14 @@ export interface AccessTokenPayload {
 export interface RefreshTokenPayload {
   sub: string; // userId
   sid: string; // sessionId
+  /**
+   * Tenant (organization) the pair was issued for. Carried through every
+   * rotation so a refresh keeps the user in the organization they switched
+   * to. Optional so refresh tokens minted before this claim existed still
+   * verify — `AuthService.refresh` falls back to the user's first membership
+   * for those.
+   */
+  tenantId?: string;
 }
 
 export interface TokenPair {
@@ -69,6 +77,11 @@ export class TokenService {
       {
         sub: refresh.sub,
         sid: refresh.sid,
+        // Carry the active organization through rotations: without this claim
+        // a refresh silently moved a multi-org user back to their first
+        // membership, so the app looked like it had "forgotten" the
+        // organization/profile context they were working in.
+        ...(refresh.tenantId ? { tenantId: refresh.tenantId } : {}),
       },
       {
         secret: this.configService.get<string>('jwtRefreshSecret', {
@@ -105,17 +118,19 @@ export class TokenService {
 
   /**
    * Verifies a refresh token. Throws on invalid/expired.
+   * `tenantId` is absent on tokens minted before the claim was introduced.
    */
   async verifyRefreshToken(token: string): Promise<RefreshTokenPayload> {
     const payload = await this.jwtService.verifyAsync<{
       sub: string;
       sid: string;
+      tenantId?: string;
     }>(token, {
       secret: this.configService.get<string>('jwtRefreshSecret', {
         infer: true,
       }),
     });
-    return { sub: payload.sub, sid: payload.sid };
+    return { sub: payload.sub, sid: payload.sid, tenantId: payload.tenantId };
   }
 
   /**

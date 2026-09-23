@@ -5,6 +5,7 @@ import {
   getStoredRefreshToken,
   storeTokens,
   clearTokens,
+  subscribeToSession,
 } from '../auth';
 
 export interface User {
@@ -91,13 +92,15 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   fetchOrganizations: async () => {
-    const token = get().token;
-    if (!token) return;
+    if (!getStoredToken()) return;
 
     try {
-      const res = await fetch('/api/v1/organizations/me', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // authFetch attaches the *current* access token straight from storage
+      // and refreshes + retries once on a 401. Doing a raw fetch with the
+      // store's `token` field silently 401'd after any reload that had to
+      // rotate the pair, which made an organization disappear from the
+      // profile menu.
+      const res = await authFetch('/api/v1/organizations/me');
       if (!res.ok) return;
       const body = await res.json();
       const data = body.data ?? body;
@@ -110,16 +113,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   switchOrganization: async (tenantId) => {
-    const token = get().token;
-    if (!token) return false;
+    if (!getStoredToken()) return false;
 
     try {
-      const res = await fetch('/api/v1/organizations/switch', {
+      const res = await authFetch('/api/v1/organizations/switch', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ tenantId }),
       });
       if (!res.ok) return false;
@@ -149,16 +147,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   createOrganization: async (name) => {
-    const token = get().token;
-    if (!token) return { ok: false, message: 'Not authenticated.' };
+    if (!getStoredToken()) return { ok: false, message: 'Not authenticated.' };
 
     try {
-      const res = await fetch('/api/v1/organizations', {
+      const res = await authFetch('/api/v1/organizations', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ name }),
       });
       const body = await res.json().catch(() => null);
@@ -197,3 +190,42 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
   },
 }));
+
+/**
+ * Keeps the in-memory session in step with what is stored.
+ *
+ * `authFetch` silently rotates the token pair when the access token has
+ * expired — which is exactly what happens on the first page load after
+ * 15 minutes away — and clears the pair when the refresh fails. This
+ * mirror makes sure `token` / `refreshToken` / `isAuthenticated` never
+ * drift from storage, so the profile menu, organization switching, the AI
+ * assistant and the token-aware pages all keep working after a refresh
+ * instead of sending a stale bearer token.
+ */
+subscribeToSession(({ accessToken, refreshToken }) => {
+  const nextToken = accessToken ?? '';
+  const nextRefreshToken = refreshToken ?? '';
+  const state = useAuthStore.getState();
+
+  if (state.token === nextToken && state.refreshToken === nextRefreshToken) return;
+
+  if (accessToken) {
+    useAuthStore.setState({
+      token: nextToken,
+      refreshToken: nextRefreshToken,
+      isAuthenticated: true,
+    });
+    return;
+  }
+
+  // Tokens were cleared (refresh failed / logged out) — drop the session so
+  // the route guard redirects instead of rendering a half-authenticated app.
+  useAuthStore.setState({
+    token: '',
+    refreshToken: '',
+    user: null,
+    organizations: null,
+    isAuthenticated: false,
+    isLoadingUser: false,
+  });
+});

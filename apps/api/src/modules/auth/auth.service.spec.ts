@@ -10,6 +10,7 @@
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { ConfigService } from '@nestjs/config';
+import * as fsPromises from 'fs/promises';
 import { DomainException } from '../../common/exceptions/domain.exception';
 import { Role } from '@constructtrack/types';
 import type { AppConfig } from '../../config/configuration';
@@ -17,7 +18,23 @@ import { AuthService } from './auth.service';
 import { PasswordService } from './password.service';
 import type { PasswordStrengthResult } from './password.service';
 import { TokenService } from './token.service';
-import type { TokenPair, RefreshTokenPayload } from './token.service';
+import type { TokenPair, RefreshTokenPayload, AccessTokenPayload } from './token.service';
+
+/**
+ * Avatar storage is the only place AuthService touches `fs/promises`, so the
+ * module is mocked here: uploads/resolution are then deterministic and the
+ * suite never writes a real file. `resolveStorageRoot()` uses `fs` (not
+ * `fs/promises`), so the path resolution under test stays real.
+ *
+ * Default implementation: nothing on disk (`access` rejects), which is the
+ * "photo exists only in MongoDB" case.
+ */
+vi.mock('fs/promises', () => ({
+  mkdir: vi.fn().mockResolvedValue(undefined),
+  writeFile: vi.fn().mockResolvedValue(undefined),
+  unlink: vi.fn().mockResolvedValue(undefined),
+  access: vi.fn().mockRejectedValue(new Error('ENOENT: no such file or directory')),
+}));
 
 // --- Mocks -----------------------------------------------------------------
 
@@ -35,7 +52,7 @@ function mockPasswordService() {
 function mockTokenService() {
   return {
     generateTokenPair: vi
-      .fn<() => Promise<TokenPair>>()
+      .fn<(access: AccessTokenPayload, refresh: RefreshTokenPayload) => Promise<TokenPair>>()
       .mockResolvedValue({ accessToken: 'at', refreshToken: 'rt', expiresIn: 900 }),
     verifyAccessToken: vi.fn(),
     verifyRefreshToken: vi.fn<() => Promise<RefreshTokenPayload>>(),
@@ -73,6 +90,8 @@ function mockRepositories() {
       linkGoogleId: vi.fn(),
       updateLastLogin: vi.fn().mockResolvedValue(undefined),
       updatePasswordHash: vi.fn().mockResolvedValue(undefined),
+      updateProfile: vi.fn().mockResolvedValue({ id: 'user-1' }),
+      findAvatar: vi.fn().mockResolvedValue(null),
     },
     membership: {
       create: vi.fn().mockResolvedValue(undefined),
@@ -474,6 +493,81 @@ describe('AuthService', () => {
       expect(result.accessToken).toBe('at');
     });
 
+    it('keeps the organization the refresh token was issued for (not membership[0])', async () => {
+      // The user switched to tenant-2 after login — the refresh token claims
+      // tenant-2, so the rotated pair must stay there even though tenant-1
+      // is their first membership.
+      tokenService.verifyRefreshToken.mockResolvedValue({
+        sub: 'user-1',
+        sid: 'old',
+        tenantId: 'tenant-2',
+      });
+      repos.session.findActiveByToken.mockResolvedValue({ id: 'old-session' });
+      repos.membership.findByUserId.mockResolvedValue([
+        { userId: 'user-1', tenantId: 'tenant-1', role: Role.ADMIN },
+        { userId: 'user-1', tenantId: 'tenant-2', role: Role.PROJECT_MANAGER },
+      ]);
+      repos.user.findById.mockResolvedValue({
+        id: 'user-1',
+        email: 'test@example.com',
+        name: 'Test',
+        status: 'active',
+      });
+
+      const result = await service.refresh({ refreshToken: 'rt' }, {});
+
+      expect(result.user.tenantId).toBe('tenant-2');
+      expect(result.user.role).toBe(Role.PROJECT_MANAGER);
+      // ...and the rotation must carry the claim forward, otherwise the next
+      // refresh would lose it again.
+      expect(tokenService.generateTokenPair).toHaveBeenCalledWith(
+        { sub: 'user-1', tenantId: 'tenant-2', role: Role.PROJECT_MANAGER },
+        { sub: 'user-1', sid: 'pending', tenantId: 'tenant-2' },
+      );
+    });
+
+    it('falls back to the first membership for legacy tokens without a tenant claim', async () => {
+      tokenService.verifyRefreshToken.mockResolvedValue({ sub: 'user-1', sid: 'old' });
+      repos.session.findActiveByToken.mockResolvedValue({ id: 'old-session' });
+      repos.membership.findByUserId.mockResolvedValue([
+        { userId: 'user-1', tenantId: 'tenant-1', role: Role.ADMIN },
+        { userId: 'user-1', tenantId: 'tenant-2', role: Role.PROJECT_MANAGER },
+      ]);
+      repos.user.findById.mockResolvedValue({
+        id: 'user-1',
+        email: 'test@example.com',
+        name: 'Test',
+        status: 'active',
+      });
+
+      const result = await service.refresh({ refreshToken: 'rt' }, {});
+
+      expect(result.user.tenantId).toBe('tenant-1');
+      expect(result.user.role).toBe(Role.ADMIN);
+    });
+
+    it('falls back to the first membership when the claimed tenant is no longer a membership', async () => {
+      tokenService.verifyRefreshToken.mockResolvedValue({
+        sub: 'user-1',
+        sid: 'old',
+        tenantId: 'tenant-9',
+      });
+      repos.session.findActiveByToken.mockResolvedValue({ id: 'old-session' });
+      repos.membership.findByUserId.mockResolvedValue([
+        { userId: 'user-1', tenantId: 'tenant-1', role: Role.ADMIN },
+      ]);
+      repos.user.findById.mockResolvedValue({
+        id: 'user-1',
+        email: 'test@example.com',
+        name: 'Test',
+        status: 'active',
+      });
+
+      const result = await service.refresh({ refreshToken: 'rt' }, {});
+
+      expect(result.user.tenantId).toBe('tenant-1');
+    });
+
     it('revokes ALL sessions on reuse of a revoked token (theft signal)', async () => {
       tokenService.verifyRefreshToken.mockResolvedValue({ sub: 'user-1', sid: 'old' });
       // No active session found — token was revoked — reuse detected.
@@ -583,4 +677,100 @@ describe('AuthService', () => {
       expect(result.message).toContain('Password has been reset');
     });
   });
+  describe('avatars', () => {
+    const image = Buffer.from('fake-jpeg-bytes');
+    /** Resets the mocked disk probe so each test states its own filesystem. */
+    const disk = () => {
+      const access = vi.mocked(fsPromises.access);
+      access.mockReset();
+      return access;
+    };
+
+    it('mirrors uploaded photo bytes into the database and versions the URL', async () => {
+      repos.user.findById.mockResolvedValue({ id: 'user-1', avatarUrl: null });
+
+      const url = await service.setAvatar('user-1', image, 'image/jpeg');
+
+      expect(url).toMatch(/^avatars\/user-1\.jpg\?v=\d+$/);
+      // The durable copy is what makes the photo survive a restart of the
+      // API process (the hosted filesystem is ephemeral).
+      expect(repos.user.updateProfile).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({
+          avatarUrl: expect.stringMatching(/^avatars\/user-1\.jpg\?v=\d+$/),
+          avatarData: image,
+          avatarMimeType: 'image/jpeg',
+        }),
+      );
+      // The disk write stays as a backup for legacy serving.
+      expect(vi.mocked(fsPromises.writeFile)).toHaveBeenCalledOnce();
+    });
+
+    it('keeps oversized photos disk-only so database documents stay small', async () => {
+      repos.user.findById.mockResolvedValue({ id: 'user-1', avatarUrl: null });
+      const oversized = Buffer.alloc(4 * 1024 * 1024 + 1); // > AVATAR_DB_MAX_BYTES, <= 10 MB
+
+      await service.setAvatar('user-1', oversized, 'image/png');
+
+      expect(repos.user.updateProfile).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({ avatarData: null, avatarMimeType: null }),
+      );
+      expect(vi.mocked(fsPromises.writeFile)).toHaveBeenCalledOnce();
+    });
+
+    it('serves the database copy when present (no filesystem dependency)', async () => {
+      repos.user.findAvatar.mockResolvedValue({ data: image, mimeType: 'image/jpeg' });
+
+      const resolved = await service.resolveAvatar('user-1');
+
+      expect(resolved).toEqual({ source: 'db', data: image, mimeType: 'image/jpeg' });
+      expect(vi.mocked(fsPromises.access)).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the disk file for photos with no database copy', async () => {
+      repos.user.findAvatar.mockResolvedValue(null);
+      disk()
+        .mockRejectedValueOnce(new Error('ENOENT')) // avatars/user-1.jpg
+        .mockResolvedValueOnce(undefined); // avatars/user-1.png
+
+      const resolved = await service.resolveAvatar('user-1');
+
+      expect(resolved?.source).toBe('disk');
+      if (resolved?.source === 'disk') {
+        expect(resolved.absPath).toContain('user-1.png');
+        expect(resolved.mimeType).toBe('image/png');
+      }
+    });
+
+    it('keeps serving from disk when the database read fails', async () => {
+      repos.user.findAvatar.mockRejectedValue(new Error('Mongo unavailable'));
+      disk().mockResolvedValue(undefined);
+
+      const resolved = await service.resolveAvatar('user-1');
+
+      expect(resolved?.source).toBe('disk');
+    });
+
+    it('returns null when the photo exists in neither MongoDB nor on disk', async () => {
+      repos.user.findAvatar.mockResolvedValue(null);
+      disk().mockRejectedValue(new Error('ENOENT'));
+
+      await expect(service.resolveAvatar('user-1')).resolves.toBeNull();
+    });
+
+    it('removeAvatar clears the database copy and the stored reference', async () => {
+      repos.user.findById.mockResolvedValue({ id: 'user-1', avatarUrl: 'avatars/user-1.jpg?v=1' });
+
+      await service.removeAvatar('user-1');
+
+      expect(repos.user.updateProfile).toHaveBeenCalledWith('user-1', {
+        avatarUrl: null,
+        avatarData: null,
+        avatarMimeType: null,
+      });
+      expect(vi.mocked(fsPromises.unlink)).toHaveBeenCalledOnce();
+    });
+  });
+
 });

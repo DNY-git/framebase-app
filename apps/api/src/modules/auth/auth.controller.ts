@@ -282,6 +282,10 @@ export class AuthController {
       return;
     }
     res.set({ 'Content-Type': avatar.mimeType, 'Cache-Control': 'private, max-age=86400' });
+    // Prefer the durable MongoDB copy; fall back to the legacy file.
+    if (avatar.source === 'db') {
+      return res.send(avatar.data);
+    }
     return res.sendFile(avatar.absPath);
   }
 }
