@@ -1,6 +1,40 @@
 @import 'tailwindcss';
 
+@font-face {
+  font-family: 'Instrument Serif';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('../assets/fonts/instrument-serif/instrument-serif-latin-400-normal.woff2') format('woff2'),
+    url('../assets/fonts/instrument-serif/instrument-serif-latin-400-normal.woff') format('woff');
+}
+
 @theme {
+  /* Display serif for the marketing landing page (Instrument Serif, OFL-1.1,
+     vendored in src/assets/fonts/instrument-serif — self-hosted, no CDN). */
+  --font-serif: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+
+  /* 2026-09-23 landing redesign palette (editorial stone/terracotta system).
+     Warm stone shades override Tailwind's built-in stone scale for the shades
+     listed below; unlisted shades (600/700/950) keep their defaults. */
+  --color-cream: #fcfbf7;
+  --color-stone-50: #faf9f6;
+  --color-stone-100: #f4f2eb;
+  --color-stone-200: #e8e5dc;
+  --color-stone-300: #d5d0c3;
+  --color-stone-400: #a8a293;
+  --color-stone-500: #7b7669;
+  --color-stone-800: #23221e;
+  --color-stone-900: #141412;
+  --color-terracotta-500: #e25c38;
+  --color-terracotta-600: #c94723;
+  --color-cad-blue: #2b59c3;
+  --color-cad-accent: #3b82f6;
+  --color-cad-warning: #f59e0b;
+  --color-cad-success: #10b981;
+  --shadow-dashboard: 0 25px 60px -15px rgba(20, 20, 18, 0.12), 0 0 1px 1px rgba(20, 20, 18, 0.08);
+  --shadow-card-subtle: 0 2px 8px -2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
+
   --color-background: var(--background);
   --color-surface: var(--surface);
   --color-surface-muted: var(--surface-muted);
@@ -264,6 +298,41 @@ input[type="number"]::-webkit-inner-spin-button {
     font-feature-settings: 'tnum' 1;
   }
 }
+/*
+ * Landing page typography (2026-09-23 editorial redesign).
+ * Instrument Serif for display headlines, Inter for body copy, JetBrains Mono
+ * for technical/mono accents — scoped to the marketing landing page only, so
+ * the app keeps its monospace base font. `--font-mono` is re-pointed under the
+ * landing scope so `font-mono` utilities inside the landing resolve to
+ * JetBrains Mono without touching the app-wide stack.
+ */
+.landing-page {
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+.landing-page .font-display {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+}
+
+/* Architectural blueprint backdrops for the landing page. */
+@layer utilities {
+  .blueprint-grid {
+    background-image: radial-gradient(circle, #d8d4c8 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+  .blueprint-lines {
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+}
+
 
 /* App-wide: remove row divider lines from tables and lists (design update).
    Rows stay visually distinguishable via their existing cell padding; the outer

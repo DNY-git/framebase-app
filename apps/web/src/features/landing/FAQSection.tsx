@@ -1,89 +1,54 @@
-import { useState } from 'react';
-import { ChevronDown } from '../../shared/components/icons';
-import { SectionHeading, Reveal } from './shared';
+import { ChevronDown } from 'lucide-react';
+import { Reveal } from './shared';
 
 const FAQS = [
   {
-    q: 'What is FrameBase?',
-    a: 'FrameBase is a construction project management platform that connects projects, tasks, teams, budgets, materials, equipment, documents and reports in one workspace.',
+    q: 'How does FrameBase integrate with WhatsApp and site messaging?',
+    a: "Field foremen can text photos, voice notes, and delivery tickets straight to FrameBase's dedicated WhatsApp bot. Our system transcribes the audio, scans receipt amounts, and automatically attaches them to the specific project phase and line item.",
   },
   {
-    q: 'Who is FrameBase for?',
-    a: 'Construction companies of any size — project managers, site engineers, crew, procurement and fleet teams, as well as business owners who need visibility across projects.',
+    q: 'Can subcontractors view our client budget or profit margins?',
+    a: 'No. Subcontractors receive strict scope-limited portal access. They only see task descriptions, punchlists, inspection stamps, and upload portals for their own payment claims. Sensitive general contractor markups and client master budgets remain encrypted and invisible.',
   },
   {
-    q: 'Can I manage multiple projects?',
-    a: 'Yes. Create and organize as many projects as you need, each with its own budget, timeline, team, tasks and documents — and monitor all of them from the dashboard.',
+    q: 'Does the platform work offline on remote jobsites with poor cell reception?',
+    a: "Yes. The FrameBase mobile field app stores drawings, daily log inputs, and snagging photos locally on the worker's device. As soon as the device reconnects to 3G/4G or site Wi-Fi, changes reconcile and sync conflict-free with the master cloud database.",
   },
   {
-    q: 'Can I track project expenses?',
-    a: 'Yes. Record expenses against projects, track budgets versus actual spending, and review financial summaries and reports as work progresses.',
+    q: 'What size of construction firm is FrameBase built for?',
+    a: 'FrameBase is deployed by boutique residential builders managing 2 to 5 concurrent sites, as well as large civil engineering firms orchestrating hundreds of millions in infrastructure with complex tender workflows.',
   },
   {
-    q: 'Can I manage my construction team?',
-    a: 'Yes. Invite members, assign roles such as Admin, Project Manager, Site Engineer, Crew, Procurement, Fleet Manager or Viewer, and control what each role can access.',
-  },
-  {
-    q: 'Can I manage materials and equipment?',
-    a: 'Yes. Track material stock levels, deliveries and usage, and manage equipment assignments, availability and maintenance from the same workspace.',
-  },
-  {
-    q: 'Can I manage project documents?',
-    a: 'Yes. Upload and organize building plans, site reports, schedules, invoices and contracts so nothing important gets lost.',
+    q: 'How long does team onboarding take?',
+    a: 'Most teams import their active Excel estimates and set up active projects within 48 hours. Because the site worker interface requires zero training (single-button check-ins and photo uploads), field adoption typically happens on Day 1.',
   },
 ] as const;
 
 export function FAQSection() {
-  const [openIndex, setOpenIndex] = useState<number | null>(0);
-
   return (
-    <section aria-labelledby="faq-heading" className="border-t border-border">
-      <div className="mx-auto max-w-3xl px-4 py-14 sm:px-6 lg:py-20">
-        <Reveal>
-          <div id="faq-heading">
-            <SectionHeading
-              eyebrow="14 — FAQ"
-              title="Questions, answered."
-              sub="The essentials about what FrameBase does and who it serves."
-            />
-          </div>
+    <section id="faq" className="border-t border-stone-200 bg-white py-24">
+      <div className="mx-auto max-w-4xl px-6">
+        <Reveal className="mb-16 text-center">
+          <span className="font-mono text-xs uppercase tracking-widest text-stone-400">Frequently Asked Questions</span>
+          <h2 className="font-display mt-2 text-4xl font-normal text-stone-900 sm:text-5xl">
+            Clear answers for construction teams.
+          </h2>
         </Reveal>
-        <div className="mt-8 space-y-2.5">
-          {FAQS.map((f, i) => {
-            const open = openIndex === i;
-            return (
-              <Reveal key={f.q} delayMs={Math.min(i * 40, 200)}>
-                <div className={`overflow-hidden rounded-xl border bg-surface shadow-sm transition-colors ${open ? 'border-[#2563EB]/40' : 'border-border'}`}>
-                  <h3>
-                    <button
-                      type="button"
-                      onClick={() => setOpenIndex(open ? null : i)}
-                      aria-expanded={open}
-                      aria-controls={`faq-panel-${i}`}
-                      id={`faq-button-${i}`}
-                      className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left text-sm font-semibold text-foreground transition-colors hover:bg-surface-muted/50 sm:px-5"
-                    >
-                      {f.q}
-                      <ChevronDown
-                        aria-hidden
-                        className={`h-4 w-4 shrink-0 text-foreground-muted transition-transform duration-300 ${open ? 'rotate-180' : ''}`}
-                      />
-                    </button>
-                  </h3>
-                  <div
-                    id={`faq-panel-${i}`}
-                    role="region"
-                    aria-labelledby={`faq-button-${i}`}
-                    className={`grid transition-all duration-300 ease-out ${open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
-                  >
-                    <div className="overflow-hidden">
-                      <p className="px-4 pb-4 text-sm leading-6 text-foreground-muted sm:px-5">{f.a}</p>
-                    </div>
-                  </div>
-                </div>
-              </Reveal>
-            );
-          })}
+
+        <div className="space-y-4">
+          {FAQS.map((f, i) => (
+            <Reveal key={f.q} delayMs={i * 60}>
+              <details className="group rounded-xl border border-stone-200 bg-white p-6 [&_summary::-webkit-details-marker]:hidden">
+                <summary className="flex cursor-pointer list-none items-center justify-between text-lg font-medium text-stone-900">
+                  <span>{f.q}</span>
+                  <span className="text-stone-400 transition group-open:rotate-180">
+                    <ChevronDown className="h-6 w-6" strokeWidth={1.5} aria-hidden />
+                  </span>
+                </summary>
+                <p className="mt-4 text-sm font-normal leading-relaxed text-stone-600">{f.a}</p>
+              </details>
+            </Reveal>
+          ))}
         </div>
       </div>
     </section>
