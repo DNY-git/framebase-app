@@ -2,9 +2,22 @@
 
 > All notable changes to ConstructTrack are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/) once application releases begin.
 
-Until implementation starts, versions are documented as `0.0.x` documentation revisions.
+> Implementation began 2026-07-07; the platform is live in production (Render API + Vercel SPA). These `0.0.x` entries record the documentation and alpha history below.
 
 ## [Unreleased]
+### Fixed
+- **Session/profile state lost after a page refresh (2026-09-21)**
+  - `apps/web/src/auth.ts` now publishes every token change (`subscribeToSession()`) and `apps/web/src/stores/auth-store.ts` mirrors it. Previously `authFetch` rotated the pair in `localStorage` on a 401 — the normal case on the first load after the 15-minute access token expired — while the store kept the *expired* token, so everything that reads `useAuthStore().token` (organization switcher, AI assistant, `AppShell`'s outlet context → token-aware pages) sent a dead bearer token and came up empty after a refresh.
+  - Organization calls (`fetchOrganizations`, `switchOrganization`, `createOrganization`) now use `authFetch` instead of a raw `fetch` with the store's token, so they refresh + retry on a 401 — the active organization and the org list no longer disappear from the profile menu after a reload.
+  - Settings → Profile: the name field re-seeds from the store user (a reload can no longer leave it empty, which the API rejects), saving an empty name is blocked client-side, and the avatar `<img>` falls back to the user's initials when the image cannot be loaded (missing file on an ephemeral server disk, or a remote Google photo URL) instead of rendering a broken/blank circle.
+  - Tests: new `apps/web/src/stores/session-refresh.spec.ts` (5 tests) drives the real `auth` + `auth-fetch` + `auth-store` modules through a reload with an expired access token (verified to fail without the fix); `auth-store.spec.ts`'s pre-existing `vi.hoisted` import failure is fixed (it previously crashed before any test ran). Web suite 22/22 passing; typecheck + lint clean.
+- **Durable profile photos + refresh keeps your organization (2026-09-23)**
+  - **Avatars are no longer disk-only.** `User` gained `avatarData` (Buffer) + `avatarMimeType`; `UserRepository.findAvatar()` loads them on demand (deliberately *not* part of `toDomain`, so login/refresh/`getMe` never drag the image through a query) and `updateProfile()` writes them only when explicitly provided. `AuthService.setAvatar()` mirrors uploads ≤ 4 MB into MongoDB (`AVATAR_DB_MAX_BYTES`; larger originals stay disk-only to keep documents small), `removeAvatar()` clears the copy, and `resolveAvatar()` now returns a discriminated `ResolvedAvatar` (`source: 'db' | 'disk'`) preferring the database copy, falling back to the legacy file — including when the Mongo read *throws*, so avatars still serve while the database is unreachable. `AuthController.getAvatar` streams the Buffer or the file accordingly. Root cause: the Render filesystem is ephemeral, so a redeploy left `avatarUrl` in MongoDB pointing at a file that no longer existed → the photo disappeared on the next load (the web fallback to initials landed in the 2026-09-21 entry above).
+  - **Refresh tokens carry the active organization.** `RefreshTokenPayload` gained an optional `tenantId`, passed by `AuthService.issueTokens()` and preserved on every rotation; `AuthService.refresh()` now restores *that* tenant instead of blindly taking `membership[0]`, so a multi-organization user is no longer silently moved back to their first org on the first load after the access token expires. Tokens minted before the claim (and claims for an organization the user has since left) fall back to the first membership — logged as a warning — and `MembershipRepository.findByUserId()` is now sorted by `createdAt` so that fallback is deterministic.
+  - Tests: 7 new `AuthService` avatar tests (DB mirror ≤ 4 MB / oversized disk-only / serve-from-db / disk fallback / Mongo-down fallback / 404 when absent / remove clears both) with `fs/promises` mocked, 3 new refresh tests (keeps claimed tenant + carries the claim forward, legacy fallback, gone-membership fallback) and 2 `TokenService` claim round-trip tests. API auth suite 48/48 passing (`auth.service.spec.ts` 42, `token.service.spec.ts` 6); API typecheck + lint clean.
+
+
+
 
 ### Added
 - **Google OAuth sign-in/sign-up (2026-08-14)**
@@ -207,6 +220,18 @@ Until implementation starts, versions are documented as `0.0.x` documentation re
   - **Seed script** updated to hash the seed password with pepper + bcryptjs (replaces placeholder hash).
   - **Cookie-parser** middleware added to `main.ts` for refresh-token cookie transport.
   - **25 unit tests** (password, token, auth service) — all pass; typecheck clean.
+
+### Added (2026-09-18 backfill — 2026-08-24 → 2026-09-17, 39 commits)
+
+> Reconstructed from commit history + code inspection (see HANDOFF.md). Intent that was not recoverable from the commits is not recorded here.
+
+- **Public marketing landing page (2026-08-30 → 2026-09-08)** — 16-section marketing site at `/` (`apps/web/src/features/landing/`): navbar/footer + Hero, Capabilities, Problem, Solution, Dashboard showcase, How it works, Roles, Financial, Resources, Documents, Audit, Use cases, Testimonial placeholder, Pricing, FAQ, Final CTA. Shared primitives (`Reveal`, `SectionHeading`, `BlueprintBackdrop`, `BrowserFrame`, `Annotation`); light/dark logo lockups (`assets/logo-{light,dark}.svg` + `shared/components/Logo.tsx`). Dither hero added 09-05, restored 09-05, **removed 09-08** (`e9d6dac`, −314 lines) and replaced with `ParticleText` (footer wordmark) + `GradualBlur` (project preview panel).
+- **FrameBase rename (2026-08-26)** — product rebranded from ConstructTrack; npm scope remains `@constructtrack/*`, remote is `framebase-app`.
+- **Deployment (2026-09-10 → 09-16)** — Render (API: dynamic `PORT`, env-driven OAuth callback, real-secret enforcement) + Vercel (SPA: workspace-root build, `/api/*` rewrite to the Render origin, SPA fallback). Cross-origin CORS allowlist + session-persistence fix; absolute Google sign-in URL; correct post-login redirect env var. See `docs/decisions/ADR-003-deployment-and-email.md`.
+- **Resend email + password reset (2026-09-17)** — `MailerService` over the Resend HTTP API (SMTP deprecated — blocked on Render free tier); `PasswordResetToken` schema + repository, forgot/reset DTOs, endpoints; `RESEND_API_KEY`/`MAIL_FROM` config. Unset key → `emailSent=false` + copyable-link fallback.
+- **UX/analytics polish (2026-08-24 → 09-03)** — dashboard spending analytics + time-span selector + chart colours; D3 regional-spend choropleth + project `region` field (`nigeria-states.json`); task connections board; project preview panel; invite email delivery, expiry + revoke, delivery fixes; equipment assignment/retirement + dark-mode theming; inventory thresholds; currency formatting; Geist fonts; calendar theming/flip; dark-mode black-point fix; transaction-ledger error fix; Mongo server-selection timeout raised to 10s.
+- **Landing redesign (2026-09-18)** — see T-210.
+- **Docs reconciliation (2026-09-18)** — back-filled HANDOFF/TASKS/CHANGELOG/AI_CONTEXT/README for the 39 undocumented commits; added `docs/features/landing.md`, `docs/decisions/ADR-003-deployment-and-email.md`; `.gitignore` now ignores `.env.save`-style secret files.
 
 ### Changed
 - **Stack decision (per ADR-002 and user directive):** Database is now MongoDB Atlas + Mongoose (was PostgreSQL 16 + Prisma). Development no longer requires Docker, Docker Compose, or Nginx (was the documented dev model). Redis/BullMQ deferred to Phase 5.

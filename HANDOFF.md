@@ -25,13 +25,27 @@ Observability, Error Classification, API Rate Limiting, Backup & Restore Drill, 
 
 **Phase:** Phase 5 (Engagement) — **T-401 ✅, T-402 ✅, T-403 ✅, T-404 ✅.** T-303 backlog (blocked by Redis).
 
-**One-line state:** Phase 3 (equipment, inventory, task linkage) ✅, Phase 4 (reports + dashboard KPIs) ✅, Phase 5 (notifications + AI assistant) ✅, Phase 6 (hardening + job queue) ✅ complete. **React 19 upgrade ✅** (deps bumped, all `JSX` namespace breakage + typecheck blockers + 30 lint warnings fixed; typecheck/build/lint green). **shadcn/ui Phase 1 ✅** (infra installed, Button generated, token bridge, `/ui-lab` smoke page; commit `fd5b4e9`). **Design Foundation (Phase 2) ✅** (13 reusable UI primitives in `apps/web/src/components/ui/` + barrel `@/components/ui`, Design Foundation smoke section on `/ui-lab`; commit `035dc69`). **Figma implementation ✅** (all 7 wireframe screens implemented from `figma/img.json` — see "Completed Work → Phase 3 (Figma screenshot implementation)"). **Multi-tenant organizations (T-207) — implemented, staged for review** (prompt2.txt): OrganizationsModule on the existing Tenant/Membership models, OWNER founder role, Team page, invitation accept flow, org switcher, cross-org project-membership prevention, 37 new tests — work sits in the working tree, commit sequence outlined below.
+**One-line state:** Phase 3 (equipment, inventory, task linkage) ✅, Phase 4 (reports + dashboard KPIs) ✅, Phase 5 (notifications + AI assistant) ✅, Phase 6 (hardening + job queue) ✅ complete. **React 19 upgrade ✅** (deps bumped, all `JSX` namespace breakage + typecheck blockers + 30 lint warnings fixed; typecheck/build/lint green). **shadcn/ui Phase 1 ✅** (infra installed, Button generated, token bridge, `/ui-lab` smoke page; commit `fd5b4e9`). **Design Foundation (Phase 2) ✅** (13 reusable UI primitives in `apps/web/src/components/ui/` + barrel `@/components/ui`, Design Foundation smoke section on `/ui-lab`; commit `035dc69`). **Figma implementation ✅** (all 7 wireframe screens implemented from `figma/img.json` — see "Completed Work → Phase 3 (Figma screenshot implementation)"). **Multi-tenant organizations (T-207) — implemented, staged for review** (prompt2.txt): OrganizationsModule on the existing Tenant/Membership models, OWNER founder role, Team page, invitation accept flow, org switcher, cross-org project-membership prevention, 37 new tests — work sits in the working tree, commit sequence outlined below. **Collapsible sidebar (icon rail) + dashboard header controls ✅** (2026-09-19, commit `bb486be` — pushed; persisted via `ct_sidebar_collapsed`, quick-range segments reuse the existing range logic; see the 2026-09-19 Completed Work entry). **Profile/refresh fixes ✅** (2026-09-23, commit `9f0ab6d` — local only, push pending: silent token rotation now reaches the auth store, refresh tokens keep the active organization, profile photos are mirrored into MongoDB).
 
-**Last updated:** 2026-08-14 (Google OAuth sign-in/sign-up; profile photo fixes: crop-only editor, stuck-loading bug fix, 10 MB cap, cache-busted avatar URLs, DB-free avatar serving; @nestjs/mongoose 8.24.2→10.1.0). **2026-08-14 evening:** boot crash fixed (AuthController `GoogleStrategy` union-type DI token → `@Inject`+`@Optional`); `authorizeURLForClient` fixed to use `_oauth2.getAuthorizeUrl`; **Gemini provider added** (`GeminiProvider`, `AI_PROVIDER=gemini`, `GEMINI_API_KEY`); Google OAuth + Gemini keys configured in `apps/api/.env`.
+**Last updated:** 2026-09-23 — profile-state-after-refresh fixes committed (`9f0ab6d`: web stale store token after a silent refresh; API refresh tokens now carry the organization; avatars mirrored into MongoDB so photos survive an ephemeral filesystem) + both suites' pre-existing test/lint blockers cleared. **Local `main` = `9f0ab6d`; the remote is at `bb486be`** (that sidebar commit has since been pushed — the old "push pending" note was stale) — pushing the new commit needs a credentialed machine (Outstanding Work #8). Previous updates: 2026-09-19 collapsible sidebar (icon rail) + dashboard header controls; 2026-09-18 back-filled governance docs from git history; the missing window (2026-08-24 → 2026-09-17, 39 commits) is summarised in the dated entries near the end of Completed Work (landing page, Render + Vercel deployment, Resend email, forgot/reset password).
 
 ---
 
 ## Completed Work
+### 2026-09-23 — Profile state after refresh: stale tokens, organization context, durable photos — complete, committed (`9f0ab6d`)
+
+Two independent defects both surfaced as "the profile is gone after I refresh".
+
+- **Frontend — the store kept the expired access token (`apps/web`).** The access token lives 15 minutes (`JWT_ACCESS_TTL`), so the first load after a break always hits a 401; `authFetch` rotated the pair in `localStorage` and retried, but `useAuthStore` was never told, so `token` stayed expired. Everything that reads it directly (organization switcher, AI assistant, `AppShell`'s outlet context → token-aware pages) sent a dead bearer token and rendered empty. Fixed with a session publisher in `auth.ts` (`subscribeToSession()`, notified by `storeTokens`/`clearTokens`) mirrored into the store, and by moving `fetchOrganizations`/`switchOrganization`/`createOrganization` onto `authFetch`. `Settings → Profile` also re-seeds the name field from the store user (a reload could leave it empty — the API rejects an empty name) and both avatar `<img>` sites fall back to initials instead of a blank circle. New `apps/web/src/stores/session-refresh.spec.ts` (5 tests, verified to fail without the fix); `auth-store.spec.ts`'s long-standing `vi.hoisted` crash fixed. Web suite 22/22; typecheck + lint clean.
+
+- **Backend — refresh dropped the organization, photos lived only on disk (`apps/api`).** `AuthService.refresh()` rebuilt the session from `membership[0]`, so a multi-organization user was silently moved out of the org they had switched to on the next silent refresh. `RefreshTokenPayload` now carries an optional `tenantId` (preserved through every rotation) and `refresh()` restores that tenant, falling back to the first membership (warning-logged) for legacy tokens or a membership that has since been left; `MembershipRepository.findByUserId()` is sorted by `createdAt` so the fallback is deterministic. Separately, avatars were disk-only — the Render filesystem is ephemeral, so a redeploy left `avatarUrl` pointing at a missing file. `User` gained `avatarData`/`avatarMimeType` (loaded on demand by `UserRepository.findAvatar()`, never through `toDomain`), uploads ≤ 4 MB are mirrored into MongoDB, and `resolveAvatar()` returns a discriminated `ResolvedAvatar` preferring the database copy and falling back to disk (including when the Mongo read throws). 12 new tests (7 avatar, 3 refresh, 2 token-claim). API auth/organizations specs green (48 auth tests, plus google-code/password/organizations); API typecheck + lint clean — which also required removing a pre-existing unused `IsString` import in `forgot-password.dto.ts`.
+
+**Commit:** `9f0ab6d` — "fix: keep session, organization and profile photo across a refresh" (15 files, +737/−52; `main`, **not pushed** — this sandbox has no git credentials, see Outstanding Work #8). Docs for it sit in the follow-up commit on top of `9f0ab6d`.
+
+**Deploy note:** the web fix needs a Vercel rebuild and the API fix a Render redeploy to reach production. Photos already lost on the ephemeral disk stay gone — the MongoDB mirror only covers uploads made after the deploy; affected (and Google-sign-in) users see initials until they re-upload once.
+
+
+
 
 ### Documentation foundation (Phase 0) — complete
 
@@ -263,7 +277,7 @@ Built directly on the existing MongoDB/Mongoose/NestJS architecture — no Prism
 - **Critical editor bug fixed:** `ImageEditor.tsx` was stuck at "Loading…" forever — the stage `<img>` whose `onLoad` set `natural` (the gate for the whole editor UI) was itself rendered only inside the `{natural && imageRect && …}` conditional, so `onLoad` could never fire. The `<img>` now always renders (opacity 0 until loaded) and `onError` shows "Could not load image" instead of hanging.
 - **Editor is now a pure crop tool** (per user request — zoom/rotate removed): image fit-to-stage, draggable aspect-locked square crop box with 4 corner resize handles, dark overlay, Reset (Undo2), canvas export at 512×512.
 - **Re-upload of profile photo works:** `avatarUrl` is now versioned per upload (`avatars/<userId>.<ext>?v=<Date.now()>`) so the browser never serves the stale cached photo (server sends `Cache-Control: private, max-age=86400`); `stripAvatarVersion()` handles old-file cleanup.
-- **Avatar serving is DB-free:** `resolveAvatar()` probes disk (`avatars/<userId>.{jpg,png,webp}` via `fsp.access`) instead of `userRepository.findById` per `<img>` tag — profile photo requests no longer depend on MongoDB.
+- **Avatar serving is DB-free:** `resolveAvatar()` probes disk (`avatars/<userId>.{jpg,png,webp}` via `fsp.access`) instead of `userRepository.findById` per `<img>` tag — profile photo requests no longer depend on MongoDB. **Superseded 2026-09-23:** disk-only serving broke on the hosted platform (ephemeral filesystem ⇒ the file was gone after a redeploy while `avatarUrl` remained in MongoDB, so the photo vanished on the next load). Uploads are now mirrored into the user document and served from there, with the disk probe kept as the legacy fallback *and* as the fallback when the Mongo read throws — so avatars still depend on neither durable disk nor an available database. See the CHANGELOG entry "Durable profile photos + refresh keeps your organization (2026-09-23)".
 - **10 MB upload cap** (was 2 MB): `AVATAR_MAX_BYTES` in `AuthService` + multer `FileInterceptor` limit in `AuthController` + client-side check in `Settings.tsx`. `createPreviewUrl()` downscales previews to 1600 px before the editor loads them.
 - **`@nestjs/mongoose` 8.24.2 → 10.1.0** (installed version vs lockfile were out of sync). In v8 `lazyConnection` is silently ignored, so the API blocked on the MongoDB handshake at bootstrap; v10 honors it — boot no longer hangs on a slow/unreachable Atlas.
 - **Environment note (dev runs on Windows):** the project's dev servers run under native Windows Node (`npm run dev` from the Windows shell), not WSL. The WSL-side drvfs slowness is irrelevant to runtime; attempts to relocate `node_modules` to ext4 were abandoned and fully reverted (546/565 packages moved and moved back; `node_modules.drvfs` removed). The 19 packages that "wouldn't move" were locked by the *running* dev servers (`concurrently`, `nest --watch`, `vite` hold directory handles) — expected behavior, not corruption.
@@ -282,14 +296,79 @@ Built directly on the existing MongoDB/Mongoose/NestJS architecture — no Prism
 
 ---
 
+### 2026-08-24 → 2026-09-17 — FrameBase polish, public landing page, production deployment, email + password reset — **backfilled 2026-09-18 from git history**
+
+> This window (39 commits) shipped without any HANDOFF/TASKS/CHANGELOG updates; the entries below are reconstructed from commit messages, file lists and code inspection. Where the *reasoning* behind a change was not recoverable from the commit, only the observable change is recorded.
+
+**1. Product polish & FrameBase rename (2026-08-24 → 2026-08-31, commits `bec2003`…`331f0a0`)**
+- Equipment: detail screen fixes, validation, editability, assignment + retirement lifecycle, usage edits, log deletes.
+- Dashboard: spending analytics, data accuracy, chart time-span selector, bar chart + chart colours, removal of the static "project progress" block.
+- Inventory/reports: material catalog, KPIs, transaction-ledger error, currency formatting, report delete/print, owner report access.
+- Teams/invites: invite delivery, confirmation dialogs, expiry popovers + revoke, role dropdown positioning, team log deletes.
+- AI assistant: image attach, slide-over panel, crash fix.
+- **FrameBase rename** (`cf55f91`, 2026-08-26) — product rebranded from ConstructTrack; package scope remains `@constructtrack/*`.
+- Geist font pairing, Geist Mono for figures, themed buttons across remaining pages, calendar theming/flip, inventory thresholds, currency formatting, "pure black dark mode" fix.
+- Dashboard analytics: spending chart, range map `1y` duplicate-key fix (TS1117), project preview panel, task connections board, D3.js regional-spend choropleth + `region` field on projects (`nigeria-states.json` asset, state-shape rendering fixes).
+
+**2. Public marketing landing page (2026-08-30 → 2026-09-08, commits `1753139`, `44f0caa`, `ec312cd`, `d4c2618`, `5ba353b`, `da88bf5`, `aac1dea`, `e9d6dac`)**
+- `apps/web/src/features/landing/` — 16 sections + navbar/footer (`LandingPage.tsx`): hero with dashboard preview, capabilities, problem, solution, dashboard showcase, how-it-works, roles, financial control, resources, documents, audit, use cases, testimonial placeholder, pricing, FAQ, final CTA.
+- Shared primitives in `features/landing/shared.tsx` (`Reveal` scroll-reveal with reduced-motion support, `SectionHeading`, `BlueprintBackdrop` SVG, `BrowserFrame`, `Annotation`).
+- Light/dark logo SVGs (`assets/logo-{light,dark}.svg`) + `Logo.tsx` theme-aware lockup; light/dark mode SVGs also exported to `figma/`.
+- Dither hero background added 09-05, restored 09-05, **removed 09-08** (`e9d6dac`, −314 lines `Dither.jsx`) and replaced with `ParticleText` (footer wordmark) + `GradualBlur` (project preview panel) — shader-style dither was removed for performance.
+- **Known gap:** the landing page shipped without a spec under `docs/features/` (violates rule 1) — backfill pending.
+
+**3. Production deployment (2026-09-10 → 09-16, 9 commits)**
+- **Render (API):** dynamic `PORT` binding, env-driven Google OAuth callback URL, production secret enforcement at bootstrap.
+- **Vercel (web):** root + `apps/web/` `vercel.json` (workspace root-directory install/build, `/api/*` rewrite to the Render origin, SPA fallback rewrite for client-side routing); Vercel build-order/dependency/type fixes.
+- **Cross-origin:** production Vercel origin allow-listed in API CORS; fixed session not persisting across reload in the cross-origin deployment (`auth-store`).
+- API base URL for Google sign-in made absolute; correct env var for the post-Google-login redirect.
+
+**4. Forgot/reset password + Resend email (2026-09-17):**
+- `PasswordResetToken` schema + repository (`apps/api/src/schemas/password-reset-token.schema.ts`, `modules/auth/repositories/password-reset-token.repository.ts`), forgot/reset DTOs, endpoints wired into `AuthController`/`AuthService`.
+- **Resend HTTP API** replaces SMTP (`apps/api/src/common/mailer/mailer.service.ts` + `MailerModule`) — Render's free tier blocks outbound SMTP. `RESEND_API_KEY` / `MAIL_FROM` in config + `.env.example`; SMTP_* vars deprecated. When `RESEND_API_KEY` is unset the API reports `emailSent=false` and invitations fall back to copyable links.
+
+**5. UI/analytics polish (2026-08-24 → 09-03, ~19 commits, summarised)**
+- Dashboard: spending analytics, chart colours, KPI/layout fixes, time-span selector.
+- Reports: KPI fixes, regional-spend D3 choropleth (`nigeria-states.json`) rendering real state shapes.
+- Teams/invites: role dropdown, invite expiry popover + revoke, invite delivery fixes, confirmation dialogs.
+- Equipment: assignment + retirement flows, validation, usage edits, dark-mode theming.
+- Inventory: material catalog, thresholds, transaction-ledger fix.
+- Projects: preview panel, task connections board, project members fix.
+- Global: Geist Sans/Mono + Poppins fonts, themed buttons, confirmation dialogs, dark-mode black-point fix.
+
+**6. Uncommitted-at-the-time work now committed:** T-207 multi-tenant organizations, profile photos, Google OAuth, image persistence — all confirmed tracked in git (12 `organizations` module files tracked).
+
+### 2026-09-19 — Collapsible sidebar (icon rail) + dashboard header controls — complete (commit `bb486be`, **push pending**)
+
+**Sidebar (`apps/web/src/layouts/`):**
+- `Sidebar.tsx` now has two states: expanded `lg:w-64` (icon + label) and collapsed `lg:w-20` icon-only rail — 44×44 `rounded-2xl` icon containers with generous spacing, active item = `bg-sidebar-active/10` + left-edge pill bar, Settings gear pinned behind a `border-t` separator. 200 ms width transition; `AppShell` main padding mirrors the rail (`lg:pl-64` ↔ `lg:pl-20`) with a matching transition.
+- State lives in `stores/sidebar-store.ts` (`collapsed`, `setCollapsed`, `toggleCollapsed`), persisted to `localStorage` key `ct_sidebar_collapsed` (same load/persist pattern as `ct_theme`). The mobile-drawer state is unchanged and independent.
+- Toggle: chevron button next to the logo when expanded; the logo mark itself is the expand control when collapsed (chevron revealed on hover). The collapsed rail shows a fixed-position label tooltip on hover **and** keyboard focus (`position: fixed` so the scrollable nav cannot clip it); every link keeps `aria-label`.
+- Nav config extracted to `layouts/nav-items.ts` — single source of truth (routes/labels/icons) shared by `Sidebar` and `MobileSidebar`. The mobile drawer is unchanged and always shows labels; collapse is desktop-only.
+- New icons in `shared/components/icons.tsx` (same lucide-path/strokeWidth-2 style as the rest of the file): `LayoutGrid`, `Briefcase`, `BarChart3`.
+- `LogoMark` export added to `shared/components/Logo.tsx` with cropped mark assets `assets/logo-mark-{light,dark}.svg` (500×500 mark box cropped from the existing brand SVGs — wordmark path removed, viewBox/size squared; no new artwork).
+
+**Dashboard header controls (`features/dashboard/Dashboard.tsx`):**
+- `$ ▾` display-currency dropdown — a **visual stub**: amounts are stored/formatted in USD (`formatCompactCurrency`), so the menu offers only "US Dollar ($) — base currency, USD is the only supported currency". Closes on outside-click and Escape.
+- Quick range segments (`30 days / 6 months / 1 year`) wired to the **same `rangeDays` state** as the existing "Edit range" popover; both controls now read one hoisted `RANGE_OPTIONS` constant, so a segment click triggers the identical `useDashboard(days)` refetch (`?days=30` observed live). Active segment derived from `rangeDays`. Controls sit in the `PageLayout` `actions` slot (top-right, matching the reference) in both the loading and loaded states.
+- The Spending vs Budget chart is untouched — same `AreaChart`/data/lines/empty state.
+
+**Verification:** root `npm run typecheck` ✅; `apps/web` `typecheck`/`lint`/`build` ✅; new `stores/sidebar-store.spec.ts` (7 tests: default state, persisted restore, malformed value, toggle/set persistence, mobile-drawer independence) ✅. Visual + behavioural verification used a scratch headless-Chrome harness (`.zcode/snapshot.mjs`, uncommitted — drives the real Vite app with `/api/v1/*` stubbed via route interception): rail 256↔80 px, persistence across reload, tooltip text/position, collapsed-nav routing to `/projects`, refetch `?days=30` on segment click, currency dropdown open/Escape-close, dark theme, **0 console errors**. 14 PNGs + `report.json` in `.zcode/snapshots/`.
+
+**Follow-ups:** commit not pushed (Outstanding Work #8); root lint + `auth-store.spec.ts` still fail for pre-existing reasons (Known Issues).
+
+---
+
 ## Outstanding Work
 
-1. **T-207 — Multi-tenant organizations/team/invitations (prompt2.txt):** implemented and green, but **not yet committed** — working tree contains the full feature + profile photos + Google OAuth. Follow the commit sequence at the end of the "2026-08-11" section below.
+1. **T-207 — Multi-tenant organizations/team/invitations (prompt2.txt):** ~~implemented and green, but **not yet committed**~~ **resolved** — all work confirmed tracked on `main` (2026-09-18); the "working tree only" note above is obsolete.
 2. ~~**Configure Google OAuth:** no credentials are set, so the Google buttons currently answer `503 AUTH_GOOGLE_NOT_CONFIGURED`.~~ **Done 2026-08-14** — `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are set in `apps/api/.env`; `/api/v1/auth/google` now 302s to Google consent. Google Cloud Console redirect URI: `http://localhost:4000/api/v1/auth/google/callback`.
-2. **Production email delivery for invitations:** the dev acceptance link is development-only by design (prompt Phase 9 / Email). Layer a mail provider onto `devAcceptUrl` when ready.
-3. **Phase 5 (Engagement)** ([ROADMAP.md](./ROADMAP.md)): T-401–T-404 complete.
-4. **Phase 6:** Hardening — T-501 ✅, T-502 ✅, T-503 ✅, T-504 ✅, T-303 ✅. All complete.
-5. **AI provider now live:** `AI_PROVIDER=gemini` + `GEMINI_API_KEY` in `apps/api/.env` — `GeminiProvider` (gemini-flash-latest) implemented in `apps/api/src/modules/ai/providers/gemini.provider.ts`, wired in `AiModule` (falls back to `NoneProvider` if the key is missing). OpenAI/Anthropic adapters remain a possible future extension.
+3. ~~**Production email delivery for invitations:** the dev acceptance link is development-only by design (prompt Phase 9 / Email).~~ **Done 2026-09-17** — Resend HTTP API (`MailerService`), SMTP deprecated; unset `RESEND_API_KEY` falls back to `emailSent=false` + copyable dev links.
+4. ~~**Landing page spec** — `docs/features/landing.md` does not exist; the landing page shipped without one (rule 1 gap).~~ **Done 2026-09-18** — spec written (`docs/features/landing.md`).
+5. ~~**ADR for deployment topology + Resend** — Render (API) + Vercel (web) and the `resend` dependency were added without an ADR (rules require one per new dependency).~~ **Done 2026-09-18** — `docs/decisions/ADR-003-deployment-and-email.md`.
+6. **Landing page redesign** — Instrument Serif display + Poppins body per the 2026-09-18 Figma design; in progress (typography system + rebuilt sections landed; awaiting review). Typecheck/lint/build green; headless screenshots verified.
+7. **Remaining backlog:** AI provider adapters beyond Gemini (OpenAI/Anthropic/OpenRouter), conversational memory for the AI Assistant, Redis/BullMQ swap for the job queue when hardware allows.
+8. **Push commits from a credentialed machine.** ~~Push commit `bb486be` (collapsible sidebar + dashboard header controls)~~ **Resolved** — `origin/main` is now `bb486be`. **Current gap:** local `main` is two commits ahead of the remote — `9f0ab6d` (fix: keep session, organization and profile photo across a refresh) plus the docs commit on top of it. This sandbox cannot authenticate: `git ls-remote origin` → `git@github.com: Permission denied (publickey)` (no `~/.ssh/id_rsa`/`id_ed25519`), `GITHUB_TOKEN` unset, no Windows Credential Manager `github` entry, and prompts are disabled. From a credentialed machine: `git push origin main`, then verify `git log origin/main -1`.
 
 ---
 
@@ -299,13 +378,16 @@ Built directly on the existing MongoDB/Mongoose/NestJS architecture — no Prism
 - **Equipment detail/edit UI complete.** Full `EquipmentDetail` component with utilization KPI cards, maintenance timeline, usage timeline, and downtime history is now rendered alongside the fleet list.
 - **Phase 5 (Engagement) complete.** T-401 (notification service), T-402 (subscriptions), T-403 (AI backend), T-404 (AI frontend) all built. AI Assistant uses **Gemini** by default (gemini-flash-latest via `GeminiProvider`) when `AI_PROVIDER=gemini` + `GEMINI_API_KEY` are set; falls back to `NoneProvider` otherwise.
 - **T-303 (report generation) complete.** Implemented via lightweight `InMemoryJobQueue` (synchronous, no Redis). The `IJobQueue` interface is the extension point for future BullMQ/Redis swap.
-- **Docs updated.** All PostgreSQL/Prisma/Docker references in active docs have been replaced with MongoDB Atlas / Mongoose equivalents. ADR files retain historical references.
+- **Docs were stale 2026-08-14 → 2026-09-18.** HANDOFF/TASKS/CHANGELOG/AI_CONTEXT/README missed the 39 commits in that window (landing page, Render/Vercel deployment, password reset, Resend email, FrameBase rename); back-filled on 2026-09-18. `.env.example` *was* kept current (documents Resend + deprecates SMTP_*).
+- **Root `npm run lint` fails in `apps/api` for one pre-existing reason:** `src/common/mailer/mailer.service.spec.ts:46` uses a `require()` import (error; `--max-warnings 0`). The other entry from this note — `src/modules/auth/dto/forgot-password.dto.ts:7`, unused `IsString` import — **was fixed 2026-09-23** (the auth module now lints clean). `apps/web` lint is clean.
+- ~~**`apps/web/src/stores/auth-store.spec.ts` fails (pre-existing):** `ReferenceError: Cannot access 'mockGetStoredToken' before initialization`.~~ **Fixed 2026-09-21** — the `vi.mock` factories now read their mocks from `vi.hoisted(() => ({ ... }))`, and the store's new `subscribeToSession` dependency is mocked too. `apps/web` suite is 22/22 green (incl. the new `stores/session-refresh.spec.ts` reload/refresh regression tests).
+- **Playwright browsers are not installed** (`%LOCALAPPDATA%\ms-playwright` absent; `npx playwright install` doesn't resolve in this sandbox). Visual verification instead drives system Chrome via `playwright-core` `executablePath` — see the `.zcode/snapshot.mjs` scratch harness (2026-09-19 entry). Note: `vite` dev binds **IPv6-only** by default here; launch with `--host 127.0.0.1` before driving it headlessly, otherwise Chrome's `localhost` resolves to `127.0.0.1` and times out.
 
 ---
 
 ## Architecture Summary
 
-ConstructTrack is a **multi-tenant, modular monolith** with a **feature-based SPA** frontend. (Full detail: [docs/architecture/system.md](./docs/architecture/system.md).)
+FrameBase (package scope `@constructtrack`) is a **multi-tenant, modular monolith** with a **feature-based SPA** frontend. (Full detail: [docs/architecture/system.md](./docs/architecture/system.md).)
 
 ```
 Browser ──▶ API (NestJS modular monolith)
@@ -319,9 +401,11 @@ Browser ──▶ API (NestJS modular monolith)
 
 - **Source of truth:** MongoDB Atlas (managed). Mongoose schemas define the data model behind a swappable repository interface.
 - **Tenancy:** every tenant-scoped document has `tenantId`; isolation enforced in the base repository layer and verified by tests.
+- **Deployment:** API on **Render** (reads `PORT` from the environment), SPA on **Vercel** — `vercel.json` + `apps/web/vercel.json` rewrite `/api/*` to the Render origin and provide the SPA fallback; OAuth callback/base URLs are env-driven so one build serves local and production.
+- **Email:** single `MailerService` over the Resend HTTP API (`RESEND_API_KEY`, `MAIL_FROM`); SMTP_* deprecated — Render's free tier blocks outbound SMTP.
 - **No Docker:** development uses `npm run dev`; CI uses GitHub Actions without service containers.
-- **Redis deferred to Phase 5:** no caching or queue infrastructure until then. Job queue uses `InMemoryJobQueue` (synchronous); `IJobQueue` interface ready for BullMQ swap.
-- **AI:** provider-agnostic service layer; no vendor SDK in domain code.
+- **Redis deferred:** job queue uses `InMemoryJobQueue` (synchronous); `IJobQueue` interface ready for BullMQ swap.
+- **AI:** provider-agnostic service layer; `GeminiProvider` is the configured provider, no vendor SDK in domain code.
 - **Equipment domain (T-201):** full CRUD, assignment lifecycle, usage/maintenance/downtime tracking with audit logging. Detail UI deferred to T-202.
 - **Stack rationale:** [TECH_STACK.md](./TECH_STACK.md). DB/infra rationale: [ADR-002](./docs/decisions/ADR-002-database-and-infra.md).
 
@@ -329,10 +413,12 @@ Browser ──▶ API (NestJS modular monolith)
 
 ## Current Priorities
 
-1. **Preserve `main` releasability.** All further work must pass CI before merging (typecheck, lint, 257 tests).
-2. **Commit T-207 (multi-tenant organizations) + profile photos.** Work is green in the working tree; the suggested commit sequence is at the bottom of the "2026-08-11" Completed Work entry.
-3. **Production email delivery** for invitations (dev links are development-only).
-4. **Remaining work:** real AI provider adapters, Redis for async jobs (when hardware allows), conversational memory for AI Assistant.
+1. **Preserve `main` releasability.** All further work must pass CI before merging (typecheck, lint, tests).
+2. ~~**Commit T-207 (multi-tenant organizations) + profile photos.**~~ **Done** — confirmed committed on `main` (2026-09-18).
+3. ~~**Production email delivery** for invitations.~~ **Done 2026-09-17** — Resend HTTP API.
+4. **Push commit `bb486be`** (collapsible sidebar + dashboard header controls) — committed locally, push blocked on credentials in the dev sandbox; see Outstanding Work #8.
+5. **Landing page redesign** (Instrument Serif + Poppins) + missing `docs/features/landing.md` spec + ADR for Render/Vercel and Resend.
+6. **Remaining work:** real AI provider adapters, Redis for async jobs (when hardware allows), conversational memory for AI Assistant.
 
 ---
 
@@ -340,19 +426,14 @@ Browser ──▶ API (NestJS modular monolith)
 
 In order, for whoever picks this up:
 
-1. **Commit the T-207 multi-tenant work + profile photos** (working tree, all green). Suggested sequence:
-   - `feat(org): organization context + membership` (Tenant/Membership/User repo extensions, Role.OWNER, auth register→OWNER, OrganizationsModule, error codes)
-   - `feat(members): team + invitation flow` (invitation schema/repo/DTOs, team endpoints, Team.tsx, InvitationAcceptPage, org switcher, ?next= redirects)
-   - `feat(projects): prevent cross-org project membership`
-   - `test(authz): multi-tenant coverage`
-   - `docs(handoff): T-207 multi-tenant status`
-   - Optionally `feat(auth): profile photos` first (2026-08-08 work is also uncommitted).
-2. **Production email delivery for invitations** — replace the dev acceptance link with a mail provider (prompt Phase 9/Email). Inspect the notifications module first — it may already have email infrastructure to reuse.
-3. **Set up AI provider.** The `NoneProvider` is the default (returns "not configured" message). To enable real AI, implement an adapter (e.g., `OpenAIProvider` implementing `IAIProvider`), install the vendor SDK, and set `AI_PROVIDER=openai` (or `anthropic`) in `.env`. Prefer OpenRouter free models per `prompt.txt`.
-4. **Phase 6 (Hardening) complete** — T-501 ✅, T-502 ✅, T-503 ✅, T-504 ✅, T-303 ✅.
-    - Real AI adapters: OpenAI or Anthropic provider implementations (or OpenRouter).
-    - Conversational memory: multi-turn context for the AI Assistant.
-    - Redis caching / BullMQ: swap `InMemoryJobQueue` for `BullMQJobQueue` when hardware allows.
+1. ~~**Commit the T-207 multi-tenant work + profile photos.**~~ **Done** — all committed on `main` (verified tracked 2026-09-18).
+2. ~~**Production email delivery for invitations.**~~ **Done 2026-09-17** — `MailerService` over the Resend HTTP API (SMTP deprecated).
+3. **Push commit `bb486be`** (collapsible sidebar + dashboard header controls) to `origin/main` — the sandbox can't push (no SSH key / no HTTPS credential); see Outstanding Work #8. Then also push the **2026-09-18 landing-redesign work**, which is still uncommitted in the working tree (landing sections + `globals.css` typography).
+4. **Backfill the landing page spec** (`docs/features/landing.md`) and add an ADR covering the Render/Vercel deployment topology and the Resend dependency.
+5. **Landing page redesign** — Instrument Serif display + Poppins body per the 2026-09-18 Figma design; keep effects cheap (no per-frame shader/dither work; the previous dither hero was removed for performance on 2026-09-08).
+6. **Fix the two pre-existing test/lint failures** so `npm run lint` / `npm test` go green: `apps/api` `mailer.service.spec.ts` `require()` + unused `IsString` in `forgot-password.dto.ts`; `apps/web/src/stores/auth-store.spec.ts` `vi.mock` hoisting (`vi.hoisted`).
+7. **Set up AI provider.** `GeminiProvider` is configured (`AI_PROVIDER=gemini` + `GEMINI_API_KEY` in `apps/api/.env`). OpenAI/Anthropic/OpenRouter adapters remain open (`IAIProvider`); prefer OpenRouter free models per `prompt.txt`.
+8. **Backlog:** conversational memory for the AI Assistant; swap `InMemoryJobQueue` for `BullMQJobQueue` when hardware allows.
 
 ---
 
@@ -362,7 +443,7 @@ If you are an AI continuing this work:
 
 1. Read [AI_CONTEXT.md](./AI_CONTEXT.md) (minimum required context).
 2. Read this file (you're here) and [TASKS.md](./TASKS.md) for the current board state.
-3. Check the [ROADMAP.md](./ROADMAP.md) phase you're entering and its exit criteria. Current work: **Phase 3 (Figma implementation) done** — all 7 screens implemented from `figma/img.json` (see "Completed Work → Phase 3 (Figma screenshot implementation)"); **Design Foundation (Phase 2) done** — commit `035dc69`. Core platform phases (1–6) all complete; remaining: AI provider adapters, conversational memory, Redis/BullMQ swap, `EquipmentDetail` token restyle.
+3. Check the [ROADMAP.md](./ROADMAP.md) phase you're entering and its exit criteria. Core platform phases (1–6) are **complete and deployed** (Render API + Vercel SPA). Post-roadmap work shipped 2026-08-24 → 09-17: public marketing landing page, production deployment hardening, forgot/reset password, Resend email. Most recent (2026-09-23): **profile-state-after-refresh fixes** — commit `9f0ab6d` (+ this docs commit on top), **local only, push pending** (Outstanding Work #8; `bb486be` itself is already on `origin/main`). Still uncommitted in the working tree: the 2026-09-18 landing page redesign. Remaining backlog: AI provider adapters, conversational memory, Redis/BullMQ swap, `EquipmentDetail` token restyle.
 4. Honor [PROJECT_RULES.md](./PROJECT_RULES.md) — especially §1 (Behavior & Safety) and §13 (Definition of Done).
 5. For any irreversible action (destructive migration, deleting code, force-push), **stop and confirm** first.
 6. Update this file, [TASKS.md](./TASKS.md), and [CHANGELOG.md](./CHANGELOG.md) as you make progress.
