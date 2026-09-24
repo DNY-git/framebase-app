@@ -4,7 +4,7 @@ import { Menu, X } from '../../shared/components/icons';
 import logoMark from '../../assets/logo-mark-light.svg';
 
 const NAV_LINKS = [
-  { label: 'Product', href: '#features' },
+  { label: 'Product', href: '#product' },
   { label: 'Features', href: '#inventory' },
   { label: 'How it works', href: '#stages' },
   { label: 'Solution', href: '#roles' },
