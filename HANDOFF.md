@@ -27,7 +27,7 @@ Observability, Error Classification, API Rate Limiting, Backup & Restore Drill, 
 
 **One-line state:** Phase 3 (equipment, inventory, task linkage) ✅, Phase 4 (reports + dashboard KPIs) ✅, Phase 5 (notifications + AI assistant) ✅, Phase 6 (hardening + job queue) ✅ complete. **React 19 upgrade ✅** (deps bumped, all `JSX` namespace breakage + typecheck blockers + 30 lint warnings fixed; typecheck/build/lint green). **shadcn/ui Phase 1 ✅** (infra installed, Button generated, token bridge, `/ui-lab` smoke page; commit `fd5b4e9`). **Design Foundation (Phase 2) ✅** (13 reusable UI primitives in `apps/web/src/components/ui/` + barrel `@/components/ui`, Design Foundation smoke section on `/ui-lab`; commit `035dc69`). **Figma implementation ✅** (all 7 wireframe screens implemented from `figma/img.json` — see "Completed Work → Phase 3 (Figma screenshot implementation)"). **Multi-tenant organizations (T-207) — implemented, staged for review** (prompt2.txt): OrganizationsModule on the existing Tenant/Membership models, OWNER founder role, Team page, invitation accept flow, org switcher, cross-org project-membership prevention, 37 new tests — work sits in the working tree, commit sequence outlined below. **Collapsible sidebar (icon rail) + dashboard header controls ✅** (2026-09-19, commit `bb486be` — pushed; persisted via `ct_sidebar_collapsed`, quick-range segments reuse the existing range logic; see the 2026-09-19 Completed Work entry). **Profile/refresh fixes ✅** (2026-09-23, commit `9f0ab6d` — local only, push pending: silent token rotation now reaches the auth store, refresh tokens keep the active organization, profile photos are mirrored into MongoDB). **Landing sections ✅** (2026-09-24, commit `2f8404a` — local only, push pending: problem/solution, roles, inventory and footer rebuilt to match the Figma screenshots).
 
-**Last updated:** 2026-09-24 — **landing sections aligned to the Figma target, committed as `2f8404a`** (problem/solution, roles, inventory and footer rebuilt; the navbar `Product` anchor repointed to `#product`; typecheck + eslint + `vite build` green and snapshot-verified — see the 2026-09-24 Completed Work entry). **Local `main` is 5 commits ahead of the remote (`origin/main` = `bb486be`)** — `9f0ab6d` refresh/profile fix, `9663896` docs, `3160dda` landing rebuild, `2f8404a` landing section alignment, plus the docs commit that records them — await a credentialed machine; full push instructions are in Outstanding Work #8. Previous update: 2026-09-23 profile-state-after-refresh fixes committed (`9f0ab6d`: web stale store token after a silent refresh; API refresh tokens now carry the organization; avatars mirrored into MongoDB so photos survive an ephemeral filesystem) + both suites' pre-existing test/lint blockers cleared. Earlier updates: 2026-09-19 collapsible sidebar (icon rail) + dashboard header controls; 2026-09-18 back-filled governance docs from git history; the missing window (2026-08-24 → 2026-09-17, 39 commits) is summarised in the dated entries near the end of Completed Work (landing page, Render + Vercel deployment, Resend email, forgot/reset password).
+**Last updated:** 2026-09-24 — **landing sections aligned to the Figma target, committed as `2f8404a`** (problem/solution, roles, inventory and footer rebuilt; the navbar `Product` anchor repointed to `#product`; typecheck + eslint + `vite build` green and snapshot-verified — see the 2026-09-24 Completed Work entry). **Local `main` is 6 commits ahead of the remote (`origin/main` = `bb486be`)** — `9f0ab6d` refresh/profile fix, `9663896` docs, `3160dda` landing rebuild, `2f8404a` landing section alignment, `770f1b6` landing docs, plus the docs commit that adds the push brief — await a credentialed machine; **a self-contained, copy-paste task brief for that machine is in Outstanding Work #8 (hand that fenced block to the agent as-is)**. Previous update: 2026-09-23 profile-state-after-refresh fixes committed (`9f0ab6d`: web stale store token after a silent refresh; API refresh tokens now carry the organization; avatars mirrored into MongoDB so photos survive an ephemeral filesystem) + both suites' pre-existing test/lint blockers cleared. Earlier updates: 2026-09-19 collapsible sidebar (icon rail) + dashboard header controls; 2026-09-18 back-filled governance docs from git history; the missing window (2026-08-24 → 2026-09-17, 39 commits) is summarised in the dated entries near the end of Completed Work (landing page, Render + Vercel deployment, Resend email, forgot/reset password).
 
 ---
 
@@ -381,24 +381,91 @@ Built directly on the existing MongoDB/Mongoose/NestJS architecture — no Prism
 6. **Landing page redesign** — Instrument Serif display + Poppins body per the 2026-09-18 Figma design; **visually complete** — the four sections that were still off-target were rebuilt in `2f8404a` (see the 2026-09-24 Completed Work entry) and confirmed against the Figma screenshots with reduced-motion headless snapshots; `tsc --noEmit`, `eslint --max-warnings 0` and `vite build` all green. **Open nit:** the spec at `docs/features/landing.md` exists on disk but is still untracked in git — commit it with the next docs change.
 7. **Remaining backlog:** AI provider adapters beyond Gemini (OpenAI/Anthropic/OpenRouter), conversational memory for the AI Assistant, Redis/BullMQ swap for the job queue when hardware allows.
 8. **Push commits from a credentialed machine — TASK BRIEF FOR THE NEXT AGENT.**
-   - **State:** `origin/main` = `bb486be`; local `main` is **5 commits ahead** — the four commits listed below plus the docs commit that records them. That last commit's hash changes whenever this file is amended, so always identify it as the tip of `git log origin/main..HEAD` rather than by hash:
+
+   > **Hand-off:** copy the fenced block below and give it to an agent (or a machine) that can authenticate to GitHub for `DNY-git/framebase-app`. It is self-contained — no other context is needed. The bullets underneath it are the supporting state for this repo.
+
+   ```text
+   TASK: Push the local commits in C:\Users\DNY\ZCodeProject (git repo, branch `main`) to GitHub origin.
+   You are on a machine that has GitHub credentials for DNY-git/framebase-app. The machine that produced
+   these commits could not authenticate, so finished work is sitting unpushed on local `main`.
+
+   REPO:  C:\Users\DNY\ZCodeProject        branch: main
+   REMOTE: origin = git@github.com:DNY-git/framebase-app.git   (currently at bb486be)
+
+   WHAT IS UNPUSHED (6 commits on top of origin/main)
+     - 9f0ab6d  fix: keep session, organization and profile photo across a refresh
+     - 9663896  docs: record the refresh/profile fix and correct push status
+     - 3160dda  feat: rebuild landing page as 7-section editorial stone/terracotta design
+     - 2f8404a  fix(web): match landing problem/roles/inventory/footer sections to Figma target
+     - 770f1b6  docs: record the landing section alignment and refresh the push brief
+     - plus one docs commit on top (the one containing this brief)
+   All were typecheck / eslint / `vite build` green at commit time. None is experimental. No commit
+   depends on the others being reordered; they are a plain linear stack.
+
+   STEP 1 - verify before pushing (do not skip)
+     cd C:\Users\DNY\ZCodeProject
+     git fetch origin
+     git status                            # expect: ahead of 'origin/main' by 6 commits
+                                           #         (5 if this brief's own commit is not made yet)
+     git log origin/main..HEAD --oneline   # expect exactly the commits listed above, nothing unrelated
+   If the list does not match the one above, STOP and report — do not push.
+
+   STEP 2 - push
+     git push origin main                  # plain fast-forward push; do NOT force-push
+     git log origin/main -1 --oneline      # must equal:  git rev-parse HEAD
+     git status                            # expect: "Your branch is up to date with 'origin/main'"
+
+   STEP 3 - report back
+     Paste the pushed commit range and the new origin/main hash.
+
+   GUARDRAILS
+     - Never force-push: the remote has no commits we lack, so a fast-forward is guaranteed.
+     - Do not rebase, squash, amend or reset any of these commits.
+     - Do NOT `git add` or commit anything else. The working tree intentionally still holds unrelated
+       material that must stay exactly as it is:
+         * unstaged edits: .gitignore, AI_CONTEXT.md, README.md, TASKS.md, prompt.txt, apps/web/tsconfig.tsbuildinfo
+         * unstaged deletions: figma/img.json, figma/prompt.txt
+         * untracked: .zcode/, .opencode/, graphify-out/, the three .*-checkpoint-*/ dirs,
+           apps/web/src/simple.spec.ts, docs/decisions/ADR-003-deployment-and-email.md,
+           docs/features/landing.md, figma/darkmode.svg, figma/lightmode.svg
+       Do not restore, stage, delete or "tidy" any of it - a plain `git push` ignores all of it.
+     - If the branch has diverged, or you hit "no upstream branch", STOP and report — do not merge or
+       rebase on your own initiative.
+
+   IF AUTH FAILS
+     - The remote is SSH. Either unlock an SSH key for the DNY-git GitHub account, or temporarily switch
+       this clone to HTTPS with a personal access token:
+         git remote set-url origin https://github.com/DNY-git/framebase-app.git
+         git push origin main        # username = GitHub user, password = PAT with repo scope
+         git remote set-url origin git@github.com:DNY-git/framebase-app.git   # restore SSH afterwards
+     - Check which identity you are pushing as with:  git config --get user.email
+
+   AFTER A SUCCESSFUL PUSH (deployment - the push alone is not the finish line)
+     - Vercel auto-deploys the web app on push: the profile/refresh web fix and the landing changes go live.
+     - Manually trigger a Render redeploy for the API: the refresh-token + organization part of 9f0ab6d
+       only reaches production on redeploy.
+     - Verify: git log origin/main -1 matches local HEAD, the Vercel deployment for `main` is green, and
+       the production landing page shows the rebuilt product / roles / inventory / footer sections.
+   ```
+   - **State:** `origin/main` = `bb486be`; local `main` is **6 commits ahead** — the five commits listed below (`9f0ab6d`, `9663896`, `3160dda`, `2f8404a`, `770f1b6`) plus the docs commit that adds this brief. That last commit's hash changes whenever this file is amended, so always identify it as the tip of `git log origin/main..HEAD` rather than by hash:
      1. `9f0ab6d` — fix: keep session, organization and profile photo across a refresh (15 files, +737/−52; 12 new tests; typecheck/lint green at commit time).
      2. `9663896` — docs: record the refresh/profile fix and correct push status (this HANDOFF/AI_CONTEXT update).
      3. `3160dda` — feat: rebuild landing page as 7-section editorial stone/terracotta design (28 files, +931/−1919; typecheck + eslint + `vite build` green at commit time).
      4. `2f8404a` — fix(web): match landing problem/roles/inventory/footer sections to Figma target (5 files, 461 insertions / 248 deletions; typecheck + eslint + `vite build` green at commit time).
-     5. the docs commit that records those four (HANDOFF only — `AI_CONTEXT.md`/`README.md`/`TASKS.md` edits remain intentionally uncommitted in the working tree); it is always the tip of `git log origin/main..HEAD`.
-   - **Why it isn't pushed:** this sandbox cannot authenticate — `git ls-remote origin` → `git@github.com: Permission denied (publickey)` (no `~/.ssh/id_rsa`/`id_ed25519`, `GITHUB_TOKEN` unset, no Windows Credential Manager `github` entry, prompts disabled).
+     5. `770f1b6` — docs: record the landing section alignment and refresh the push brief (HANDOFF.md only).
+     6. the docs commit that adds this push brief (HANDOFF.md only — `AI_CONTEXT.md`/`README.md`/`TASKS.md` edits remain intentionally uncommitted in the working tree); it is always the tip of `git log origin/main..HEAD`.
+   - **Why it isn't pushed:** this sandbox cannot authenticate — `git ls-remote origin` → `git@github.com: Permission denied (publickey)` (no `~/.ssh/id_rsa`/`id_ed25519`, `GITHUB_TOKEN` unset, no Windows Credential Manager `github` entry, prompts disabled). **Fix the auth rather than working around it:** load an SSH key for the `DNY-git` account, or temporarily repoint the remote at `https://github.com/DNY-git/framebase-app.git` and push with a PAT (see IF AUTH FAILS in the brief above), then set the SSH URL back.
    - **What the other agent must do (from a machine with GitHub credentials):**
      ```powershell
      cd C:\Users\DNY\ZCodeProject
      git fetch origin
-     git status                      # confirm: "Your branch is ahead of 'origin/main' by 5 commits"
-     git log origin/main..HEAD       # must list exactly 9f0ab6d, 9663896, 3160dda, 2f8404a plus one docs commit on top — nothing else
+     git status                      # confirm: "Your branch is ahead of 'origin/main' by 6 commits"
+     git log origin/main..HEAD       # must list exactly 9f0ab6d, 9663896, 3160dda, 2f8404a, 770f1b6 plus one docs commit on top — nothing else
      git push origin main            # do NOT force-push; remote has no commits we lack
      git log origin/main -1          # verify it now matches local HEAD (`git rev-parse HEAD`)
      ```
-   - **Do NOT commit or stage anything else.** The working tree still holds unrelated, intentionally-untracked/uncommitted material (checkpoint dirs `.zcode/`, `graphify-out/`, `.opencode/`, `apps/web/src/simple.spec.ts`, doc edits in `AI_CONTEXT.md`/`README.md`/`TASKS.md`, etc.) — a plain `git push` only moves commits, so it's safe; just don't `git add` anything.
-   - **After a successful push:** Vercel auto-deploys on push (picks up the profile/refresh web fix, the landing rebuild and the landing section-alignment fixes); manually trigger a **Render redeploy** for the API fix per the deploy note in the 2026-09-23 Completed Work entry — the API fix only reaches production on redeploy. Users who already lost photos to Render's ephemeral disk keep initials until they re-upload once.
+   - **Do NOT commit or stage anything else.** The working tree still holds unrelated, intentionally-untracked/uncommitted material (fully enumerated in the brief's GUARDRAILS section: unstaged edits to `.gitignore`/`AI_CONTEXT.md`/`README.md`/`TASKS.md`/`prompt.txt`/`apps/web/tsconfig.tsbuildinfo`, unstaged deletions of `figma/img.json`+`figma/prompt.txt`, and the untracked `.zcode/`, `.opencode/`, `graphify-out/`, three `.*-checkpoint-*` dirs, `apps/web/src/simple.spec.ts`, `docs/decisions/ADR-003-deployment-and-email.md`, `docs/features/landing.md`, `figma/darkmode.svg`, `figma/lightmode.svg`) — a plain `git push` only moves commits, so it's safe; just don't `git add` anything.
+   - **After a successful push:** Vercel auto-deploys on push (picks up the profile/refresh web fix, the landing rebuild and the landing section-alignment fixes); manually trigger a **Render redeploy** for the API fix per the deploy note in the 2026-09-23 Completed Work entry — the API fix only reaches production on redeploy. Users who already lost photos to Render's ephemeral disk keep initials until they re-upload once. Then verify `git log origin/main -1` matches local HEAD and the production landing page shows the rebuilt product/roles/inventory/footer sections.
 
 ---
 
