@@ -1,81 +1,92 @@
-import { ClipboardCheck, Lock, Zap } from 'lucide-react';
+import { FileStack, MessagesSquare, ReceiptText, X } from 'lucide-react';
 import { Reveal } from './shared';
 
-const SIGNALS = [
-  {
-    icon: Lock,
-    tint: 'border-emerald-100 bg-emerald-50 text-emerald-600',
-    head: 'Subcontractor blindness tracked',
-    body: 'Scope-limited access hides client budgets and margins from the field.',
-  },
-  {
-    icon: ClipboardCheck,
-    tint: 'border-amber-100 bg-amber-50 text-amber-600',
-    head: 'Audit trail on every state change',
-    body: 'Each edit, approval and upload lands in a timestamped, immutable log.',
-  },
-  {
-    icon: Zap,
-    tint: 'border-blue-100 bg-blue-50 text-cad-blue',
-    head: 'Real-time sync across sites',
-    body: 'Field captures reconcile with the cloud the moment signal returns.',
-  },
+/** Every link in the scattered-tools chain leaks information — the cost of no shared record. */
+const LEAKS = [
+  'Subcontractor disputes caused by conflicting chat versions',
+  'Equipment idle on site while billing daily rental fees',
+  'Material shortages reported days after procurement cutoff',
 ] as const;
 
 
-/** Five-node diagram: the scattered capture points feeding one dark source of truth. */
-function SourceOfTruthDiagram() {
+interface ToolNode {
+  icon: typeof MessagesSquare;
+  tint: string;
+  title: string;
+  sub: string;
+  subTint?: string;
+  place: string;
+}
+
+/** Four disconnected capture surfaces looping round one fragmented record. */
+const TOOLS: ToolNode[] = [
+  {
+    icon: MessagesSquare,
+    tint: 'bg-emerald-500 text-white',
+    title: 'Site Chat Groups',
+    sub: 'Lost change orders',
+    place: 'absolute left-0 top-[2%] w-[46%]',
+  },
+  {
+    icon: X,
+    tint: 'bg-emerald-600 text-white',
+    title: 'Budget_v14_final.xlsx',
+    sub: 'Broken formulas',
+    subTint: 'text-terracotta-600',
+    place: 'absolute right-0 top-[2%] w-[46%]',
+  },
+  {
+    icon: ReceiptText,
+    tint: 'bg-stone-200 text-stone-600',
+    title: 'Physical Site Receipts',
+    sub: 'Delayed billing entries',
+    place: 'absolute bottom-[2%] left-0 w-[46%]',
+  },
+  {
+    icon: FileStack,
+    tint: 'bg-blue-100 text-cad-blue',
+    title: 'Outdated Blueprints',
+    sub: 'Rework on site floor 3',
+    place: 'absolute bottom-[2%] right-0 w-[46%]',
+  },
+];
+
+function ScatteredToolsDiagram() {
   return (
-    <div className="relative mx-auto aspect-[600/390] w-full max-w-[640px]">
+    <div className="relative mx-auto aspect-[484/357] w-full max-w-[484px]">
+      {/* Dashed circulation loops — nothing reconciles back to a shared record */}
       <svg
         aria-hidden
         fill="none"
-        viewBox="0 0 600 390"
+        viewBox="0 0 620 440"
         preserveAspectRatio="none"
         className="absolute inset-0 h-full w-full"
       >
-        <path d="M210,78 C210,112 196,124 200,152" stroke="#D6D3D1" strokeDasharray="5 5" strokeWidth="1.5" />
-        <path d="M390,78 C390,112 404,124 400,152" stroke="#D6D3D1" strokeDasharray="5 5" strokeWidth="1.5" />
-        <path d="M200,296 C200,272 214,242 200,224" stroke="#D6D3D1" strokeDasharray="5 5" strokeWidth="1.5" />
-        <path d="M400,296 C400,272 386,242 400,224" stroke="#D6D3D1" strokeDasharray="5 5" strokeWidth="1.5" />
+        <ellipse cx="310" cy="218" rx="152" ry="128" stroke="#E4C7BB" strokeDasharray="4 5" strokeWidth="1.4" />
+        <ellipse cx="310" cy="218" rx="252" ry="186" stroke="#E7E2DA" strokeDasharray="4 5" strokeWidth="1.4" />
       </svg>
 
-      {/* Top capture streams */}
-      <div className="absolute left-0 top-[7%] flex w-[44%] items-center gap-2 rounded-lg border border-emerald-200 bg-white px-3 py-2 shadow-sm">
-        <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" aria-hidden />
-        <span className="text-[11px] font-semibold text-stone-800 sm:text-[13px]">Site Chat Streams</span>
-      </div>
-      <div className="absolute right-0 top-[7%] flex w-[44%] items-center justify-end gap-2 rounded-lg border border-emerald-200 bg-white px-3 py-2 shadow-sm">
-        <span className="text-[11px] font-semibold text-stone-800 sm:text-[13px]">Budget Live Feed</span>
-        <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" aria-hidden />
-      </div>
-
-      {/* The single source of truth */}
-      <div className="absolute left-1/2 top-[39%] w-[74%] -translate-x-1/2 rounded-lg bg-stone-900 px-4 py-3 text-center shadow-dashboard sm:py-4">
-        <p className="font-mono text-[8px] uppercase tracking-[0.22em] text-terracotta-500 sm:text-[10px]">
-          FrameBase
-        </p>
-        <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white sm:text-[13px]">
-          Single Source of Truth
-        </p>
-      </div>
-
-      {/* Bottom capture surfaces */}
-      <div className="absolute bottom-[6%] left-0 w-[46%] rounded-lg border border-stone-200 bg-white px-3 py-2.5 shadow-card-subtle">
-        <p className="text-[11px] font-semibold text-stone-900 sm:text-[13px]">Project Site Team Hub</p>
-        <p className="mt-0.5 font-mono text-[9px] text-stone-500 sm:text-[10px]">Daily logs · crew roster</p>
-      </div>
-      <div className="absolute bottom-[6%] right-0 w-[46%] rounded-lg border border-stone-200 bg-white px-3 py-2.5 shadow-card-subtle">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="text-[11px] font-semibold text-stone-900 sm:text-[13px]">Drawings / Plans</p>
-            <p className="mt-0.5 font-mono text-[9px] text-stone-500 sm:text-[10px]">Rev 3.2 · as-built</p>
-          </div>
-          <span className="shrink-0 rounded border border-terracotta-500/30 bg-terracotta-500/10 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-terracotta-600 sm:text-[9px]">
-            Not built yet
+      {TOOLS.map((t) => (
+        <div
+          key={t.title}
+          className={`${t.place} flex items-center gap-2.5 rounded-lg border border-stone-200 bg-white px-3 py-2.5 shadow-card-subtle`}
+        >
+          <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${t.tint}`}>
+            <t.icon className="h-4 w-4" strokeWidth={2} aria-hidden />
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-[12px] font-semibold text-stone-900 sm:text-[13px]">{t.title}</span>
+            <span className={`block truncate font-mono text-[9px] sm:text-[10px] ${t.subTint ?? 'text-stone-500'}`}>
+              {t.sub}
+            </span>
           </span>
         </div>
-      </div>
+      ))}
+
+      {/* The shared record that never exists */}
+      <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-terracotta-500/40 bg-terracotta-500/10 px-3 py-1 font-mono text-[9px] uppercase tracking-[0.16em] text-terracotta-600 sm:text-[10px]">
+        Fragmented data flow
+      </span>
     </div>
   );
 }
@@ -83,7 +94,7 @@ function SourceOfTruthDiagram() {
 /** "Everything your construction team needs, connected." — capabilities bridge + scattered-tools consequence copy. */
 export function ProblemSection() {
   return (
-    <section id="product" className="border-b border-stone-200/60 bg-white py-24">
+    <section id="product" className="border-b border-stone-200/60 bg-cream py-24">
       <div className="mx-auto max-w-7xl px-6">
         <Reveal>
           <div className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:items-start">
@@ -95,42 +106,43 @@ export function ProblemSection() {
                 Seven capabilities, one workspace. No more jumping between tools to answer simple questions.
               </p>
             </div>
-            <div className="lg:pt-3">
+            <div className="lg:ml-auto lg:max-w-[460px]">
               <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-stone-400">
-                Selection · Standard 02
+                Architectural Standard 01
               </p>
-              <p className="mt-4 max-w-md text-[15px] leading-relaxed text-stone-600">
-                In-house site chat, document and site streams. Then FrameBase knits those workflows into a single
-                bridge.
+              <p className="mt-4 text-[14px] leading-relaxed text-stone-600">
+                When field data, material stock, subcontractor labor, and finance live in separate silos, cost
+                overruns are discovered too late to mitigate. FrameBase bonds these workflows into a single immutable
+                ledger.
               </p>
             </div>
           </div>
         </Reveal>
 
-        <div className="mt-16 grid grid-cols-1 gap-14 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+        <div className="mt-40 grid grid-cols-1 gap-14 lg:grid-cols-[1.07fr_1fr] lg:items-center">
           <Reveal>
-            <SourceOfTruthDiagram />
+            <ScatteredToolsDiagram />
           </Reveal>
 
           <Reveal delayMs={120}>
-            <h3 className="font-display text-3xl font-normal leading-tight text-stone-900 sm:text-4xl">
+            <h3 className="font-display text-[48px] font-normal leading-none text-stone-900">
               Construction shouldn&rsquo;t feel this scattered.
             </h3>
-            <p className="mt-5 text-[15px] leading-relaxed text-stone-600">
-              Small teams wrestle a dozen disconnected tools and static files. Site photos vanish, versions drift, and
-              critical sheets stay locked in someone&rsquo;s message history. FrameBase collapses the whole chain into
-              one workspace.
+            <p className="mt-5 font-mono text-[11px] uppercase leading-relaxed tracking-[0.14em] text-stone-400">
+              The traditional workflow is a chain of disconnected tools and every link leaks information.
             </p>
-            <ul className="mt-8 space-y-5">
-              {SIGNALS.map((s) => (
-                <li key={s.head} className="flex gap-3.5">
-                  <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md border ${s.tint}`}>
-                    <s.icon className="h-4 w-4" strokeWidth={1.6} aria-hidden />
+            <p className="mt-5 text-[16px] leading-relaxed text-stone-600">
+              Construction teams struggle with poor site visibility, uncertain budgets, lost information,
+              communication gaps, and too many disconnected tools, making it difficult to maintain a clear and
+              accurate view of project progress.
+            </p>
+            <ul className="mt-8 space-y-4">
+              {LEAKS.map((leak) => (
+                <li key={leak} className="flex items-start gap-3">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-terracotta-500/15 text-terracotta-600">
+                    <X className="h-3 w-3" strokeWidth={3} aria-hidden />
                   </span>
-                  <div>
-                    <p className="text-[14px] font-semibold text-stone-900">{s.head}</p>
-                    <p className="mt-0.5 text-[13px] leading-relaxed text-stone-500">{s.body}</p>
-                  </div>
+                  <span className="text-[13.5px] leading-relaxed text-stone-600">{leak}</span>
                 </li>
               ))}
             </ul>
@@ -140,4 +152,3 @@ export function ProblemSection() {
     </section>
   );
 }
-

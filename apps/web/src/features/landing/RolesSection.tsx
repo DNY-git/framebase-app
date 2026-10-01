@@ -1,58 +1,58 @@
-import { KeyRound } from 'lucide-react';
+import logoMark from '../../assets/logo-mark-dark.svg';
 import { Reveal } from './shared';
 
 const ROLES = [
   {
-    tag: 'Management',
-    tint: 'border-blue-200 bg-blue-50 text-cad-blue',
+    tag: 'Executive',
+    dot: 'bg-terracotta-500',
     title: 'Project Owner / CEO',
-    body: 'Final spend validation, profit margins and company-wide oversight.',
-    access: 'Access: Full control',
+    body: 'Full portfolio ROI, budget release signoff, macro burn rates.',
+    access: 'Full read & write access',
+  },
+  {
+    tag: 'Management',
+    dot: 'bg-emerald-500',
+    title: 'Project Manager',
+    body: 'Gantt scheduling, contractor milestone approvals, risk logs.',
+    access: 'Milestone & task authority',
+  },
+  {
+    tag: 'Jobsite',
+    dot: 'bg-cad-blue',
+    title: 'Site Engineer / Foreman',
+    body: 'Mobile daily logs, material intake, worker headcount check-in.',
+    access: 'Site operations only',
   },
   {
     tag: 'Finance',
-    tint: 'border-terracotta-500/30 bg-terracotta-500/10 text-terracotta-600',
-    title: 'Project Manager',
-    body: 'Budget distribution, phase approvals and schedule control.',
-    access: 'Access: Project scope',
-  },
-  {
-    tag: 'Site',
-    tint: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-    title: 'Site Engineer / Foreman',
-    body: 'Daily recaps, photo supervision and checklist updates.',
-    access: 'Access: Field ops',
-  },
-  {
-    tag: 'Field',
-    tint: 'border-amber-200 bg-amber-50 text-amber-700',
+    dot: 'bg-amber-500',
     title: 'Quantity Surveyor',
-    body: 'Material entries, rebar measurements and valuation takes.',
-    access: 'Access: Assigned tasks',
+    body: 'BOQ tracking, valuation claims, material variance reports.',
+    access: 'Cost & billing audit',
   },
   {
-    tag: 'Field',
-    tint: 'border-stone-300 bg-stone-100 text-stone-600',
+    tag: 'Logistics',
+    dot: 'bg-violet-500',
     title: 'Procurement Lead',
-    body: 'Supplier quotes, change orders and purchase approvals.',
-    access: 'Access: Vendor views',
+    body: 'Vendor tenders, delivery manifests, warehouse inventory dispatch.',
+    access: 'Supplier & PO hub',
   },
   {
-    tag: 'Office',
-    tint: 'border-blue-200 bg-blue-50 text-cad-blue',
+    tag: 'Partner',
+    dot: 'bg-stone-400',
     title: 'Subcontractors',
-    body: 'Assigned scope, upload proofs and raised tickets only.',
-    access: 'Access: Limited views',
+    body: 'Assigned work orders, snagging resolution photos, submission only.',
+    access: 'Restricted scope view',
   },
 ] as const;
 
 /** "Everyone has a role. Everyone stays aligned." — single-truth engine card + six role cards. */
 export function RolesSection() {
   return (
-    <section id="roles" className="bg-white py-24">
+    <section id="roles" className="bg-cream py-24">
       <div className="mx-auto max-w-7xl px-6">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <h2 className="font-display text-4xl font-normal leading-[1.08] text-stone-900 sm:text-5xl">
+          <h2 className="font-display text-4xl font-normal leading-[1.08] text-stone-900 sm:text-5xl lg:text-[56px] lg:leading-[1.07]">
             Everyone has a role.
             <span className="block">Everyone stays aligned.</span>
           </h2>
@@ -61,46 +61,42 @@ export function RolesSection() {
           </p>
         </Reveal>
 
-        <div className="mt-16 grid grid-cols-1 gap-6 lg:grid-cols-[0.82fr_1.18fr]">
+        <div className="mt-16 grid grid-cols-1 gap-6 rounded-2xl border border-stone-200 bg-white p-8 shadow-card-subtle lg:grid-cols-[0.48fr_1fr] lg:gap-8 lg:p-12">
           {/* Single truth engine */}
           <Reveal>
-            <div className="flex h-full flex-col justify-between rounded-xl bg-stone-900 p-8 shadow-dashboard">
-              <div>
-                <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-terracotta-500">
-                  FrameBase Single Source of Truth
-                </p>
-                <div className="mt-7 flex h-14 w-14 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-white">
-                  <KeyRound className="h-6 w-6" strokeWidth={1.5} aria-hidden />
-                </div>
-                <h3 className="mt-6 text-xl font-semibold text-white">FrameBase Single Truth Engine</h3>
-                <p className="mt-2.5 text-[14px] leading-relaxed text-stone-400">
-                  Every role sees the same live numbers. No exports, no re-keying, no second version of the truth.
-                </p>
-              </div>
-              <div className="mt-8 flex flex-wrap gap-2 border-t border-white/10 pt-5">
-                <span className="rounded border border-white/15 bg-white/5 px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-stone-300">
-                  Scoped access
+            <div className="flex h-full items-center justify-center rounded-xl border border-stone-200 bg-white p-8">
+              <div className="text-center">
+                <span className="relative mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-stone-900 shadow-dashboard">
+                  <img src={logoMark} alt="" draggable={false} className="h-9 w-9 object-contain" />
+                  <span
+                    aria-hidden
+                    className="absolute -right-1.5 -top-1.5 h-4 w-4 rounded-full border-2 border-white bg-terracotta-500"
+                  />
                 </span>
-                <span className="rounded border border-white/15 bg-white/5 px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-stone-300">
-                  Live numbers
+                <h3 className="mt-6 text-lg font-bold text-stone-900">FrameBase Single Truth Engine</h3>
+                <p className="mt-1.5 text-[13.5px] text-stone-500">Granular Role-Based Access Control</p>
+                <span className="mt-6 inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-3.5 py-1.5 font-mono text-[10.5px] uppercase tracking-wider text-stone-600">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
+                  256-bit Row Level Security
                 </span>
               </div>
             </div>
           </Reveal>
 
           {/* Role cards */}
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {ROLES.map((r, i) => (
               <Reveal key={r.title} delayMs={i * 50}>
-                <div className="flex h-full flex-col rounded-xl border border-stone-200 bg-white p-5 shadow-card-subtle transition hover:-translate-y-0.5 hover:shadow-md">
-                  <span
-                    className={`self-start rounded border px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.14em] ${r.tint}`}
-                  >
-                    {r.tag}
-                  </span>
-                  <h3 className="mt-4 text-[15px] font-semibold text-stone-900">{r.title}</h3>
-                  <p className="mt-1.5 flex-1 text-[13px] leading-relaxed text-stone-500">{r.body}</p>
-                  <p className="mt-4 border-t border-stone-100 pt-3 font-mono text-[10px] uppercase tracking-wider text-stone-400">
+                <div className="flex h-full flex-col rounded-lg border border-stone-200 bg-white p-4 shadow-card-subtle transition hover:border-stone-300">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="rounded border border-stone-200 bg-stone-50 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.14em] text-stone-500">
+                      {r.tag}
+                    </span>
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${r.dot}`} aria-hidden />
+                  </div>
+                  <h4 className="mt-2 text-[15px] font-bold text-stone-900">{r.title}</h4>
+                  <p className="mt-1 flex-1 text-[12px] leading-[16px] text-stone-500">{r.body}</p>
+                  <p className="mt-2 border-t border-stone-100 pt-3 font-mono text-[9.5px] uppercase tracking-[0.12em] text-terracotta-600">
                     {r.access}
                   </p>
                 </div>
@@ -112,4 +108,3 @@ export function RolesSection() {
     </section>
   );
 }
-
