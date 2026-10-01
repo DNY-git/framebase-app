@@ -28,7 +28,7 @@ export function FAQSection() {
   return (
     <section id="faq" className="border-t border-stone-200 bg-white py-24">
       <div className="mx-auto max-w-4xl px-6">
-        <Reveal className="mb-16 text-center">
+        <Reveal className="mb-20 text-center">
           <span className="font-mono text-xs uppercase tracking-widest text-stone-400">Frequently Asked Questions</span>
           <h2 className="font-display mt-2 text-4xl font-normal text-stone-900 sm:text-5xl">
             Clear answers for construction teams.
@@ -39,10 +39,10 @@ export function FAQSection() {
           {FAQS.map((f, i) => (
             <Reveal key={f.q} delayMs={i * 60}>
               <details className="group rounded-xl border border-stone-200 bg-white p-6 [&_summary::-webkit-details-marker]:hidden">
-                <summary className="flex cursor-pointer list-none items-center justify-between text-lg font-medium text-stone-900">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-[16px] font-semibold text-stone-900">
                   <span>{f.q}</span>
                   <span className="text-stone-400 transition group-open:rotate-180">
-                    <ChevronDown className="h-6 w-6" strokeWidth={1.5} aria-hidden />
+                    <ChevronDown className="h-5 w-5" strokeWidth={1.75} aria-hidden />
                   </span>
                 </summary>
                 <p className="mt-4 text-sm font-normal leading-relaxed text-stone-600">{f.a}</p>
