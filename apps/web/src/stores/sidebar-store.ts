@@ -4,9 +4,9 @@ import { create } from 'zustand';
 const COLLAPSED_STORAGE_KEY = 'ct_sidebar_collapsed';
 
 interface SidebarStore {
-  /** Mobile drawer visibility (unchanged). */
+  /** Mobile: visibility of the expanded labeled sheet opened from the pill. */
   mobileOpen: boolean;
-  /** Desktop rail state: true = icon-only rail, false = full labels. */
+  /** Desktop bubble nav state: true = collapsed vertical pill, false = full panel. */
   collapsed: boolean;
   openMobile: () => void;
   closeMobile: () => void;
