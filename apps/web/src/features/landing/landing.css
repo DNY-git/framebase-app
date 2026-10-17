@@ -1,0 +1,452 @@
+/*
+ * Landing page styles — exact port of the reference design's inline <style> blocks.
+ * Everything is scoped under .landing-page so the rest of the app is untouched.
+ * (Tailwind utilities live in cascade layers; these unlayered rules therefore
+ * win over conflicting utilities exactly like the reference's head styles did.)
+ */
+
+/* base-typography */
+.landing-page .serif-display {
+  font-family: 'Instrument Serif', Georgia, serif;
+  letter-spacing: -0.015em;
+}
+
+/*
+ * Tailwind v3 → v4 line-height fidelity.
+ *
+ * (a) v3 emitted text-{size} utilities with FIXED px line-heights (text-xs:
+ *     1rem), which descendants inherited as-is. v4 uses unitless values that
+ *     every descendant recalculates against its own font-size — shrinking
+ *     arbitrarily-sized children (badges at text-[10px], table th at
+ *     text-[11px]) that the reference keeps at 16px. Restore the fixed v3
+ *     values. Elements carrying their own leading-* utility are excluded:
+ *     in v3 those beat the base text-size's line-height (leading utilities
+ *     were emitted after font-size utilities at the top level).
+ *
+ * (b) v3 emitted RESPONSIVE size utilities (sm:/md:/lg:text-*) inside @media
+ *     blocks placed after all base utilities, so a responsive size's built-in
+ *     line-height overrode any top-level leading-* class. v4 orders them the
+ *     other way. The reference's computed line-heights for the four elements
+ *     where the two conflict are encoded explicitly below.
+ */
+.landing-page .text-xs:not([class*='leading']) { line-height: 1rem; }
+.landing-page .text-sm:not([class*='leading']) { line-height: 1.25rem; }
+.landing-page .text-base:not([class*='leading']) { line-height: 1.5rem; }
+.landing-page .text-lg:not([class*='leading']) { line-height: 1.75rem; }
+.landing-page .text-xl:not([class*='leading']) { line-height: 1.75rem; }
+.landing-page .text-2xl:not([class*='leading']) { line-height: 2rem; }
+.landing-page .text-3xl:not([class*='leading']) { line-height: 2.25rem; }
+.landing-page .text-4xl:not([class*='leading']) { line-height: 2.5rem; }
+.landing-page .text-5xl:not([class*='leading']) { line-height: 1; }
+.landing-page .text-6xl:not([class*='leading']) { line-height: 1; }
+.landing-page .text-7xl:not([class*='leading']) { line-height: 1; }
+
+/* (a-cont.) The responsive-prefixed sizes must win over the base-size rules
+   above at their breakpoints — mirroring v3, where the @media rules carried
+   both font-size and line-height after everything else. */
+@media (min-width: 640px) {
+  .landing-page .sm\:text-4xl:not([class*='leading']) { line-height: 2.5rem; }
+  .landing-page .sm\:text-5xl:not([class*='leading']) { line-height: 1; }
+  .landing-page .sm\:text-6xl:not([class*='leading']) { line-height: 1; }
+}
+@media (min-width: 768px) {
+  .landing-page .md\:text-lg:not([class*='leading']) { line-height: 1.75rem; }
+  .landing-page .md\:text-2xl:not([class*='leading']) { line-height: 2rem; }
+  .landing-page .md\:text-5xl:not([class*='leading']) { line-height: 1; }
+  .landing-page .md\:text-6xl:not([class*='leading']) { line-height: 1; }
+  .landing-page .md\:text-7xl:not([class*='leading']) { line-height: 1; }
+}
+
+/* (b) hero h1: below sm the top-level leading-[1.04] beats text-5xl's
+   built-in line-height; from sm up the responsive sizes' built-ins (all
+   line-height 1) win — lg:text-[84px] is arbitrary and adds none. */
+.landing-page h1.leading-\[1\.04\] { line-height: 1.04; }
+@media (min-width: 640px) {
+  .landing-page h1.leading-\[1\.04\] { line-height: 1; }
+}
+
+/* (b) problem h2 + material h2 (leading-[1.08] below sm; sm:text-5xl and
+   md:text-6xl → 1 from their breakpoints up). */
+.landing-page .leading-\[1\.08\] { line-height: 1.08; }
+@media (min-width: 640px) {
+  .landing-page .leading-\[1\.08\] { line-height: 1; }
+}
+
+/* (b) problem h3 (leading-tight below sm; sm:text-4xl → 2.5rem;
+   md:text-5xl → 1). */
+.landing-page .leading-tight { line-height: 1.25; }
+@media (min-width: 640px) {
+  .landing-page .leading-tight { line-height: 2.5rem; }
+}
+@media (min-width: 768px) {
+  .landing-page .leading-tight { line-height: 1; }
+}
+
+/* Smooth scrolling is toggled on <html> only while the landing page is mounted
+   (the class is added from JS, so don't rely on Tailwind emitting the utility). */
+html.scroll-smooth {
+  scroll-behavior: smooth;
+}
+
+/* architectural-grid */
+.landing-page .blueprint-grid {
+  background-image: radial-gradient(circle, #d8d4c8 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+.landing-page .blueprint-lines {
+  background-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* ui-accents */
+.landing-page .node-pulse {
+  animation: pulseGlow 3s infinite ease-in-out;
+}
+@keyframes pulseGlow {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+.landing-page details summary::-webkit-details-marker {
+  display: none;
+}
+
+/* role-console — selected row highlighted in light grey */
+.landing-page .role-tab {
+  transition: background-color 0.2s ease;
+}
+.landing-page .role-tab + .role-tab {
+  border-top: 1px solid rgba(20, 20, 18, 0.06);
+}
+.landing-page .role-tab:hover {
+  background-color: rgba(20, 20, 18, 0.03);
+}
+.landing-page .role-tab.is-active {
+  background-color: #f0efec;
+}
+.landing-page .role-tab.is-active .role-name {
+  color: #1c1917;
+}
+.landing-page .role-tab.is-active .role-mail {
+  color: rgba(20, 20, 18, 0.55);
+}
+.landing-page .role-tab.is-active .role-cta {
+  color: rgba(20, 20, 18, 0.7);
+}
+.landing-page .role-tab.is-active .role-ava {
+  box-shadow: 0 0 0 2px rgba(20, 20, 18, 0.15);
+}
+.landing-page .role-tab.is-active .role-chev {
+  color: #e25c38;
+  transform: rotate(-90deg);
+}
+
+/* --- Floating bubble-pill navigation (morphs once the page is scrolled, reverts at top) --- */
+.landing-page header[data-purpose='site-navigation'] {
+  transition:
+    top 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.4s ease,
+    backdrop-filter 0.4s ease,
+    -webkit-backdrop-filter 0.4s ease;
+}
+.landing-page header[data-purpose='site-navigation'] > div {
+  border: 1px solid transparent;
+  white-space: nowrap;
+  transition:
+    max-width 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    padding 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    border-radius 0.5s ease,
+    background-color 0.4s ease,
+    border-color 0.4s ease,
+    box-shadow 0.5s ease,
+    backdrop-filter 0.4s ease,
+    -webkit-backdrop-filter 0.4s ease;
+}
+.landing-page header[data-purpose='site-navigation'].nav-pill {
+  top: 14px;
+  background-color: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.landing-page header[data-purpose='site-navigation'].nav-pill > div {
+  width: calc(100% - 2rem);
+  max-width: 56rem;
+  height: 4rem;
+  border-radius: 9999px;
+  background-color: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  border-color: rgba(120, 113, 108, 0.16);
+  box-shadow:
+    0 1px 2px rgba(28, 25, 23, 0.06),
+    0 16px 40px -12px rgba(28, 25, 23, 0.22);
+  padding-left: 1.5rem;
+  padding-right: 0.625rem;
+}
+
+/* Log in / Sign up actions: fade + collapse away once the pill forms (prevents cropping) */
+.landing-page header[data-purpose='site-navigation'] > div > div:last-child {
+  max-width: 14rem;
+  overflow: hidden;
+  padding: 3px;
+  margin: -3px;
+  transition:
+    max-width 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.3s ease,
+    visibility 0s linear 0s;
+}
+.landing-page header[data-purpose='site-navigation'].nav-pill > div > div:last-child {
+  max-width: 0px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    max-width 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.3s ease,
+    visibility 0s linear 0.35s;
+}
+
+/* --- Animated footer (bold editorial) --- */
+/* 1. Top hairline draws across on first view */
+.landing-page .fb-topline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  z-index: 10;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(226, 92, 56, 0.85) 30%,
+    rgba(226, 92, 56, 0.85) 70%,
+    transparent
+  );
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 1.4s cubic-bezier(0.22, 1, 0.36, 1) 0.15s;
+}
+.landing-page .fb-armed.is-inview .fb-topline {
+  transform: scaleX(1);
+}
+
+/* 2. Staggered column reveal */
+.landing-page .fb-armed .fb-reveal {
+  opacity: 0;
+  transform: translateY(26px);
+  transition:
+    opacity 0.8s ease,
+    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--d, 0s);
+}
+.landing-page .fb-armed.is-inview .fb-reveal {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 3. Giant value marquee band (pauses on hover) */
+.landing-page .fb-big-track {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  will-change: transform;
+  animation: fb-bigmarquee 42s linear infinite;
+}
+.landing-page .fb-big-group {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+.landing-page .fb-big-band:hover .fb-big-track {
+  animation-play-state: paused;
+}
+@keyframes fb-bigmarquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.landing-page .fb-big-tick {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-weight: 400;
+  font-size: clamp(2.75rem, 6.5vw, 5.25rem);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  padding: 0 2.25rem;
+}
+.landing-page .fb-big-tick.roman {
+  color: #141412;
+}
+.landing-page .fb-big-tick.out-it {
+  font-style: italic;
+  color: transparent;
+  -webkit-text-stroke: 1.5px #a8a293;
+}
+@supports not (-webkit-text-stroke: 1px black) {
+  .landing-page .fb-big-tick.out-it {
+    color: #a8a293;
+  }
+}
+.landing-page .fb-big-tick.terra {
+  font-style: italic;
+  color: #e25c38;
+}
+.landing-page .fb-sep-lg {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  background: #e25c38;
+  transform: rotate(45deg);
+  opacity: 0.85;
+}
+
+/* 4. Giant wordmark: masked per-letter rise-in + per-letter hover */
+.landing-page .fb-word {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-weight: 400;
+  font-size: clamp(3.5rem, 16vw, 14rem);
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+.landing-page .fb-lm {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+}
+.landing-page .fb-lt {
+  display: inline-block;
+  transition:
+    transform 0.25s ease,
+    color 0.25s ease;
+}
+.landing-page .fb-lt.il {
+  font-style: italic;
+}
+.landing-page .fb-lt.fb-dot {
+  color: #e25c38;
+}
+.landing-page .fb-armed:not(.is-inview) .fb-lt {
+  transform: translateY(115%);
+}
+.landing-page .fb-armed.is-inview .fb-lt {
+  animation: fb-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(var(--i) * 60ms);
+}
+@keyframes fb-rise {
+  from {
+    transform: translateY(115%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.landing-page .fb-lt:hover {
+  transform: translateY(-0.035em);
+  color: #e25c38;
+}
+.landing-page .fb-lt.fb-dot:hover {
+  color: #c94723;
+}
+
+/* 5. Link underline micro-interaction */
+.landing-page .fb-link {
+  position: relative;
+  display: inline-block;
+}
+.landing-page .fb-link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 100%;
+  height: 1px;
+  background: #e25c38;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.landing-page .fb-link:hover::after {
+  transform: scaleX(1);
+}
+
+/* 6. Back-to-top button */
+.landing-page .fb-top-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 9999px;
+  border: 1px solid #d5d0c3;
+  color: #7b7669;
+  background: #ffffff;
+  cursor: pointer;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease,
+    border-color 0.25s ease,
+    transform 0.25s ease;
+}
+.landing-page .fb-top-btn:hover {
+  background: #141412;
+  border-color: #141412;
+  color: #ffffff;
+  transform: translateY(-3px);
+}
+.landing-page .fb-top-btn svg {
+  transition: transform 0.25s ease;
+}
+.landing-page .fb-top-btn:hover svg {
+  transform: translateY(-2px);
+}
+.landing-page .fb-top-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(226, 92, 56, 0.5);
+}
+
+/* Reduced motion: everything appears instantly, marquees static */
+@media (prefers-reduced-motion: reduce) {
+  .landing-page .fb-topline {
+    transform: scaleX(1);
+    transition: none;
+  }
+  .landing-page .fb-armed .fb-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .landing-page .fb-big-track {
+    animation: none;
+  }
+  .landing-page .fb-armed.is-inview .fb-lt {
+    animation: none;
+  }
+  .landing-page .fb-armed:not(.is-inview) .fb-lt {
+    transform: none;
+  }
+  .landing-page .fb-top-btn,
+  .landing-page .fb-top-btn svg {
+    transition: none;
+  }
+}
+
+/*
+ * The app kills divide-y row borders globally (see styles/globals.css) as a
+ * product-wide design decision; the reference's equipment table relies on them,
+ * so restore them inside the landing scope only.
+ */
+.landing-page .divide-y > * {
+  border-top-width: 1px !important;
+}

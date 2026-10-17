@@ -1,112 +1,130 @@
-import { Link } from 'react-router-dom';
-import logoMark from '../../assets/logo-mark-light.svg';
+import { Fragment, useEffect, useRef } from 'react';
+import logoMark from '../../assets/landing/logo-landing.png';
+import { FOOTER_COLUMNS, MARQUEE_ITEMS } from './data';
 
-const COLUMNS = [
-  {
-    title: 'Product',
-    links: [
-      { label: 'Budget & Cost Variance', href: '#inventory' },
-      { label: 'Equipment Tracking', href: '#inventory' },
-      { label: 'Tender Comparison', href: '#stages' },
-      { label: 'Site Daily Logs', href: '#stages' },
-      { label: 'Drawing Vault', href: '#product' },
-    ],
-  },
-  {
-    title: 'Solutions',
-    links: [
-      { label: 'General Contractors', href: '#roles' },
-      { label: 'Civil Infrastructure', href: '#roles' },
-      { label: 'Real Estate Developers', href: '#roles' },
-      { label: 'Quantity Surveyors', href: '#roles' },
-      { label: 'Subcontractor Networks', href: '#roles' },
-    ],
-  },
-  {
-    title: 'Company',
-    links: [
-      { label: 'About FrameBase', href: '#product' },
-      { label: 'Construction Benchmark Report', href: '#inventory' },
-      { label: 'Privacy Policy', href: '#faq' },
-      { label: 'Terms of Service', href: '#faq' },
-      { label: 'Contact Engineering', href: '#demo' },
-    ],
-  },
-] as const;
+const WORD = ['F', 'r', 'a', 'm', 'e', 'B', 'a', 's', 'e', '.'];
 
+/** Main footer (reference: MainFooter) — fb-* scroll reveal, marquee band, wordmark rise-in, back-to-top. */
 export function LandingFooter() {
-  return (
-    <footer className="bg-white pb-12 pt-16 text-stone-600">
-      <div className="mx-auto max-w-7xl px-6">
-        <div className="grid grid-cols-1 gap-10 lg:grid-cols-[1.1fr_repeat(3,0.75fr)]">
-          {/* Brand + status */}
-          <div>
-            <Link to="/" aria-label="FrameBase home" className="flex items-center gap-2.5">
-              <img src={logoMark} alt="" draggable={false} className="h-8 w-8 object-contain" />
-              <span className="text-lg font-bold tracking-tight text-stone-900">FrameBase</span>
-            </Link>
-            <p className="mt-5 max-w-sm text-[13.5px] leading-relaxed text-stone-500">
-              The operating system for modern jobsites, commercial developers, and general contractors. Eliminating
-              cost variance through continuous visibility.
-            </p>
-            <p className="mt-6 flex items-center gap-2">
-              <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" aria-hidden />
-              <span className="font-mono text-[11px] tracking-[0.05em] text-emerald-600">
-                All Core Systems Operational
-              </span>
-            </p>
-          </div>
+  const footerRef = useRef<HTMLElement>(null);
 
-          {COLUMNS.map((col) => (
-            <nav key={col.title} aria-label={col.title}>
-              <h3 className="font-mono text-[10px] uppercase tracking-[0.18em] text-stone-400">{col.title}</h3>
-              <ul className="mt-5 space-y-1.5 text-[13.5px]">
-                {col.links.map((l) => (
-                  <li key={l.label}>
-                    <a href={l.href} className="text-stone-600 transition-colors hover:text-stone-900">
-                      {l.label}
+  useEffect(() => {
+    const foot = footerRef.current;
+    if (!foot) return;
+    foot.classList.add('fb-armed');
+    if (!('IntersectionObserver' in window)) {
+      foot.classList.add('is-inview');
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (let i = 0; i < entries.length; i++) {
+          if (entries[i].isIntersecting) {
+            foot.classList.add('is-inview');
+            io.disconnect();
+            break;
+          }
+        }
+      },
+      { threshold: 0.12 },
+    );
+    io.observe(foot);
+    return () => io.disconnect();
+  }, []);
+
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  return (
+    <footer data-purpose="main-footer" ref={footerRef} className="relative bg-white pt-16 pb-10 overflow-hidden">
+      <div className="fb-topline" aria-hidden="true" />
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 pb-12">
+          {/* Brand column */}
+          <div className="col-span-2 fb-reveal" style={{ '--d': '0s' } as React.CSSProperties}>
+            <div className="flex items-center gap-2.5">
+              <img src={logoMark} alt="FrameBase Logo" className="w-7 h-7 object-contain" />
+              <span className="text-xl font-bold tracking-tight font-sans text-stone-900">FrameBase</span>
+            </div>
+            <p className="mt-4 text-xs text-stone-500 max-w-xs leading-relaxed font-sans">
+              The operating system for modern jobsites, commercial developers, and general contractors. Eliminating cost
+              variance through continuous visibility.
+            </p>
+            <div className="mt-6 flex items-center gap-2 text-xs font-mono text-emerald-700">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              All Core Systems Operational
+            </div>
+          </div>
+          {/* Link columns */}
+          {FOOTER_COLUMNS.map((col, i) => (
+            <div key={col.title} className="fb-reveal" style={{ '--d': `${[0.1, 0.18, 0.26][i]}s` } as React.CSSProperties}>
+              <h4 className="text-xs uppercase font-mono tracking-wider text-stone-400 mb-4">{col.title}</h4>
+              <ul className="space-y-2.5 text-xs text-stone-600">
+                {col.links.map((link) => (
+                  <li key={link}>
+                    <a className="fb-link hover:text-stone-900 transition" href="#">
+                      {link}
                     </a>
                   </li>
                 ))}
               </ul>
-            </nav>
+            </div>
           ))}
         </div>
-
-        {/* Particle wordmark — pure SVG dash pattern, no canvas per frame */}
-        <svg
-          role="img"
-          aria-label="FrameBase"
-          viewBox="0 0 660 78"
-          className="mx-auto mt-24 h-auto w-full max-w-[660px]"
-        >
-          <defs>
-            <pattern id="fb-particle" width="8.6" height="16.5" patternUnits="userSpaceOnUse">
-              <rect width="6" height="4" y="6" rx="0.5" fill="#D1CEC6" />
-            </pattern>
-          </defs>
-          <text
-            x="335"
-            y="73"
-            textAnchor="middle"
-            fill="url(#fb-particle)"
-            fontFamily="Poppins, ui-sans-serif, system-ui, sans-serif"
-            fontSize="100"
-            fontWeight="700"
-            letterSpacing="10"
-          >
-            FRAMEBASE
-          </text>
-        </svg>
-
-        <div className="mt-16 flex flex-wrap items-center justify-between gap-4 border-t border-stone-200 pt-6 text-[12.5px] text-stone-500">
+      </div>
+      {/* Giant value marquee band */}
+      <div className="fb-big-band border-y border-stone-200 bg-stone-50 py-6 md:py-8 overflow-hidden" aria-hidden="true">
+        <div className="fb-big-track">
+          {[0, 1].map((g) => (
+            <div className="fb-big-group" key={g}>
+              {MARQUEE_ITEMS.map((item) => (
+                <Fragment key={item.text}>
+                  <span className={`fb-big-tick ${item.variant}`}>{item.text}</span>
+                  <span className="fb-sep-lg" />
+                </Fragment>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* Giant brand wordmark: letters rise in on first view, terracotta on hover */}
+      <div className="py-12 md:py-16 px-6 overflow-hidden">
+        <div className="max-w-7xl mx-auto text-center">
+          <h2 className="fb-word text-stone-900 select-none">
+            <span className="sr-only">FrameBase.</span>
+            {WORD.map((ch, i) => (
+              <span className="fb-lm" aria-hidden="true" key={`${ch}-${i}`}>
+                <span
+                  className={`fb-lt${ch === '.' ? ' fb-dot' : ''}`}
+                  style={{ '--i': i } as React.CSSProperties}
+                >
+                  {ch}
+                </span>
+              </span>
+            ))}
+          </h2>
+        </div>
+      </div>
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="pt-8 border-t border-stone-100 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-stone-400 font-mono">
           <p>&copy; {new Date().getFullYear()} FrameBase Inc. All rights reserved.</p>
-          <p className="font-mono text-[11.5px] tracking-[0.05em] text-stone-400">
-            Engineered for reliability on the world&rsquo;s most demanding jobsites.
-          </p>
+          <p>Engineered for reliability on the world's most demanding jobsites.</p>
+          <button id="fb-to-top" className="fb-top-btn" type="button" aria-label="Back to top" onClick={scrollToTop}>
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 19V5" />
+              <path d="m5 12 7-7 7 7" />
+            </svg>
+          </button>
         </div>
       </div>
     </footer>
   );
 }
-

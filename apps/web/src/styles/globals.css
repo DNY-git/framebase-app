@@ -1,17 +1,8 @@
 @import 'tailwindcss';
 
-@font-face {
-  font-family: 'Instrument Serif';
-  font-style: normal;
-  font-display: swap;
-  font-weight: 400;
-  src: url('../assets/fonts/instrument-serif/instrument-serif-latin-400-normal.woff2') format('woff2'),
-    url('../assets/fonts/instrument-serif/instrument-serif-latin-400-normal.woff') format('woff');
-}
-
 @theme {
-  /* Display serif for the marketing landing page (Instrument Serif, OFL-1.1,
-     vendored in src/assets/fonts/instrument-serif — self-hosted, no CDN). */
+  /* Display serif for the marketing landing page (Instrument Serif, self-hosted
+     via @fontsource — loaded by the landing feature, no Google Fonts CDN). */
   --font-serif: 'Instrument Serif', Georgia, 'Times New Roman', serif;
 
   /* 2026-09-23 landing redesign palette (editorial stone/terracotta system).
@@ -308,29 +299,14 @@ input[type="number"]::-webkit-inner-spin-button {
  */
 .landing-page {
   font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Re-point both stacks under the landing scope so `font-sans` / `font-mono`
+     utilities inside the landing resolve to the reference design's fonts
+     (Inter / JetBrains Mono) while the rest of the app keeps its monospace
+     stacks from @theme untouched. */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   -webkit-font-smoothing: antialiased;
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
-}
-
-.landing-page .font-display {
-  font-family: var(--font-serif);
-  font-weight: 400;
-  letter-spacing: -0.015em;
-}
-
-/* Architectural blueprint backdrops for the landing page. */
-@layer utilities {
-  .blueprint-grid {
-    background-image: radial-gradient(circle, #d8d4c8 1px, transparent 1px);
-    background-size: 28px 28px;
-  }
-  .blueprint-lines {
-    background-image:
-      linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
-    background-size: 32px 32px;
-  }
 }
 
 
